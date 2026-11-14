@@ -1,0 +1,27 @@
+# 构建上下文为仓库根目录：docker compose -f deploy/docker-compose.yml build
+# 注意：本机 Docker 不可用，此文件尚未实际构建验证（见 README「未验证」）。
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY . .
+
+RUN dotnet restore BlazorBoilerplate.slnx \
+ && dotnet publish src/Hosts/BlazorBoilerplate.ApiHost/BlazorBoilerplate.ApiHost.csproj -c Release -o /out/api --no-restore
+
+# 模块包必须随镜像一起发布（运行时从 BLAZORBOILERPLATE_MODULES_ROOT 发现）
+RUN bash scripts/build-module.sh catalog 1.0.0 \
+ && bash scripts/build-module.sh identity 1.0.0 \
+ && mkdir -p /out/modules \
+ && cp -r modules/installed /out/modules/installed
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+COPY --from=build /out/api ./api
+COPY --from=build /out/modules ./modules
+# ContentRoot 即 WORKDIR，安装标记与 SQLite 库落在 /app/api/data（由 compose 挂载卷持久化）
+RUN mkdir -p /app/api/data
+ENV ASPNETCORE_URLS=http://+:8080 \
+    BLAZORBOILERPLATE_MODULES_ROOT=/app/modules/installed
+VOLUME ["/app/api/data"]
+EXPOSE 8080
+WORKDIR /app/api
+ENTRYPOINT ["dotnet", "BlazorBoilerplate.ApiHost.dll"]

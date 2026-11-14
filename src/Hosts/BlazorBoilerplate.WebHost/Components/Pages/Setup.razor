@@ -1,0 +1,141 @@
+@page "/setup"
+@attribute [AllowAnonymous]
+@using Microsoft.AspNetCore.Authorization
+@layout IdentityLayout
+@rendermode RenderMode.InteractiveServer
+@inject BlazorBoilerplateApiClient Api
+@inject NavigationManager Navigation
+@inject ILogger<Setup> Logger
+
+@* 独立的启动配置页：通过 @layout 使用 IdentityLayout，不挂在 MainLayout / AppShell 之下。 *@
+<div class="auth-head">
+    <h1 class="auth-title">平台初始化</h1>
+    <p class="auth-sub">首次运行需要完成基础配置。提交后将自动建库建表（EF Core Migrations），初始化管理员、角色与菜单，并按加载顺序激活全部模块。</p>
+</div>
+
+@if (_status is { Installed: true })
+{
+    <div class="auth-msg">平台已完成初始化，正在进入控制台…</div>
+}
+else
+{
+    <div class="setup-form">
+        <BitTextField Label="管理员邮箱 *" @bind-Value="_email" Placeholder="admin@example.com" />
+        <BitTextField Label="管理员密码 *" @bind-Value="_password" Placeholder="至少 6 位" />
+        <BitTextField Label="系统名称" @bind-Value="_systemName" Placeholder="BlazorBoilerplate Platform" />
+
+        <BitDropdown Label="数据库类型 *"
+                     @bind-Value="_provider"
+                     Items="_providerItems" />
+
+        @if (_provider == "PostgreSQL")
+        {
+            <BitTextField Label="PostgreSQL 连接字符串" @bind-Value="_postgreSql"
+                          Placeholder="Host=localhost;Port=5432;Database=blazorboilerplate;Username=...;Password=..." />
+        }
+        else
+        {
+            <BitTextField Label="SQLite 连接串（留空 = data/blazorboilerplate.db）" @bind-Value="_sqlite"
+                          Placeholder="Data Source=data/blazorboilerplate.db" />
+        }
+
+        <BitTextField Label="Redis 连接字符串" @bind-Value="_redis"
+                      Placeholder="localhost:6379"
+                      HelpText="支持标准格式，例如 localhost:6379 或 localhost:6379,password=你的密码（StackExchange.Redis 格式）。" />
+    </div>
+
+    @if (_error is not null)
+    {
+        <div class="auth-msg error">@_error</div>
+    }
+
+    <div style="margin-top:1.25rem">
+        <BitButton Color="BitColor.Primary" OnClick="SubmitAsync" Disabled="@_submitting">
+            @(_submitting ? "初始化中…" : "完成初始化并进入平台")
+        </BitButton>
+    </div>
+
+    <p class="auth-foot">已经初始化过？<a class="auth-link" href="/">返回控制台</a></p>
+}
+
+@code {
+    private SetupStatus? _status;
+    private string _email = string.Empty;
+    private string _password = string.Empty;
+    private string? _systemName;
+    private string _provider = "PostgreSQL";
+    private string? _postgreSql;
+    private string? _sqlite;
+    private string? _redis;
+    private bool _submitting;
+    private string? _error;
+
+    private static readonly List<BitDropdownItem<string>> _providerItems =
+    [
+        new() { Text = "PostgreSQL（生产推荐）", Value = "PostgreSQL" },
+        new() { Text = "SQLite（开发/演示）", Value = "SQLite" }
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        // NavigateTo 置于 try/catch 之外：预渲染阶段 NavigationException 是重定向信号，不能被吞。
+        SetupStatus? status;
+        try
+        {
+            status = await Api.GetSetupStatusAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "读取安装状态失败");
+            _error = "无法连接 ApiHost：" + ex.Message;
+            return;
+        }
+
+        _status = status;
+        if (status.Installed)
+            Navigation.NavigateTo("/");
+    }
+
+    private async Task SubmitAsync()
+    {
+        _submitting = true;
+        _error = null;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_email))
+            {
+                _error = "管理员邮箱为必填项。";
+                return;
+            }
+            if (_password.Length < 6)
+            {
+                _error = "管理员密码至少 6 位。";
+                return;
+            }
+
+            var config = new SetupConfiguration(
+                _email, _password, _systemName,
+                _provider,
+                _provider == "PostgreSQL" ? _postgreSql : null,
+                _provider == "SQLite" ? _sqlite : null,
+                _redis);
+
+            _status = await Api.CompleteSetupAsync(config);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "初始化提交失败");
+            _error = ex.Message;
+            return;
+        }
+        finally
+        {
+            _submitting = false;
+        }
+
+        if (_status.Installed)
+            Navigation.NavigateTo("/");
+        else
+            _error = "初始化未完成，请重试。";
+    }
+}

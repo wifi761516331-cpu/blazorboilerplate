@@ -1,0 +1,95 @@
+@* 自包含模态框：替代 BitDialog（Bit.BlazorUI 10.7 的 BitDialog 在本项目 Fluent2 主题下渲染异常）。
+   特性：固定定位遮罩（不依赖任何祖先 transform）+ 居中卡片 + 标题/消息/自定义内容/确定取消按钮 + 异步 busy 状态。
+   用法：
+   <BlazorBoilerplateModal @bind-IsOpen="_open" Title="新建用户" OnOk="CreateAsync" OkText="创建" ShowCancel="true">
+      ...表单内容...
+   </BlazorBoilerplateModal>
+   OnOk 返回 Task；执行期间「确定」按钮显示 loading 并禁用；OnOk 抛异常不会自动关闭（便于重试）。
+   调用方在 OnOk 成功后自行把绑定字段置 false 即可关闭。 *@
+@if (IsOpen)
+{
+    <div class="blazorboilerplate-modal-backdrop" @onclick="OnBackdropClick">
+        <div class="blazorboilerplate-modal" role="dialog" aria-modal="true" @onclick:stopPropagation>
+            <header class="blazorboilerplate-modal-header">
+                <h3 class="blazorboilerplate-modal-title">@Title</h3>
+                @if (ShowClose)
+                {
+                    <button type="button" class="blazorboilerplate-modal-close" aria-label="关闭" @onclick="Cancel">✕</button>
+                }
+            </header>
+            <div class="blazorboilerplate-modal-body">
+                @if (!string.IsNullOrWhiteSpace(Message))
+                {
+                    <p class="blazorboilerplate-modal-message">@Message</p>
+                }
+                @ChildContent
+            </div>
+            <footer class="blazorboilerplate-modal-footer">
+                @if (ShowCancel)
+                {
+                    <button type="button" class="blazorboilerplate-btn ghost" @onclick="Cancel" disabled="@_busy">@(CancelText ?? "取消")</button>
+                }
+                <button type="button" class="blazorboilerplate-btn @(Danger ? "danger" : "primary")"
+                        @onclick="HandleOk" disabled="@(_busy || Disabled)">
+                    @if (_busy)
+                    {
+                        <span class="blazorboilerplate-spinner"></span>
+                    }
+                    <span>@(OkText ?? "确定")</span>
+                </button>
+            </footer>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string? Message { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    // EventCallback（而非 Func<Task>）：父组件的方法经由其 IHandleEvent 管线执行，
+    // 完成后父组件自动 StateHasChanged —— 绑定的 IsOpen=false 才能传导到本组件并关闭弹框。
+    [Parameter] public EventCallback OnOk { get; set; }
+    [Parameter] public string? OkText { get; set; }
+    [Parameter] public string? CancelText { get; set; }
+    [Parameter] public bool ShowCancel { get; set; } = true;
+    [Parameter] public bool ShowClose { get; set; } = true;
+    [Parameter] public bool Danger { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool CloseOnBackdrop { get; set; } = true;
+
+    private bool _busy;
+
+    private async Task HandleOk()
+    {
+        if (!OnOk.HasDelegate)
+        {
+            await CloseAsync();
+            return;
+        }
+        _busy = true;
+        try
+        {
+            await OnOk.InvokeAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private Task Cancel() => CloseAsync();
+
+    private void OnBackdropClick()
+    {
+        if (CloseOnBackdrop)
+            _ = CloseAsync();
+    }
+
+    private async Task CloseAsync()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+}

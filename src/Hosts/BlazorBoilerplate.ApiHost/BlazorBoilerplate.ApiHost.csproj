@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>BlazorBoilerplate.ApiHost</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Serilog.AspNetCore" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\BuildingBlocks\BlazorBoilerplate.Infrastructure\BlazorBoilerplate.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\BlazorBoilerplate.ModuleRuntime\BlazorBoilerplate.ModuleRuntime.csproj" />
+    <ProjectReference Include="..\..\Modules\Identity\BlazorBoilerplate.Modules.Identity\BlazorBoilerplate.Modules.Identity.csproj" />
+  </ItemGroup>
+</Project>

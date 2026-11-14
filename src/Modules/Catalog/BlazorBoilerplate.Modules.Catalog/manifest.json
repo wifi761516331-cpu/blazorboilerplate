@@ -1,0 +1,25 @@
+{
+  "id": "catalog",
+  "name": "Catalog",
+  "displayName": "商品目录",
+  "version": "1.0.6",
+  "publisher": "BlazorBoilerplate",
+  "entryAssembly": "BlazorBoilerplate.Modules.Catalog.dll",
+  "entryType": "BlazorBoilerplate.Modules.Catalog.CatalogModule",
+  "contractVersion": "1.0",
+  "moduleSdkVersion": "1.0",
+  "hostCompatibility": ">=1.0.0 <2.0.0",
+  "displayOrder": 100,
+  "dependencies": [],
+  "permissions": [ "catalog.product.read" ],
+  "frontend": {
+    "routes": [ "/catalog" ],
+    "menus": [ "Catalog" ],
+    "menuItems": [
+      { "text": "商品目录", "route": "/catalog", "icon": "Shop", "sort": 110 }
+    ],
+    "localization": [],
+    "assets": []
+  },
+  "checksumSha256": null
+}

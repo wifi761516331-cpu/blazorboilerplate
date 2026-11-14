@@ -1,0 +1,30 @@
+@page "/{**path}"
+@rendermode RenderMode.InteractiveServer
+@inject BlazorBoilerplate.WebHost.Services.ModuleAssemblyCatalog ModuleCatalog
+
+@* 动态模块页面兜底：SSR endpoint 固定为本 catch-all，组件在运行时从模块程序集解析。
+   线路建立后 Router（AdditionalAssemblies = ModuleCatalog.Assemblies）接管客户端导航。 *@
+@if (_componentType is null)
+{
+    <BitCallout Class="page-callout error">
+        <AppIcon Name="Alert" />
+        <span>没有找到与「@(Path ?? "/")」匹配的模块页面。模块可能尚未加载，或路由不存在。</span>
+    </BitCallout>
+}
+else
+{
+    <DynamicComponent Type="@_componentType" />
+}
+
+@code {
+    /// <summary>catch-all 捕获的路径（/catalog → "catalog"；/ → ""）。</summary>
+    [Parameter]
+    public string? Path { get; set; }
+
+    private Type? _componentType;
+
+    protected override void OnParametersSet()
+    {
+        _componentType = ModuleCatalog.ResolveComponent("/" + (Path ?? string.Empty));
+    }
+}

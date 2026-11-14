@@ -1,0 +1,95 @@
+# BlazorBoilerplate 本地/演示编排（无 RabbitMQ，见 docs/adr/0005-messaging-license.md）
+# 用法（仓库根目录）：
+#   docker compose -f deploy/docker-compose.yml up -d --build
+#   docker compose -f deploy/docker-compose.yml logs -f api web
+#
+# 首次运行：浏览器打开 http://localhost:5200 → /setup 配置页
+#   数据库选 PostgreSQL，连接串填：
+#   Host=postgres;Port=5432;Database=blazorboilerplate;Username=blazorboilerplate;Password=blazorboilerplate_dev_only
+#   （SQLite 也可，但容器重启后需依赖 blazorboilerplate-data 卷持久化）
+#
+# 注意：本机 Docker 不可用，此编排未实际运行验证；镜像基于
+#       mcr.microsoft.com/dotnet/sdk:10.0 与 aspnet:10.0（global.json 声明 10.0.100）。
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: blazorboilerplate
+      POSTGRES_USER: blazorboilerplate
+      POSTGRES_PASSWORD: blazorboilerplate_dev_only
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blazorboilerplate -d blazorboilerplate"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: blazorboilerplate
+      MINIO_ROOT_PASSWORD: blazorboilerplate_dev_only
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      BLAZORBOILERPLATE_MODULES_ROOT: /app/modules/installed
+      # 生产环境务必保持 DevBypass=false（默认值），首次运行必须走配置页
+      Setup__DevBypass: "false"
+      Cors__AllowedOrigins__0: http://localhost:5200
+    ports:
+      - "5100:8080"
+    volumes:
+      - blazorboilerplate-data:/app/api/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ApiHost__BaseUrl: http://api:8080
+    ports:
+      - "5200:8080"
+    depends_on:
+      - api
+
+volumes:
+  pg-data:
+  minio-data:
+  blazorboilerplate-data:

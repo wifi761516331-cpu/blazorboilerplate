@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!-- 前端共享 RCL：Host 与所有业务模块共用的 UI 基础设施。
+       业务模块（Identity / Catalog ...）的 Razor 页面不能反向引用 WebHost，
+       否则「前后端同体 RCL」的模块边界会被打破。API 客户端、DTO、通用图标、
+       identity 独立外壳因此下沉到这一层，由 Host 与模块共同引用。 -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>BlazorBoilerplate.Web.Shared</RootNamespace>
+    <AssemblyName>BlazorBoilerplate.Web.Shared</AssemblyName>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorBoilerplate.Application\BlazorBoilerplate.Application.csproj" />
+    <ProjectReference Include="..\BlazorBoilerplate.ModuleAbstractions\BlazorBoilerplate.ModuleAbstractions.csproj" />
+  </ItemGroup>
+
+</Project>

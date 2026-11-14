@@ -1,0 +1,347 @@
+@page "/identity/users"
+@rendermode RenderMode.InteractiveServer
+@inject BlazorBoilerplateApiClient Api
+@inject ILogger<Users> Logger
+@inject ToastService Toast
+
+<div class="page-callout">
+    <BitText Element="h1" Class="page-title">用户管理</BitText>
+    <BitText Class="muted">创建用户、分配角色、重置密码、启用停用。布局参考 bitplatform Boilerplate 管理页。</BitText>
+</div>
+
+<div class="id-page">
+    <div class="id-toolbar">
+        <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="RefreshAsync" Disabled="@_loading">刷新</BitButton>
+        <BitButton IconName="@BitIconName.Add" OnClick="@(() => ResetCreateForm())" Disabled="@_loading">新建用户</BitButton>
+    </div>
+
+    @if (_error is not null)
+    {
+        <BitCallout Class="page-callout error">@_error</BitCallout>
+    }
+
+    <div class="id-columns">
+        <BitCard Class="id-list-card">
+            <BitSearchBox @bind-Value="_search" Immediate DebounceTime="300" Placeholder="搜索用户名 / 邮箱 / 显示名" />
+            @if (_loading)
+            {
+                <BitText Class="muted">加载中…</BitText>
+            }
+            else if (_userNavItems.Count == 0)
+            {
+                <BitText Class="muted">暂无用户</BitText>
+            }
+            else
+            {
+                <BitNav Items="_userNavItems"
+                        Mode="BitNavMode.Manual"
+                        Reselectable
+                        NoCollapse
+                        OnSelectItem="@((BitNavItem item) => SelectUserAsync(item))" />
+            }
+        </BitCard>
+
+        <BitCard Class="id-detail-card">
+            <BitPivot>
+                <BitPivotItem HeaderText="常规">
+                    @if (_selected is null)
+                    {
+                        <BitText Class="muted">请从左侧选择一个用户。</BitText>
+                    }
+                    else
+                    {
+                        <div class="id-form">
+                            <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.5rem">
+                                <BitText Typography="BitTypography.H6">Id:</BitText>
+                                <BitTag Color="BitColor.TertiaryBackground">@_selected.Id</BitTag>
+                            </BitStack>
+                            <BitTextField ReadOnly Value="@_selected.UserName" Label="用户名" />
+                            <BitTextField ReadOnly Value="@_selected.Email" Label="邮箱" />
+                            <BitTextField ReadOnly Value="@_selected.DisplayName" Label="显示名" />
+                            <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.75rem">
+                                <BitBadge Color="@(_selected.IsActive ? BitColor.Success : BitColor.Error)">
+                                    @(_selected.IsActive ? "已启用" : "已停用")
+                                </BitBadge>
+                                <BitSpacer />
+                                <BitButton Variant="BitVariant.Outline" OnClick="@(() => OpenEditDialogAsync())">编辑资料</BitButton>
+                                <BitButton Variant="BitVariant.Outline" OnClick="@(() => { ResetPw = string.Empty; _resetPwDialogOpen = true; })">重置密码</BitButton>
+                                <BitButton Variant="BitVariant.Outline"
+                                           OnClick="ToggleActiveAsync"
+                                           Disabled="_busy.Contains(_selected.Id.ToString())">
+                                    @(_selected.IsActive ? "停用" : "启用")
+                                </BitButton>
+                                <BitButton Color="BitColor.Error" OnClick="@(() => _deleteDialogOpen = true)">删除</BitButton>
+                            </BitStack>
+                        </div>
+                    }
+                </BitPivotItem>
+                <BitPivotItem HeaderText="角色" ItemCount="@(_selectedRoleIds.Count == 0 ? null : _selectedRoleIds.Count)">
+                    @if (_selected is null)
+                    {
+                        <BitText Class="muted">请从左侧选择一个用户。</BitText>
+                    }
+                    else
+                    {
+                        <div class="id-check-list">
+                            @foreach (var role in _roles)
+                            {
+                                <BitCheckbox Value="@_roleSelection.GetValueOrDefault(role.Id)"
+                                             ValueChanged="@(v => OnRoleSelectionChanged(role.Id, v))"
+                                             Label="@GetRoleLabel(role)" />
+                            }
+                        </div>
+                        <div class="row">
+                            <BitButton OnClick="SaveRolesAsync" Disabled="@(!_roleDirty || _busy.Contains(_selected.Id.ToString()))">保存角色分配</BitButton>
+                            <BitText Class="muted id-tree-hint">保存后立即生效。</BitText>
+                        </div>
+                    }
+                </BitPivotItem>
+            </BitPivot>
+        </BitCard>
+    </div>
+</div>
+
+<BlazorBoilerplateModal @bind-IsOpen="_createDialogOpen"
+            Title="新建用户" OkText="创建" OnOk="CreateUserAsync">
+    <div class="id-form">
+        <BitTextField @bind-Value="NewUserName" Label="用户名 *" />
+        <BitTextField @bind-Value="NewEmail" Label="邮箱 *" />
+        <BitTextField @bind-Value="NewDisplayName" Label="显示名" />
+        <BitTextField @bind-Value="NewPassword" Label="初始密码 *" />
+    </div>
+</BlazorBoilerplateModal>
+
+<BlazorBoilerplateModal @bind-IsOpen="_editDialogOpen"
+            Title="编辑资料" OkText="保存" OnOk="SaveProfileAsync">
+    <div class="id-form">
+        <BitTextField @bind-Value="EditEmail" Label="邮箱 *" />
+        <BitTextField @bind-Value="EditDisplayName" Label="显示名" />
+    </div>
+</BlazorBoilerplateModal>
+
+<BlazorBoilerplateModal @bind-IsOpen="_resetPwDialogOpen"
+            Title="重置密码" OkText="重置" OnOk="ResetPasswordAsync">
+    <div class="id-form">
+        <BitTextField @bind-Value="ResetPw" Label="新密码（至少 6 位）*" />
+    </div>
+</BlazorBoilerplateModal>
+
+<BlazorBoilerplateModal @bind-IsOpen="_deleteDialogOpen"
+            Title="删除用户" Danger OkText="删除"
+            Message="@($"确定要删除用户 {_selected?.DisplayName ?? ""} 吗？该操作不可恢复。")"
+            OnOk="DeleteUserAsync" />
+
+@code {
+    private List<IdentityUserDto> _users = [];
+    private List<IdentityRoleDto> _roles = [];
+    private List<BitNavItem> _userNavItems = [];
+    private IdentityUserDto? _selected;
+    private HashSet<Guid> _selectedRoleIds = [];
+    private Dictionary<Guid, bool> _roleSelection = [];
+    private bool _roleDirty;
+    private bool _loading = true;
+    private string? _error;
+    private string _search = string.Empty;
+    private readonly HashSet<string> _busy = [];
+
+    private bool _createDialogOpen;
+    private bool _editDialogOpen;
+    private bool _resetPwDialogOpen;
+    private bool _deleteDialogOpen;
+
+    private string NewUserName = string.Empty;
+    private string NewEmail = string.Empty;
+    private string? NewDisplayName;
+    private string NewPassword = string.Empty;
+    private string EditEmail = string.Empty;
+    private string? EditDisplayName;
+    private string ResetPw = string.Empty;
+
+    protected override async Task OnInitializedAsync() => await RefreshAsync();
+
+    private void ResetCreateForm()
+    {
+        NewUserName = NewEmail = NewPassword = string.Empty;
+        NewDisplayName = null;
+        _error = null;
+        _createDialogOpen = true;
+    }
+
+    private async Task RefreshAsync()
+    {
+        _error = null;
+        _loading = true;
+        try
+        {
+            _users = [.. await Api.GetListAsync<IdentityUserDto>("api/identity/users")];
+            _roles = [.. await Api.GetListAsync<IdentityRoleDto>("api/identity/roles")];
+            RebuildNav();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            Logger.LogWarning(ex, "加载用户列表失败");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void RebuildNav()
+    {
+        var query = _search.Trim();
+        var filtered = string.IsNullOrWhiteSpace(query)
+            ? _users
+            : [.. _users.Where(u => $"{u.UserName}|{u.Email}|{u.DisplayName}".Contains(query, StringComparison.OrdinalIgnoreCase))];
+        _userNavItems = [.. filtered.Select(u => new BitNavItem
+        {
+            Key = u.Id.ToString(),
+            Text = u.DisplayName,
+            Description = $"{u.UserName} · {u.Email}" + (u.IsActive ? "" : " · 已停用"),
+            Data = u
+        })];
+    }
+
+    private async Task SelectUserAsync(BitNavItem item)
+    {
+        if (item?.Data is not IdentityUserDto user)
+            return;
+        _selected = user;
+        _roleDirty = false;
+        _error = null;
+        try
+        {
+            _selectedRoleIds = [.. await Api.GetListAsync<Guid>($"api/identity/users/{user.Id}/roles")];
+            _roleSelection = _roles.ToDictionary(r => r.Id, r => _selectedRoleIds.Contains(r.Id));
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private static string GetRoleLabel(IdentityRoleDto role) => role.IsSystem ? $"{role.Name}（内置）" : role.Name;
+
+    private void OnRoleSelectionChanged(Guid roleId, bool selected)
+    {
+        _roleSelection[roleId] = selected;
+        _roleDirty = true;
+    }
+
+    private async Task CreateUserAsync()
+    {
+        _error = null;
+        try
+        {
+            var body = new { UserName = NewUserName, Email = NewEmail, DisplayName = NewDisplayName, Password = NewPassword };
+            var response = await Api.PostAsync("api/identity/users", body);
+            EnsureOk(response);
+            _createDialogOpen = false;
+            Toast.Success($"用户「{NewUserName}」已创建。");
+            NewUserName = NewEmail = NewPassword = string.Empty;
+            NewDisplayName = null;
+            await RefreshAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; Toast.Error($"创建用户失败：{ex.Message}"); }
+    }
+
+    private Task OpenEditDialogAsync()
+    {
+        if (_selected is null) return Task.CompletedTask;
+        EditEmail = _selected.Email;
+        EditDisplayName = _selected.DisplayName;
+        _editDialogOpen = true;
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveProfileAsync()
+    {
+        if (_selected is null) return;
+        _error = null;
+        try
+        {
+            var body = new { UserName = _selected.UserName, Email = EditEmail, DisplayName = EditDisplayName, Password = string.Empty };
+            var response = await Api.PutAsync($"api/identity/users/{_selected.Id}", body);
+            EnsureOk(response);
+            _editDialogOpen = false;
+            Toast.Success($"用户「{_selected.DisplayName}」资料已保存。");
+            await RefreshAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; Toast.Error($"保存资料失败：{ex.Message}"); }
+    }
+
+    private async Task ResetPasswordAsync()
+    {
+        if (_selected is null) return;
+        _error = null;
+        try
+        {
+            var response = await Api.PutAsync($"api/identity/users/{_selected.Id}/password", new { Password = ResetPw });
+            EnsureOk(response);
+            _resetPwDialogOpen = false;
+            Toast.Success($"用户「{_selected.DisplayName}」的密码已重置。");
+        }
+        catch (Exception ex) { _error = ex.Message; Toast.Error($"重置密码失败：{ex.Message}"); }
+    }
+
+    private async Task ToggleActiveAsync()
+    {
+        if (_selected is null) return;
+        _error = null;
+        var key = _selected.Id.ToString();
+        _busy.Add(key);
+        try
+        {
+            var enabling = !_selected.IsActive;
+            var name = _selected.DisplayName;
+            var response = await Api.PutAsync($"api/identity/users/{_selected.Id}/active", new { IsActive = !_selected.IsActive });
+            EnsureOk(response);
+            Toast.Success($"用户「{name}」已{(enabling ? "启用" : "停用")}。");
+            await RefreshAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; Toast.Error($"切换启用状态失败：{ex.Message}"); }
+        finally { _busy.Remove(key); }
+    }
+
+    private async Task DeleteUserAsync()
+    {
+        if (_selected is null) return;
+        _error = null;
+        var name = _selected.DisplayName;
+        try
+        {
+            var response = await Api.DeleteAsync($"api/identity/users/{_selected.Id}");
+            EnsureOk(response);
+            _deleteDialogOpen = false;
+            Toast.Success($"用户「{name}」已删除。");
+            _selected = null;
+            await RefreshAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; Toast.Error($"删除用户失败：{ex.Message}"); }
+    }
+
+    private async Task SaveRolesAsync()
+    {
+        if (_selected is null) return;
+        _error = null;
+        var key = _selected.Id.ToString();
+        _busy.Add(key);
+        try
+        {
+            var ids = _roleSelection.Where(kv => kv.Value).Select(kv => kv.Key).ToArray();
+            var response = await Api.PutAsync($"api/identity/users/{_selected.Id}/roles", new { Ids = ids });
+            EnsureOk(response);
+            _roleDirty = false;
+            Toast.Success($"用户「{_selected.DisplayName}」的角色分配已保存。");
+        }
+        catch (Exception ex) { _error = ex.Message; Toast.Error($"保存角色分配失败：{ex.Message}"); }
+        finally { _busy.Remove(key); }
+    }
+
+    private static void EnsureOk(HttpResponseMessage response)
+    {
+        if (!response.IsSuccessStatusCode)
+            throw new HttpRequestException($"{(int)response.StatusCode}: {response.Content.ReadAsStringAsync().GetAwaiter().GetResult()}");
+    }
+}

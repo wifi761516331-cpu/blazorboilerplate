@@ -1,0 +1,40 @@
+<Project>
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <!--
+    只引入当前已实现能力真正需要的包（Bit.BlazorUI 核心/Extras/Icons + EF Core + Npgsql + Sqlite）。
+    FusionCache / Hangfire / MinIO SDK / Microsoft.AspNetCore.OData 等尚未接入，见 docs/ROADMAP.md。
+    授权红线：MassTransit v9+、MediatR v13+ 已转商业，禁止默认引入（见 docs/adr/0005-messaging-license.md）。
+    数据库无外键约定见 docs/adr/0003-no-foreign-keys.md。
+  -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.0" />
+    <PackageVersion Include="Bit.BlazorUI" Version="10.7.0" />
+    <PackageVersion Include="Bit.BlazorUI.Extras" Version="10.7.0" />
+    <PackageVersion Include="Bit.BlazorUI.Icons" Version="10.7.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
+    <PackageVersion Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageVersion Include="xunit" Version="2.9.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <!-- EF Core（批次 2）：数据持久化 + 迁移。版本须全部已缓存（离线环境）。
+         按约定不使用数据库级外键（参考 Nova：CustomNpgsqlMigrationsSqlGenerator 剥离 FK），
+         关系完整性由应用服务在代码层保证。 -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+  </ItemGroup>
+
+</Project>

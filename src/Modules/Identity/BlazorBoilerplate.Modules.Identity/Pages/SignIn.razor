@@ -1,0 +1,285 @@
+@page "/sign-in"
+@layout IdentityLayout
+@rendermode RenderMode.InteractiveServer
+@attribute [AllowAnonymous]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.JSInterop
+@using Microsoft.Extensions.Logging
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject BlazorBoilerplateApiClient Api
+@inject ILogger<SignIn> Logger
+
+@* 登录界面：移植自 Bluebird Components/Pages/Identity/SignIn/SignInPanel.razor。
+   Bluebird 使用 11.x 的 BitStack / BitPivot / BitPhoneInput / EditForm / CanRevealPassword，
+   BlazorBoilerplate 是 Bit.BlazorUI 10.7.0，故用原生表单 + app.css 的 Fluent2 输入框样式 1:1 复刻视觉。
+   真实鉴权由 WebHost wwwroot/app.js 的全局函数 blazorAuth.login / blazorAuth.redirect 完成
+   （POST /auth/login 写 cookie，成功后由宿主跳转 return-url）。
+   [AllowAnonymous]：Blazor Web App 的 AuthorizeRouteView 需放行该路由。
+   事件处理器统一用方法组（不用带字符串字面量的内联 lambda），规避 Razor 属性引号解析问题。 *@
+
+<div class="auth-head">
+    <h1 class="auth-title">登录</h1>
+    <p class="auth-sub">登录 BlazorBoilerplate 平台，继续管理你的模块与数据</p>
+</div>
+
+@if (_message is not null)
+{
+    <div class="auth-msg @(_messageIsError ? "error" : "")">@_message</div>
+}
+
+@* 第三方身份提供商（Bluebird ExternalIdentityProviders） *@
+<div class="ext-providers">
+    <button type="button" class="ext-btn" title="使用 Google 登录" @onclick="ExternalGoogleAsync">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#4285F4" d="M23.52 12.27c0-.79-.07-1.54-.2-2.27H12v4.51h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.88c2.27-2.09 3.57-5.17 3.57-8.87Z" />
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3c-1.08.72-2.45 1.16-4.05 1.16-3.13 0-5.78-2.11-6.72-4.96H1.28v3.09A12 12 0 0 0 12 24Z" />
+            <path fill="#FBBC05" d="M5.28 14.29a7.2 7.2 0 0 1 0-4.58V6.62H1.28a12 12 0 0 0 0 10.76l4-3.09Z" />
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.44-3.44A11.98 11.98 0 0 0 12 0 12 12 0 0 0 1.28 6.62l4 3.09C6.22 6.86 8.87 4.75 12 4.75Z" />
+        </svg>
+    </button>
+    <button type="button" class="ext-btn" title="使用 Microsoft 登录" @onclick="ExternalMicrosoftAsync">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#F25022" d="M1 1h10v10H1z" />
+            <path fill="#7FBA00" d="M13 1h10v10H13z" />
+            <path fill="#00A4EF" d="M1 13h10v10H1z" />
+            <path fill="#FFB900" d="M13 13h10v10H13z" />
+        </svg>
+    </button>
+    <button type="button" class="ext-btn" title="使用 GitHub 登录" @onclick="ExternalGitHubAsync">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+        </svg>
+    </button>
+    <button type="button" class="ext-btn" title="使用 Apple 登录" @onclick="ExternalAppleAsync">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path fill="currentColor" d="M11.18 8.46c.02 2.06 1.8 2.74 1.82 2.75-.02.05-.29.98-.94 1.94-.57.83-1.16 1.66-2.09 1.68-.91.02-1.2-.54-2.24-.54s-1.36.52-2.22.56c-.9.03-1.58-.9-2.15-1.73C2.2 11.2 1.05 7.88 2.88 5.66c.9-1.1 2.32-1.79 3.66-1.79.86 0 1.67.58 2.2.58.53 0 1.53-.72 2.58-.61.44.02 1.67.18 2.46 1.35-.06.04-1.47.86-1.45 2.57ZM9.6 2.9c.47-.57.79-1.36.7-2.15-.68.03-1.5.45-1.99 1.02-.43.5-.81 1.3-.71 2.07.76.06 1.53-.38 2-.94Z" />
+        </svg>
+    </button>
+</div>
+
+<div class="or-sep">或使用账号登录</div>
+
+@* Bluebird BitPivot：邮箱 / 手机号 *@
+<div class="auth-tabs">
+    <button type="button" class="auth-tab @TabClass(AccountTab.Email)" @onclick="SelectEmail">邮箱</button>
+    <button type="button" class="auth-tab @TabClass(AccountTab.Phone)" @onclick="SelectPhone">手机号</button>
+</div>
+
+<div class="auth-field">
+    <label class="auth-label" for="signin-account">@(_tab == AccountTab.Email ? "邮箱" : "手机号")</label>
+    <div class="auth-input-wrap">
+        <input id="signin-account"
+               class="auth-input @(_accountInvalid ? "invalid" : "")"
+               type="@(_tab == AccountTab.Email ? "email" : "tel")"
+               autocomplete="username"
+               placeholder="@(_tab == AccountTab.Email ? "admin@example.com" : "138 0000 0000")"
+               @bind="_account" @bind:event="oninput" />
+    </div>
+    @if (_accountInvalid)
+    {
+        <span class="validation-message">@(_tab == AccountTab.Email ? "请输入有效的邮箱地址" : "请输入有效的手机号")</span>
+    }
+</div>
+
+<div class="auth-field">
+    <div class="auth-label-row">
+        <label class="auth-label" for="signin-password">密码</label>
+        <button type="button" class="auth-link" @onclick="ForgotPassword">忘记密码？</button>
+    </div>
+    <div class="auth-input-wrap">
+        <input id="signin-password"
+               class="auth-input has-suffix @(_passwordInvalid ? "invalid" : "")"
+               type="@(_reveal ? "text" : "password")"
+               autocomplete="current-password"
+               placeholder="输入密码"
+               @bind="_password" @bind:event="oninput" />
+        <button type="button" class="auth-suffix" title="@(_reveal ? "隐藏密码" : "显示密码")" @onclick="ToggleReveal">
+            @if (_reveal)
+            {
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 3l14 14" />
+                    <path d="M8.2 5.3A9 9 0 0 1 10 5c5 0 8 5 8 5a13 13 0 0 1-2.2 2.6M5.1 6.3A13 13 0 0 0 2 10s3 5 8 5c1 0 1.9-.2 2.7-.5" />
+                </svg>
+            }
+            else
+            {
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 10s3-5 8-5 8 5 8 5-3 5-8 5-8-5-8-5Z" />
+                    <circle cx="10" cy="10" r="2.5" />
+                </svg>
+            }
+        </button>
+    </div>
+    @if (_passwordInvalid)
+    {
+        <span class="validation-message">密码至少 6 位</span>
+    }
+</div>
+
+<div class="auth-row">
+    <label><input type="checkbox" @bind="_remember" /> 记住我</label>
+    <span class="spacer"></span>
+    <button type="button" class="passkey-btn" title="使用通行密钥登录" @onclick="Passkey">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">
+            <path d="M4 10a6 6 0 0 1 12 0v3" />
+            <path d="M6.5 11a3.5 3.5 0 0 1 7 0v2" />
+            <path d="M9 13a1 1 0 0 1 2 0v4" />
+            <path d="M3.5 7.5A8 8 0 0 1 10 4" />
+            <path d="M16.5 7.5A8 8 0 0 0 15 5.7" />
+        </svg>
+    </button>
+</div>
+
+<button type="button" class="auth-btn" disabled="@_busy" @onclick="SignInAsync">
+    @(_busy ? "登录中…" : "继续")
+</button>
+<button type="button" class="auth-btn outline" disabled="@_busy" @onclick="MagicLinkAsync">
+    发送魔法链接
+</button>
+
+@if (_supportedCultures.Length > 0)
+{
+    <p class="auth-foot">支持语言：@string.Join("、", _supportedCultures)</p>
+}
+
+<p class="auth-foot">
+    还没有账号？<button type="button" class="auth-link" @onclick="SignUp">立即注册</button>
+</p>
+
+@code {
+    private enum AccountTab { Email, Phone }
+
+    private AccountTab _tab = AccountTab.Email;
+    private string _account = string.Empty;
+    private string _password = string.Empty;
+    private bool _remember;
+    private bool _reveal;
+    private bool _busy;
+    private bool _accountInvalid;
+    private bool _passwordInvalid;
+    private string? _message;
+    private bool _messageIsError;
+    private string? _returnUrl;
+    private string[] _supportedCultures = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 未安装（未配置数据）：登录页不允许访问，强制重定向到初始化向导 /setup。
+        // 与 MainLayout 的未安装守卫对称：手动输入 /sign-in 在未安装时也只能落到 /setup，
+        // 不能显示登录表单。已安装、未登录时（status.Installed=true）则正常显示登录页。
+        SetupStatus? status = null;
+        try { status = await Api.GetSetupStatusAsync(); }
+        catch { /* ApiHost 不可达时按已安装处理，不阻断登录页（避免误拦截） */ }
+
+        if (status is { Installed: false, DevBypass: false })
+        {
+            // SSR 预渲染阶段 NavigateTo 以 NavigationException 作为重定向信号抛出（与 MainLayout 一致），
+            // 交互阶段则触发客户端导航；两种情况都在此 return，避免继续渲染登录表单。
+            Navigation.NavigateTo("/setup");
+            return;
+        }
+
+        // Bluebird 的 return-url：登录成功后跳回原页面。
+        var query = new Uri(Navigation.Uri).Query.TrimStart('?');
+        foreach (var part in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var pair = part.Split('=', 2);
+            if (pair.Length == 2 && pair[0] == "return-url")
+                _returnUrl = Uri.UnescapeDataString(pair[1].Replace("+", " "));
+        }
+
+        // 可选：显示平台支持的语言。匿名阶段该接口可能不可用，失败时静默，不影响登录。
+        try { _supportedCultures = [.. await Api.GetSupportedCulturesAsync()]; }
+        catch { /* 忽略：登录页不依赖语言列表 */ }
+    }
+
+    private string TabClass(AccountTab tab) => _tab == tab ? "active" : string.Empty;
+
+    private async Task SignInAsync()
+    {
+        _accountInvalid = string.IsNullOrWhiteSpace(_account) ||
+                          (_tab == AccountTab.Email && !_account.Contains('@'));
+        _passwordInvalid = _password.Length < 6;
+        if (_accountInvalid || _passwordInvalid)
+        {
+            _message = "请先填写有效的账号与密码。";
+            _messageIsError = true;
+            return;
+        }
+
+        _busy = true;
+        _message = null;
+        try
+        {
+            // 真实登录：WebHost 提供的 blazorAuth.login 返回 Promise<{ok,error}>，
+            // 内部调用 POST /auth/login 写入鉴权 cookie。
+            var result = await JS.InvokeAsync<LoginResult>("blazorAuth.login", new
+            {
+                userName = _account.Trim(),
+                password = _password,
+                rememberMe = _remember,
+                tenantId = (string?)null
+            });
+
+            if (result is { Ok: true })
+            {
+                // 登录成功：用 Blazor 的 NavigationManager 做整页硬刷新（forceLoad），
+                // 让服务器重新读取认证 Cookie 并完成 SSR 鉴权。
+                // 注意：不能用 window.location.assign —— Blazor Server 电路下纯 JS 改 location
+                // 会与 SignalR 线路导航冲突、跳转不提交，表现为“登录成功却不跳转”。
+                var target = string.IsNullOrWhiteSpace(_returnUrl) ? "/" : _returnUrl;
+                Navigation.NavigateTo(target, forceLoad: true);
+                return;
+            }
+
+            _message = string.IsNullOrWhiteSpace(result?.Error)
+                ? "登录失败：账号或密码错误，请重试。"
+                : $"登录失败：{result!.Error}";
+            _messageIsError = true;
+        }
+        catch (JSException)
+        {
+            _message = "登录服务尚未就绪，请稍后重试或检查浏览器脚本。";
+            _messageIsError = true;
+        }
+        catch (Exception)
+        {
+            _message = "登录失败，请稍后重试。";
+            _messageIsError = true;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>blazorAuth.login 的返回结果（camelCase JSON 由 JS interop 默认值反序列化）。</summary>
+    public sealed class LoginResult
+    {
+        public bool Ok { get; set; }
+        public string? Error { get; set; }
+    }
+
+    // 以下方式当前尚未配置：明确提示，不假装成功、不跳转。
+    private void MagicLinkAsync() => NotifyUnavailable();
+    private void ExternalGoogleAsync() => NotifyUnavailable();
+    private void ExternalMicrosoftAsync() => NotifyUnavailable();
+    private void ExternalGitHubAsync() => NotifyUnavailable();
+    private void ExternalAppleAsync() => NotifyUnavailable();
+    private void ForgotPassword() => NotifyUnavailable();
+    private void SignUp() => NotifyUnavailable();
+    private void Passkey() => NotifyUnavailable();
+
+    private void NotifyUnavailable()
+    {
+        _accountInvalid = false;
+        _passwordInvalid = false;
+        _message = "该登录方式尚未配置，请使用账号密码登录。";
+        _messageIsError = false;
+    }
+
+    private void ToggleReveal() => _reveal = !_reveal;
+    private void SelectEmail() => _tab = AccountTab.Email;
+    private void SelectPhone() => _tab = AccountTab.Phone;
+}

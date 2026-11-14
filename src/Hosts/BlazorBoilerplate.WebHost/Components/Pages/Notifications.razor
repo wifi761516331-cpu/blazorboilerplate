@@ -1,0 +1,159 @@
+@page "/notifications"
+@rendermode RenderMode.InteractiveServer
+@inject BlazorBoilerplateApiClient Api
+@inject ToastService Toast
+@inject UserPreferences Preferences
+
+<div class="page-callout">
+    <h1 class="page-title">通知中心</h1>
+    <p class="muted">查看站内通知、标记已读，并可发送一条测试通知。</p>
+</div>
+
+@if (_loadError is not null)
+{
+    <div class="page-callout error">@_loadError</div>
+}
+
+<div class="bb-toolbar">
+    <span class="muted">共 @_notifications.Count 条，@UnreadCount 条未读</span>
+    <div class="bb-spacer"></div>
+    <button type="button" class="blazorboilerplate-btn ghost" @onclick="MarkAllReadAsync" disabled="@(UnreadCount == 0)">全部标记已读</button>
+    <PermissionView Code="notification.send-test">
+        @if (_notificationsEnabled)
+        {
+            <button type="button" class="blazorboilerplate-btn primary" @onclick="SendTestAsync" disabled="@_sending">
+                @(_sending ? "发送中…" : "发送测试通知")
+            </button>
+        }
+        else
+        {
+            <button type="button" class="blazorboilerplate-btn primary" disabled title="请先在账号菜单开启通知">发送测试通知</button>
+        }
+    </PermissionView>
+    <button type="button" class="blazorboilerplate-btn ghost" @onclick="LoadAsync">刷新</button>
+</div>
+
+@if (!_notificationsEnabled)
+{
+    <div class="page-callout success">站内通知当前关闭，可在右上角账号菜单中开启。</div>
+}
+
+<div class="notif-list">
+    @if (_notifications.Count == 0)
+    {
+        <div class="notif-empty">暂无通知。</div>
+    }
+    @foreach (var n in _notifications)
+    {
+        <article class="notif-item @(n.IsRead ? "" : "unread")">
+            <span class="notif-dot"></span>
+            <div class="notif-body">
+                <div class="notif-head">
+                    <strong class="notif-title">@n.Title</strong>
+                    <time class="notif-time">@n.CreatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</time>
+                </div>
+                <p class="notif-message">@n.Message</p>
+                <div class="notif-foot">
+                    @if (!string.IsNullOrWhiteSpace(n.PageUrl))
+                    {
+                        <a class="bit-link" href="@n.PageUrl">查看详情 →</a>
+                    }
+                    @if (!n.IsRead)
+                    {
+                        <button type="button" class="bb-link-btn" @onclick="() => MarkReadAsync(n)"
+                                disabled="@_marking.Contains(n.Id)">标记已读</button>
+                    }
+                    else
+                    {
+                        <span class="muted">已读</span>
+                    }
+                </div>
+            </div>
+        </article>
+    }
+</div>
+
+@code {
+    private List<NotificationDto> _notifications = [];
+    private bool _notificationsEnabled;
+    private bool _sending;
+    private string? _loadError;
+    private readonly HashSet<Guid> _marking = [];
+
+    private int UnreadCount => _notifications.Count(n => !n.IsRead);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var prefs = await Preferences.GetAsync();
+        _notificationsEnabled = prefs.NotificationsEnabled;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loadError = null;
+        try
+        {
+            _notifications = (await Api.GetNotificationsAsync())
+                .OrderByDescending(n => n.CreatedAtUtc).ToList();
+        }
+        catch (Exception ex)
+        {
+            _loadError = $"读取通知失败：{ex.Message}";
+            Toast.Error($"读取通知失败：{ex.Message}");
+        }
+    }
+
+    private async Task MarkReadAsync(NotificationDto item)
+    {
+        _marking.Add(item.Id);
+        try
+        {
+            await Api.MarkNotificationReadAsync(item.Id);
+            var read = item with { IsRead = true };
+            _notifications = _notifications.Select(n => n.Id == read.Id ? read : n).ToList();
+            Toast.Success("已标记为已读。");
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"标记已读失败：{ex.Message}");
+        }
+        finally
+        {
+            _marking.Remove(item.Id);
+        }
+    }
+
+    private async Task MarkAllReadAsync()
+    {
+        try
+        {
+            await Api.MarkAllNotificationsReadAsync();
+            _notifications = _notifications.Select(n => n with { IsRead = true }).ToList();
+            Toast.Success("全部通知已标记为已读。");
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"全部标记已读失败：{ex.Message}");
+        }
+    }
+
+    private async Task SendTestAsync()
+    {
+        _sending = true;
+        try
+        {
+            await Api.SendTestNotificationAsync();
+            Toast.Success("测试通知已发送。");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"发送测试通知失败：{ex.Message}");
+        }
+        finally
+        {
+            _sending = false;
+        }
+    }
+}

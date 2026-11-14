@@ -1,0 +1,601 @@
+@page "/modules"
+@rendermode RenderMode.InteractiveServer
+@inject BlazorBoilerplateApiClient Api
+@inject ILogger<Modules> Logger
+@inject ToastService Toast
+@inject IJSRuntime JS
+@inject BlazorBoilerplate.WebHost.Services.NavRefreshService NavRefresh
+@inject BlazorBoilerplate.WebHost.Services.ModuleAssemblyCatalog ModuleCatalog
+
+<BitCallout Class="page-callout">
+    <BitText Element="h1" Class="page-title">模块管理</BitText>
+    <BitText Class="muted">动态加载 / 卸载业务模块，端点随模块上线或下线，无需重启宿主。</BitText>
+</BitCallout>
+
+@if (_loadError is not null)
+{
+    <BitCallout Class="page-callout error">无法连接 ApiHost：@_loadError</BitCallout>
+}
+else if (_loading)
+{
+    <BitText Class="muted">加载中…</BitText>
+}
+else
+{
+    @* Bluebird ProductsPage 风格工具栏 + Dashboard 卡片网格 *@
+    <div class="bb-toolbar">
+        <div class="bb-search">
+            <BitSearchBox @bind-Value="_search" Immediate DebounceTime="300" Placeholder="搜索模块名称 / Id / 发布者" />
+        </div>
+        <div class="bb-spacer"></div>
+        <PermissionView Code="module.upload">
+            <BitButton Color="BitColor.Primary" IconName="@BitIconName.CloudUpload" OnClick="@(() => _uploadOpen = true)">上传模块</BitButton>
+        </PermissionView>
+        @if (_packEnabled)
+        {
+            <PermissionView Code="module.pack">
+                <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Package" OnClick="@(() => _packOpen = true)">打包模块</BitButton>
+            </PermissionView>
+        }
+        <PermissionView Code="module.load">
+            <BitButton Color="BitColor.Primary" OnClick="LoadAllAsync" Disabled="@_loadAllBusy">
+                @(_loadAllBusy ? "批量加载中…" : "按加载顺序全部加载")
+            </BitButton>
+        </PermissionView>
+        <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="RefreshAsync">刷新</BitButton>
+    </div>
+
+    <div class="module-summary">
+        <div class="module-summary-item">
+            <span class="module-summary-label">模块总数</span>
+            <strong>@_modules.Count</strong>
+        </div>
+        <div class="module-summary-item">
+            <span class="module-summary-label">运行中</span>
+            <strong class="ok">@RunningCount</strong>
+        </div>
+        <div class="module-summary-item">
+            <span class="module-summary-label">必要模块</span>
+            <strong>@EssentialCount</strong>
+        </div>
+        <div class="module-summary-item">
+            <span class="module-summary-label">待加载 / 异常</span>
+            <strong class="warn">@(_modules.Count - RunningCount)</strong>
+        </div>
+    </div>
+
+    @if (!FilteredModules.Any())
+    {
+        <div class="module-empty">
+            <AppIcon Name="Puzzle" />
+            <span>没有匹配的模块，试试换个关键词。</span>
+        </div>
+    }
+    else
+    {
+        <div class="module-grid">
+            @foreach (var m in FilteredModules)
+            {
+                <article class="module-card @CardClass(m)">
+                    <div class="module-card-head">
+                        <span class="module-card-icon"><AppIcon Name="@ModuleIcon(m.Id)" /></span>
+                        <div class="module-card-heading">
+                            <strong class="module-card-title">@m.DisplayTitle</strong>
+                            <span class="module-card-id">@m.Id · @m.Name</span>
+                        </div>
+@*                         @if (m.VersionCount > 1 && _versionItems.TryGetValue(m.Id, out var versionItems))
+                        {
+                            <BitDropdown TItem="BitDropdownItem<string>" TValue="string"
+                                         Class="module-version-select" Title="选择运行版本"
+                                         Items="@versionItems" Value="@m.Version"
+                                         OnChange="@(v => SwitchCardVersionAsync(m.Id, v))" />
+                        } *@
+                      @*   else
+                        { *@
+                            <span class="module-version-badge" title="当前激活版本">v@(m.Version)</span>
+                       @*  } *@
+                        <BitBadge Color="@StateColor(m.State)">@m.State</BitBadge>
+                    </div>
+
+                    <div class="module-card-meta">
+                        <span>@m.Publisher</span>
+                        <span class="dot-sep"></span>
+                        <span>共 @m.VersionCount 个版本</span>
+                    </div>
+
+                    <div class="module-card-tags">
+                        <span class="module-chip">加载顺序 @m.Order</span>
+                        @if (m.IsEssential)
+                        {
+                            <span class="module-chip warn">必要模块 · 不可卸载</span>
+                        }
+                        @if (m.Permissions.Length == 0)
+                        {
+                            <span class="module-chip muted">无声明权限</span>
+                        }
+                        else
+                        {
+                            @foreach (var p in m.Permissions)
+                            {
+                                <span class="module-chip info">@p</span>
+                            }
+                        }
+                    </div>
+
+                    <div class="module-card-foot">
+                        @if (m.State == ModuleState.Running)
+                        {
+                            @if (m.IsEssential)
+                            {
+                                <span class="module-protected" title="必要模块 · 受保护，不可卸载"><AppIcon Name="Shield" /></span>
+                            }
+                            else
+                            {
+                                <PermissionView Code="module.unload">
+                                    <BitButton Color="BitColor.Error" Variant="BitVariant.Text" IconName="@BitIconName.Delete"
+                                               Title="卸载模块" AriaLabel="卸载模块"
+                                               OnClick="@(() => UnloadAsync(m.Id))" Disabled="@_busy.Contains(m.Id)" />
+                                </PermissionView>
+                            }
+                        }
+                        else if (m.State is ModuleState.Installed or ModuleState.Disabled or ModuleState.Uninstalled)
+                        {
+                            <PermissionView Code="module.load">
+                                <BitButton Color="BitColor.Primary" Variant="BitVariant.Text" IconName="@BitIconName.Play"
+                                           Title="加载模块" AriaLabel="加载模块"
+                                           OnClick="@(() => LoadAsync(m.Id))" Disabled="@_busy.Contains(m.Id)" />
+                            </PermissionView>
+                        }
+                        else
+                        {
+                            <span class="muted">当前状态 @m.State，暂不可操作</span>
+                        }
+                        <BitButton Color="BitColor.Info" Variant="BitVariant.Text" IconName="@BitIconName.History"
+                                   Title="版本历史"
+                                   OnClick="@(() => OpenVersionsAsync(m))" AriaLabel="版本历史" />
+                        <PermissionView Code="module.download">
+                            <BitButton Color="BitColor.Info" Variant="BitVariant.Text" IconName="@BitIconName.Download"
+                                       Title="下载模块包 (.zip)" AriaLabel="下载模块包"
+                                       OnClick="@(() => DownloadAsync(m))" Disabled="@_downloading.Contains(m.Id)" />
+                        </PermissionView>
+                    </div>
+                </article>
+            }
+        </div>
+    }
+}
+
+@* 上传模块弹框：选择 .zip → ApiHost 归档至 S3/MinIO + 解压安装 *@
+<BlazorBoilerplateModal @bind-IsOpen="_uploadOpen" Title="上传模块"
+                        OkText="上传并安装" Disabled="@(_uploadFile is null)"
+                        OnOk="UploadAsyncAsync" CloseOnBackdrop="false">
+    <div class="upload-drop">
+        <InputFile OnChange="OnFileSelected" accept=".zip" class="upload-input" aria-label="选择模块 .zip 包" />
+        <AppIcon Name="Upload" />
+        <strong>@(_uploadHint ?? "点击选择模块 .zip 包")</strong>
+        <span class="muted">压缩包根目录需含 manifest.json（声明 id + version），上传后归档至 MinIO 并自动安装为新版本；同一 id + version 重复上传会返回冲突。</span>
+    </div>
+</BlazorBoilerplateModal>
+
+@* 开发打包弹框：选源码工程 → dotnet build Release → 组包 → 直接下载 .zip（可再上传安装） *@
+<BlazorBoilerplateModal @bind-IsOpen="_packOpen" Title="打包模块"
+                        OkText="打包并下载" Disabled="@(_packBusy || string.IsNullOrWhiteSpace(_packSource))"
+                        OnOk="PackAndDownloadAsync" CloseOnBackdrop="false">
+    <div class="id-form">
+        @if (_packSources.Count == 0)
+        {
+            <BitText Class="muted">未找到模块源码工程（需 ModuleRuntime:SourceRoot 下含 manifest.json + .csproj 的目录）。</BitText>
+        }
+        else
+        {
+            <BitDropdown Label="模块源码工程" @bind-Value="_packSource" Items="@_packSources" />
+        }
+        <BitText Class="muted">打包流程：dotnet build（Release）→ 按 manifest 组包（manifest.json + backend）→ 直接下载 {id}-{version}.zip。下载后可在「上传模块」中选择该 zip 安装为新版本。</BitText>
+    </div>
+</BlazorBoilerplateModal>
+
+@* 版本历史弹框：列出全部版本，可切换激活版本 *@
+<BlazorBoilerplateModal @bind-IsOpen="_versionsOpen" Title="@($"版本历史 · {_versionsModuleName}")"
+                        OkText="关闭" ShowCancel="false">
+    <div class="versions-list">
+        @if (_versions.Count == 0)
+        {
+            <span class="muted">正在加载版本…</span>
+        }
+        else
+        {
+            @foreach (var v in _versions)
+            {
+                var busyKey = $"{_versionsModuleId}@{v.Version}";
+                <div class="version-row @(v.IsActive ? "is-active" : "")">
+                    <div class="version-info">
+                        <strong>v@(v.Version)</strong>
+                        @if (v.IsActive)
+                        {
+                            <span class="module-chip info">当前运行</span>
+                        }
+                        <span class="muted">@v.State</span>
+                        @if (v.LoadedAtUtc is { } loaded)
+                        {
+                            <span class="muted">· 加载于 @loaded.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</span>
+                        }
+                        @if (v.Error is not null)
+                        {
+                            <span class="version-error">@v.Error</span>
+                        }
+                    </div>
+                    @if (!v.IsActive && v.State is ModuleState.Installed or ModuleState.Uninstalled or ModuleState.Disabled)
+                    {
+                        <PermissionView Code="module.load">
+                            <BitButton Color="BitColor.Primary" Variant="BitVariant.Outline"
+                                       OnClick="@(() => SwitchVersionAsync(v.Version))"
+                                       Disabled="@_versionBusy.Contains(busyKey)">
+                                @(_versionBusy.Contains(busyKey) ? "切换中…" : "切换到此版本")
+                            </BitButton>
+                        </PermissionView>
+                    }
+                </div>
+            }
+        }
+    </div>
+</BlazorBoilerplateModal>
+
+@code {
+    private List<ModuleDescriptor> _modules = [];
+    private bool _loading = true;
+    private string? _loadError;
+    private readonly HashSet<string> _busy = [];
+    private bool _loadAllBusy;
+    private string _search = string.Empty;
+
+    private int RunningCount => _modules.Count(m => m.State == ModuleState.Running);
+    private int EssentialCount => _modules.Count(m => m.IsEssential);
+
+    private IEnumerable<ModuleDescriptor> FilteredModules =>
+        string.IsNullOrWhiteSpace(_search)
+            ? _modules
+            : _modules.Where(m => $"{m.Name}|{m.Id}|{m.Publisher}".Contains(_search.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        await LoadPackInfoAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _loadError = null;
+        try
+        {
+            _modules = (await Api.GetModulesAsync()).OrderBy(m => m.Order).ThenBy(m => m.Name).ToList();
+            await LoadVersionItemsAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "加载模块列表失败");
+            _loadError = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    // ---- 卡片内版本下拉（VersionCount > 1 时显示）----
+
+    private Dictionary<string, List<BitDropdownItem<string>>> _versionItems = [];
+
+    private async Task LoadVersionItemsAsync()
+    {
+        _versionItems = [];
+        foreach (var m in _modules.Where(x => x.VersionCount > 1))
+        {
+            try
+            {
+                var versions = await Api.GetModuleVersionsAsync(m.Id);
+                _versionItems[m.Id] = versions
+                    .OrderByDescending(v => v.Version, StringComparer.OrdinalIgnoreCase)
+                    .Select(v => new BitDropdownItem<string> { Text = $"v{v.Version}", Value = v.Version })
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "加载模块 {Id} 版本清单失败", m.Id);
+            }
+        }
+    }
+
+    private async Task SwitchCardVersionAsync(string id, string? version)
+    {
+        if (string.IsNullOrWhiteSpace(version)) return;
+        _busy.Add(id);
+        StateHasChanged();
+        try
+        {
+            var descriptor = await Api.LoadModuleAsync(id, version);
+            await ModuleCatalog.RefreshModuleAsync(id); // 运行时注入新版本前端程序集
+            Toast.Success($"模块「{descriptor.DisplayTitle}」已切换到 v{version} 并运行。刷新页面即可看到新版页面。");
+            await RefreshAsync();
+            NavRefresh.Notify();
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"切换到 v{version} 失败：{ex.Message}");
+            await RefreshAsync();
+        }
+        finally
+        {
+            _busy.Remove(id);
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadAsync(string id)
+    {
+        _busy.Add(id);
+        try
+        {
+            var descriptor = await Api.LoadModuleAsync(id);
+            await ModuleCatalog.RefreshModuleAsync(id); // 运行时注入前端程序集
+            Toast.Success($"模块「{descriptor.Name}」已加载并运行。");
+            await RefreshAsync();
+            NavRefresh.Notify();
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+            Toast.Error($"加载模块 {id} 失败：{ex.Message}");
+        }
+        finally
+        {
+            _busy.Remove(id);
+        }
+    }
+
+    private async Task UnloadAsync(string id)
+    {
+        _busy.Add(id);
+        try
+        {
+            await Api.UnloadModuleAsync(id);
+            Toast.Success($"模块「{id}」已卸载。");
+            await RefreshAsync();
+            NavRefresh.Notify();
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+            Toast.Error($"卸载模块 {id} 失败：{ex.Message}");
+        }
+        finally
+        {
+            _busy.Remove(id);
+        }
+    }
+
+    private async Task LoadAllAsync()
+    {
+        _loadAllBusy = true;
+        try
+        {
+            var result = await Api.LoadAllModulesAsync();
+            var running = result.Count(m => m.State == ModuleState.Running);
+            Toast.Success($"按加载顺序批量加载完成：{running}/{result.Count} 个模块运行中。");
+            _modules = result.OrderBy(m => m.Order).ThenBy(m => m.Name).ToList();
+            NavRefresh.Notify();
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+            Toast.Error($"批量加载失败：{ex.Message}");
+        }
+        finally
+        {
+            _loadAllBusy = false;
+            StateHasChanged();
+        }
+    }
+
+    // ---- 开发打包（ApiHost Development 环境启用）----
+
+    private bool _packEnabled;
+    private bool _packOpen;
+    private string? _packSource;
+    private List<BitDropdownItem<string>> _packSources = [];
+    private Dictionary<string, ModuleSourceDto> _packSourceMap = [];
+    private bool _packBusy;
+
+    private async Task LoadPackInfoAsync()
+    {
+        try
+        {
+            var info = await Api.GetPackInfoAsync();
+            _packEnabled = info.Enabled;
+            _packSourceMap = info.Sources.ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
+            _packSources = info.Sources
+                .Select(s => new BitDropdownItem<string> { Text = $"{s.Name}（{s.Id} v{s.Version}）", Value = s.Name })
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "读取打包能力信息失败");
+            _packEnabled = false;
+        }
+    }
+
+    private async Task PackAndDownloadAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_packSource)) return;
+        _packBusy = true;
+        StateHasChanged();
+        try
+        {
+            var stream = await Api.PackModuleAsync(_packSource);
+            // 命名与卡片「下载」一致：{id}-{version}.zip（如 catalog-1.0.0.zip）。
+            var source = _packSourceMap.GetValueOrDefault(_packSource);
+            var fileName = $"{source?.Id ?? _packSource}-{source?.Version ?? "0"}.zip";
+            // 与下载模块包同理：Stream 必须包 DotNetStreamReference 再交给 JS interop。
+            using var streamRef = new DotNetStreamReference(stream: stream, leaveOpen: false);
+            await JS.InvokeVoidAsync("blazorDownloadFile", fileName, "application/zip", streamRef);
+            Toast.Success($"模块工程 {_packSource} 已打包并开始下载（{fileName}）。");
+            _packOpen = false;
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"打包失败：{ex.Message}");
+        }
+        finally
+        {
+            _packBusy = false;
+            StateHasChanged();
+        }
+    }
+
+    // ---- 上传模块（S3/MinIO 归档 + 安装）----
+
+    private bool _uploadOpen;
+    private IBrowserFile? _uploadFile;
+    private string? _uploadHint;
+
+    private void OnFileSelected(InputFileChangeEventArgs e)
+    {
+        _uploadFile = e.File;
+        if (!_uploadFile.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            _uploadHint = $"{_uploadFile.Name}（不是 .zip，将无法上传）";
+            return;
+        }
+        _uploadHint = $"{_uploadFile.Name}（{_uploadFile.Size / 1024.0:F0} KB）";
+    }
+
+    private async Task UploadAsyncAsync()
+    {
+        if (_uploadFile is null || !_uploadFile.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            Toast.Warning("请选择 .zip 格式的模块包。");
+            return;
+        }
+        try
+        {
+            await using var stream = _uploadFile.OpenReadStream(maxAllowedSize: 256 * 1024 * 1024);
+            var result = await Api.UploadModuleAsync(stream, _uploadFile.Name);
+            await ModuleCatalog.RefreshModuleAsync(result.Descriptor.Id); // 运行时注入新版本前端程序集
+            Toast.Success($"模块「{result.Descriptor.Name}」v{result.Descriptor.Version} 已上传并安装。刷新页面即可看到新版页面。");
+            _uploadOpen = false;
+            _uploadFile = null;
+            _uploadHint = null;
+            await RefreshAsync();
+            NavRefresh.Notify();
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"上传模块失败：{ex.Message}");
+        }
+    }
+
+    // ---- 下载模块包（.zip）----
+
+    private readonly HashSet<string> _downloading = [];
+
+    private async Task DownloadAsync(ModuleDescriptor m)
+    {
+        _downloading.Add(m.Id);
+        StateHasChanged();
+        try
+        {
+            var stream = await Api.DownloadModuleAsync(m.Id);
+            var fileName = $"{m.Id}-{m.Version}.zip";
+            // Stream 参数必须包 DotNetStreamReference，否则会被 JS interop 的 JSON 序列化器
+            // 当普通对象处理（读 ReadTimeout 抛 "Timeouts are not supported on this stream."）。
+            using var streamRef = new DotNetStreamReference(stream: stream, leaveOpen: false);
+            await JS.InvokeVoidAsync("blazorDownloadFile", fileName, "application/zip", streamRef);
+            Toast.Success($"模块包 {fileName} 已开始下载。");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "下载模块包失败 {Id}", m.Id);
+            Toast.Error($"下载模块包失败：{ex.Message}");
+        }
+        finally
+        {
+            _downloading.Remove(m.Id);
+            StateHasChanged();
+        }
+    }
+
+    // ---- 版本历史与版本切换 ----
+
+    private bool _versionsOpen;
+    private string? _versionsModuleId;
+    private string _versionsModuleName = string.Empty;
+    private List<ModuleVersionDto> _versions = [];
+    private readonly HashSet<string> _versionBusy = [];
+
+    private async Task OpenVersionsAsync(ModuleDescriptor m)
+    {
+        _versionsModuleId = m.Id;
+        _versionsModuleName = m.Name;
+        _versionsOpen = true;
+        await LoadVersionsAsync();
+    }
+
+    private async Task LoadVersionsAsync()
+    {
+        try
+        {
+            _versions = (await Api.GetModuleVersionsAsync(_versionsModuleId!)).ToList();
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"读取版本历史失败：{ex.Message}");
+        }
+    }
+
+    private async Task SwitchVersionAsync(string version)
+    {
+        var key = $"{_versionsModuleId}@{version}";
+        _versionBusy.Add(key);
+        try
+        {
+            var descriptor = await Api.LoadModuleAsync(_versionsModuleId!, version);
+            await ModuleCatalog.RefreshModuleAsync(_versionsModuleId!); // 运行时注入新版本前端程序集
+            Toast.Success($"模块「{descriptor.Name}」已切换到 v{version} 并运行。刷新页面即可看到新版页面。");
+            _versionsOpen = false; // 切换成功后关闭版本历史弹框
+            await RefreshAsync();
+            NavRefresh.Notify();
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"切换到 v{version} 失败：{ex.Message}");
+        }
+        finally
+        {
+            _versionBusy.Remove(key);
+            StateHasChanged();
+        }
+    }
+
+    private static string CardClass(ModuleDescriptor m)
+    {
+        var state = m.State switch
+        {
+            ModuleState.Running => "is-running",
+            ModuleState.Failed or ModuleState.Quarantined => "is-failed",
+            _ => string.Empty
+        };
+        return m.IsEssential ? $"{state} is-essential".Trim() : state;
+    }
+
+    private static string ModuleIcon(string id) =>
+        id.Contains("identity", StringComparison.OrdinalIgnoreCase) ? "Shield" :
+        id.Contains("catalog", StringComparison.OrdinalIgnoreCase) ? "Shop" : "Puzzle";
+
+    private static BitColor StateColor(ModuleState state) => state switch
+    {
+        ModuleState.Running => BitColor.Success,
+        ModuleState.Failed or ModuleState.Quarantined => BitColor.Error,
+        ModuleState.Loading or ModuleState.Unloading or ModuleState.Draining => BitColor.Warning,
+        _ => BitColor.Info
+    };
+}

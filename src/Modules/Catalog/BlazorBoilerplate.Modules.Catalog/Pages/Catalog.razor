@@ -1,0 +1,171 @@
+@page "/catalog"
+@rendermode RenderMode.InteractiveServer
+@inject HttpClient Http
+@inject ILogger<Catalog> Logger
+
+<BitCallout Class="page-callout">
+    <BitText Element="h1" Class="page-title">商品目录 (OData)</BitText>
+    <BitText Class="muted">Catalog 模块自带的页面：通过统一 OData 适配层查询本模块的 /api/catalog/products 端点。</BitText>
+</BitCallout>
+
+@if (_loadError is not null)
+{
+    <BitCallout Class="page-callout error">@_loadError</BitCallout>
+}
+else
+{
+    @* Bluebird ProductsPage 风格：筛选工具栏 + 带边框的表格容器 *@
+    <div class="bb-toolbar bb-filters">
+        <div class="filter-row">
+            <BitTextField Label="名称包含" Placeholder="如：键盘" @bind-Value="_search" OnInput="OnFilterChanged" />
+            <BitTextField Label="最低价格" Placeholder="如：500" @bind-Value="_minPrice" OnInput="OnFilterChanged" />
+            <BitTextField Label="分类包含" Placeholder="如：外设" @bind-Value="_category" OnInput="OnFilterChanged" />
+            <div class="filter-sort">
+                <BitText Class="muted">排序</BitText>
+                <select class="bit-select" @bind="_sortField">
+                    <option value="price">价格</option>
+                    <option value="name">名称</option>
+                    <option value="category">分类</option>
+                </select>
+                <BitCheckbox Label="降序" @bind-Value="_sortDesc" OnChange="OnFilterChanged" />
+            </div>
+        </div>
+    </div>
+
+    <div class="grid-container">
+        @if (_loading)
+        {
+            <BitText Class="muted">查询中…</BitText>
+        }
+        else if (_items.Count == 0)
+        {
+            <BitText Class="muted">没有符合条件的商品。请先在「模块管理」加载 Catalog 模块（后端端点）。</BitText>
+        }
+        else
+        {
+            <table class="data-grid">
+                <thead>
+                    <tr>
+                        <th>名称</th>
+                        <th class="num">价格</th>
+                        <th>分类</th>
+                        <th>Id</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in _items)
+                    {
+                        <tr>
+                            <td>@p.Name</td>
+                            <td class="num">@p.Price.ToString("C", System.Globalization.CultureInfo.CurrentCulture)</td>
+                            <td><BitBadge Color="BitColor.Info">@p.Category</BitBadge></td>
+                            <td class="mono">@p.Id</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+        }
+    </div>
+
+    @if (!_loading && _items.Count > 0)
+    {
+        <div class="pager">
+            <BitText Class="muted">共 @_total 条</BitText>
+            <BitButton Color="BitColor.Secondary" OnClick="PrevAsync" Disabled="@(_page <= 1 || _loading)">上一页</BitButton>
+            <BitText>第 @_page 页</BitText>
+            <BitButton Color="BitColor.Secondary" OnClick="NextAsync" Disabled="@(_loading || (_total > 0 && _page * PageSize >= _total))">下一页</BitButton>
+        </div>
+    }
+}
+
+@code {
+    // 模块私有投影与查询构造器（见 OData/），不暴露给 Host 或其他模块。
+    private string _search = "";
+    private string _minPrice = "";
+    private string _category = "";
+    private string _sortField = "price";
+    private bool _sortDesc = true;
+
+    private List<ProductDto> _items = [];
+    private long _total;
+    private int _page = 1;
+    private const int PageSize = 10;
+    private bool _loading;
+    private string? _loadError;
+
+    private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
+    };
+
+    protected override async Task OnInitializedAsync() => await QueryAsync();
+
+    private async Task OnFilterChanged() => await QueryAsync(resetPage: true);
+
+    private async Task PrevAsync()
+    {
+        if (_page <= 1) return;
+        _page--;
+        await QueryAsync();
+    }
+
+    private async Task NextAsync()
+    {
+        _page++;
+        await QueryAsync();
+    }
+
+    private async Task QueryAsync(bool resetPage = false)
+    {
+        if (resetPage) _page = 1;
+        _loading = true;
+        _loadError = null;
+        try
+        {
+            var builder = new ODataQueryBuilder().Top(PageSize).Skip((_page - 1) * PageSize).Count();
+            if (!string.IsNullOrWhiteSpace(_search)) builder.Contains("name", _search);
+            if (!string.IsNullOrWhiteSpace(_category)) builder.Contains("category", _category);
+            if (decimal.TryParse(_minPrice, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var min))
+                builder.GreaterThanOrEqual("price", min);
+            builder.OrderBy(_sortField, _sortDesc);
+
+            var qs = BuildQueryString(builder.Build());
+            var response = await Http.GetAsync($"api/catalog/products{qs}");
+            if (!response.IsSuccessStatusCode)
+            {
+                _loadError = $"查询失败 ({(int)response.StatusCode})：{await response.Content.ReadAsStringAsync()}";
+                _items = [];
+                _total = 0;
+                return;
+            }
+            var page = await response.Content.ReadFromJsonAsync<BlazorBoilerplate.Application.OData.ODataPage<ProductDto>>(JsonOptions);
+            _items = page?.Value.ToList() ?? [];
+            _total = page?.Count ?? _items.Count;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "OData 查询失败");
+            _loadError = "查询失败：" + ex.Message;
+            _items = [];
+            _total = 0;
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private static string BuildQueryString(BlazorBoilerplate.Application.OData.ODataQuery query)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(query.Filter)) parts.Add("$filter=" + Uri.EscapeDataString(query.Filter));
+        if (!string.IsNullOrWhiteSpace(query.OrderBy)) parts.Add("$orderby=" + Uri.EscapeDataString(query.OrderBy));
+        if (query.Top is { } top) parts.Add("$top=" + top);
+        if (query.Skip is { } skip) parts.Add("$skip=" + skip);
+        if (query.Count) parts.Add("$count=true");
+        return parts.Count == 0 ? string.Empty : "?" + string.Join("&", parts);
+    }
+}

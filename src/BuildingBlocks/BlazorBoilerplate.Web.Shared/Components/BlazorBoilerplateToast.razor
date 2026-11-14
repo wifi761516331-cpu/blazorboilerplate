@@ -1,0 +1,90 @@
+@implements IDisposable
+@inject ToastService Toast
+@* 全局通知容器：订阅 ToastService.OnChange，固定右下角渲染通知列表。
+   任意组件注入 ToastService 后调用 Show/Success/Error 即可在此处弹出。
+   延迟自动关闭在本组件内完成：await 之后自动回到渲染同步上下文，StateHasChanged 才能生效。
+   时长分级：成功/信息 4s，警告 6s，错误 8s；也可手动点 ✕ 关闭。 *@
+<div class="blazorboilerplate-toast-container" aria-live="polite">
+    @foreach (var item in Toast.Items)
+    {
+        <div class="blazorboilerplate-toast @ToastClass(item.Type)" role="alert">
+            <span class="blazorboilerplate-toast-icon"><AppIcon Name="@IconOf(item.Type)" /></span>
+            <span class="blazorboilerplate-toast-msg">@item.Message</span>
+            <button type="button" class="blazorboilerplate-toast-close" aria-label="关闭" @onclick="() => Toast.Remove(item.Id)">✕</button>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _autoClosing;
+
+    protected override void OnInitialized()
+    {
+        Toast.OnChange += HandleChange;
+        _ = RunAutoCloseAsync(); // 历史遗留通知也纳入自动关闭
+    }
+
+    private void HandleChange()
+    {
+        InvokeAsync(StateHasChanged);
+        _ = RunAutoCloseAsync();
+    }
+
+    private static TimeSpan Duration(ToastType t) => t switch
+    {
+        ToastType.Error => TimeSpan.FromSeconds(8),
+        ToastType.Warning => TimeSpan.FromSeconds(6),
+        _ => TimeSpan.FromSeconds(4)
+    };
+
+    /// <summary>单循环自动关闭：按最早到期的通知计算等待，避免多条通知并行定时器。</summary>
+    private async Task RunAutoCloseAsync()
+    {
+        if (_autoClosing)
+            return;
+        _autoClosing = true;
+        try
+        {
+            while (true)
+            {
+                var items = Toast.Items;
+                if (items.Count == 0)
+                    return;
+
+                var now = DateTimeOffset.UtcNow;
+                var expired = items.Where(i => now - i.CreatedAt >= Duration(i.Type)).ToList();
+                if (expired.Count > 0)
+                {
+                    foreach (var item in expired)
+                        Toast.Remove(item.Id);
+                    continue;
+                }
+
+                var nextIn = items.Min(i => Duration(i.Type) - (now - i.CreatedAt));
+                await Task.Delay(nextIn);
+            }
+        }
+        finally
+        {
+            _autoClosing = false;
+        }
+    }
+
+    public void Dispose() => Toast.OnChange -= HandleChange;
+
+    private static string ToastClass(ToastType t) => t switch
+    {
+        ToastType.Success => "success",
+        ToastType.Warning => "warning",
+        ToastType.Error => "error",
+        _ => "info"
+    };
+
+    private static string IconOf(ToastType t) => t switch
+    {
+        ToastType.Success => "Check",
+        ToastType.Warning => "Warning",
+        ToastType.Error => "Error",
+        _ => "Info"
+    };
+}

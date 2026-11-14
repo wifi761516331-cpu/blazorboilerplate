@@ -1,0 +1,64 @@
+@* 独立页面布局：移植自 Bluebird AppShell 的 identity 分支 + IdentityHeader。
+   /setup（首次运行向导）与 /sign-in（登录）通过 @layout 直接使用本布局，
+   完全不经过 MainLayout —— 没有侧栏、顶栏、底部导航，也不依赖 MainLayout 的任何分支判断。
+   左 30% 表单 / 右 70% 渐变插画，与 Bluebird AppShell.razor.scss 的 &.identity 一致。 *@
+@inherits LayoutComponentBase
+
+<div class="identity-shell @(_dark ? "bb-dark" : "")">
+    <div class="identity-header">
+        <a href="/" class="home-link">
+            <AppIcon Name="Home" /> 返回首页
+        </a>
+        <div class="spacer"></div>
+        <span class="identity-brand"><span class="nav-brand-mark">L</span> BlazorBoilerplate</span>
+        <button type="button" class="icon-btn" title="切换明暗主题" @onclick="() => _dark = !_dark">
+            <AppIcon Name="@(_dark ? "Sunny" : "ClearNight")" />
+        </button>
+    </div>
+
+    <main class="identity-main">
+        <div class="identity-body">
+            <div class="identity-form">
+                @Body
+            </div>
+        </div>
+
+        <div class="identity-panel">
+            <svg class="identity-art" viewBox="0 0 320 220" fill="none" aria-hidden="true">
+                <g stroke="rgba(255,255,255,.35)" stroke-width="1.5">
+                    <path d="M160 110 64 52M160 110 256 52M160 110 64 168M160 110 256 168" />
+                </g>
+                <g fill="rgba(255,255,255,.14)" stroke="rgba(255,255,255,.55)" stroke-width="1.5">
+                    <rect x="112" y="82" width="96" height="56" rx="10" />
+                    <rect x="24" y="24" width="80" height="56" rx="10" />
+                    <rect x="216" y="24" width="80" height="56" rx="10" />
+                    <rect x="24" y="140" width="80" height="56" rx="10" />
+                    <rect x="216" y="140" width="80" height="56" rx="10" />
+                </g>
+                <g fill="rgba(255,255,255,.7)">
+                    <circle cx="64" cy="52" r="4" />
+                    <circle cx="256" cy="52" r="4" />
+                    <circle cx="64" cy="168" r="4" />
+                    <circle cx="256" cy="168" r="4" />
+                </g>
+                <text x="160" y="116" text-anchor="middle" fill="rgba(255,255,255,.9)"
+                      font-size="15" font-weight="600" font-family="Segoe UI, sans-serif">BlazorBoilerplate</text>
+            </svg>
+            <h2 class="panel-title">BlazorBoilerplate 动态模块化平台</h2>
+            <p class="panel-sub">按加载顺序动态装配业务模块，前后端同体、即插即用。完成初始化后即可进入控制台，开始管理平台。</p>
+            <div class="panel-badges">
+                <span class="panel-badge">.NET 10</span>
+                <span class="panel-badge">EF Core Migrations</span>
+                <span class="panel-badge">Dynamic Module Runtime</span>
+                <span class="panel-badge">Bit.BlazorUI</span>
+            </div>
+        </div>
+    </main>
+
+    @* 全局通知容器（/setup 与 /sign-in 也可弹出操作提示） *@
+    <BlazorBoilerplateToast />
+</div>
+
+@code {
+    private bool _dark;
+}

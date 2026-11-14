@@ -1,0 +1,224 @@
+@page "/identity/menus"
+@rendermode RenderMode.InteractiveServer
+@inject BlazorBoilerplateApiClient Api
+@inject ILogger<Menus> Logger
+@inject ToastService Toast
+
+<div class="page-callout">
+    <BitText Element="h1" Class="page-title">菜单管理</BitText>
+    <BitText Class="muted">维护平台侧边栏菜单树（存于数据库）。隐藏的菜单不会渲染；角色授权见「角色管理」。</BitText>
+</div>
+
+<div class="id-page">
+    <div class="id-toolbar">
+        <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="RefreshAsync" Disabled="@_loading">刷新</BitButton>
+        <BitButton IconName="@BitIconName.Add" OnClick="@(() => OpenCreateAsync(null))">新建顶级菜单</BitButton>
+        @if (_selected is not null)
+        {
+            <BitButton IconName="@BitIconName.AddTo" OnClick="@(() => OpenCreateAsync(_selected.Id))">新建子菜单</BitButton>
+        }
+    </div>
+
+    @if (_error is not null)
+    {
+        <BitCallout Class="page-callout error">@_error</BitCallout>
+    }
+
+    <div class="id-columns">
+        <BitCard Class="id-list-card">
+            @if (_loading)
+            {
+                <BitText Class="muted">加载中…</BitText>
+            }
+            else if (_menuNavItems.Count == 0)
+            {
+                <BitText Class="muted">暂无菜单</BitText>
+            }
+            else
+            {
+                <BitNav Items="_menuNavItems"
+                        Mode="BitNavMode.Manual"
+                        Reselectable
+                        OnSelectItem="@((BitNavItem item) => SelectMenuAsync(item))" />
+            }
+        </BitCard>
+
+        <BitCard Class="id-detail-card">
+            @if (_selected is null)
+            {
+                <BitText Class="muted">请从左侧选择一个菜单，或新建菜单。</BitText>
+            }
+            else
+            {
+                <div class="id-form">
+                    <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.5rem">
+                        <BitText Typography="BitTypography.H6">Id:</BitText>
+                        <BitTag Color="BitColor.TertiaryBackground">@_selected.Id</BitTag>
+                        <BitBadge Color="@(_selected.IsVisible ? BitColor.Success : BitColor.Tertiary)">@(_selected.IsVisible ? "可见" : "已隐藏")</BitBadge>
+                    </BitStack>
+                    <BitTextField @bind-Value="EditName" Label="名称 *" />
+                    <BitTextField @bind-Value="EditPath" Label="路由 *" />
+                    <BitTextField @bind-Value="EditIcon" Label="图标" />
+                    <BitDropdown Label="父菜单" @bind-Value="EditParentId" Items="_parentItems" />
+                    <BitNumberField @bind-Value="EditSort" Label="排序" />
+                    <BitCheckbox @bind-Value="EditIsVisible" Label="在侧边栏可见" />
+                    <div class="row">
+                        <BitButton OnClick="SaveAsync" Disabled="@_busy">保存修改</BitButton>
+                        <BitSpacer />
+                        <BitButton Color="BitColor.Error" OnClick="@(() => _deleteDialogOpen = true)">删除</BitButton>
+                    </div>
+                </div>
+            }
+        </BitCard>
+    </div>
+</div>
+
+<BlazorBoilerplateModal @bind-IsOpen="_deleteDialogOpen"
+            Title="删除菜单" Danger OkText="删除"
+            Message="@($"确定要删除菜单 {_selected?.Name ?? ""} 吗？其角色授权关联将一并清除。")"
+            OnOk="DeleteAsync" />
+
+@code {
+    private List<IdentityMenuDto> _menus = [];
+    private List<BitNavItem> _menuNavItems = [];
+    private List<BitDropdownItem<Guid?>> _parentItems = [];
+    private IdentityMenuDto? _selected;
+    private bool _loading = true;
+    private bool _busy;
+    private string? _error;
+    private bool _deleteDialogOpen;
+
+    private string EditName = string.Empty;
+    private string EditPath = string.Empty;
+    private string? EditIcon;
+    private Guid? EditParentId;
+    private int EditSort;
+    private bool EditIsVisible = true;
+
+    protected override async Task OnInitializedAsync() => await RefreshAsync();
+
+    private async Task RefreshAsync()
+    {
+        _error = null;
+        _loading = true;
+        try
+        {
+            _menus = [.. await Api.GetListAsync<IdentityMenuDto>("api/identity/menus")];
+            RebuildNavAndParents();
+            if (_selected is not null)
+                _selected = _menus.FirstOrDefault(m => m.Id == _selected.Id);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            Logger.LogWarning(ex, "加载菜单失败");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void RebuildNavAndParents()
+    {
+        _menuNavItems = [.. BuildNavItems(parentId: null)];
+        _parentItems =
+        [
+            new() { Text = "（顶级菜单）", Value = null },
+            .. _menus.Select(m => new BitDropdownItem<Guid?> { Text = m.Name, Value = m.Id })
+        ];
+    }
+
+    private IEnumerable<BitNavItem> BuildNavItems(Guid? parentId) =>
+        _menus.Where(m => m.ParentId == parentId)
+              .OrderBy(m => m.Sort).ThenBy(m => m.CreatedAtUtc)
+              .Select(m => new BitNavItem
+              {
+                  Key = m.Id.ToString(),
+                  Text = m.Name,
+                  Description = m.Path,
+                  Data = m,
+                  ChildItems = [.. BuildNavItems(m.Id)]
+              });
+
+    private Task SelectMenuAsync(BitNavItem item)
+    {
+        if (item?.Data is not IdentityMenuDto menu)
+            return Task.CompletedTask;
+        _selected = menu;
+        EditName = menu.Name;
+        EditPath = menu.Path;
+        EditIcon = menu.Icon;
+        EditParentId = menu.ParentId;
+        EditSort = menu.Sort;
+        EditIsVisible = menu.IsVisible;
+        _error = null;
+        return Task.CompletedTask;
+    }
+
+    private void OpenCreateAsync(Guid? parentId)
+    {
+        _selected = null;
+        EditName = string.Empty;
+        EditPath = string.Empty;
+        EditIcon = null;
+        EditParentId = parentId;
+        EditSort = 0;
+        EditIsVisible = true;
+        _creating = true;
+    }
+
+    private bool _creating;
+
+    private async Task SaveAsync()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            if (_creating)
+            {
+                var response = await Api.PostAsync("api/identity/menus",
+                    new { Name = EditName, Path = EditPath, Icon = EditIcon, ParentId = EditParentId, Sort = EditSort, IsVisible = EditIsVisible });
+                EnsureOk(response);
+                Toast.Success($"菜单「{EditName}」已创建。");
+            }
+            else
+            {
+                if (_selected is null) return;
+                var response = await Api.PutAsync($"api/identity/menus/{_selected.Id}",
+                    new { Name = EditName, Path = EditPath, Icon = EditIcon, ParentId = EditParentId, Sort = EditSort, IsVisible = EditIsVisible });
+                EnsureOk(response);
+                Toast.Success($"菜单「{EditName}」已保存。");
+            }
+
+            _creating = false;
+            await RefreshAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; Toast.Error("保存菜单失败：" + ex.Message); }
+        finally { _busy = false; }
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (_selected is null) return;
+        _error = null;
+        var name = _selected.Name;
+        try
+        {
+            var response = await Api.DeleteAsync($"api/identity/menus/{_selected.Id}");
+            EnsureOk(response);
+            _deleteDialogOpen = false;
+            Toast.Success($"菜单「{name}」已删除。");
+            _selected = null;
+            await RefreshAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; Toast.Error("删除菜单失败：" + ex.Message); }
+    }
+
+    private static void EnsureOk(HttpResponseMessage response)
+    {
+        if (!response.IsSuccessStatusCode)
+            throw new HttpRequestException($"{(int)response.StatusCode}: {response.Content.ReadAsStringAsync().GetAwaiter().GetResult()}");
+    }
+}

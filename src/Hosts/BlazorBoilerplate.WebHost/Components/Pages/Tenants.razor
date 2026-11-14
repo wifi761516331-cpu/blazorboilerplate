@@ -1,0 +1,240 @@
+@page "/tenants"
+@rendermode RenderMode.InteractiveServer
+@inject BlazorBoilerplateApiClient Api
+@inject ToastService Toast
+
+<div class="page-callout">
+    <h1 class="page-title">租户管理</h1>
+    <p class="muted">查看全部租户、新建或编辑租户信息、邀请成员与离开租户。</p>
+</div>
+
+@if (_loadError is not null)
+{
+    <div class="page-callout error">@_loadError</div>
+}
+
+<div class="bb-toolbar">
+    <div class="bb-spacer"></div>
+    <PermissionView Code="tenant.create">
+        <button type="button" class="blazorboilerplate-btn primary" @onclick="OpenCreate">新建租户</button>
+    </PermissionView>
+    <button type="button" class="blazorboilerplate-btn ghost" @onclick="LoadAsync">刷新</button>
+</div>
+
+<div class="grid-container">
+    <table class="data-grid">
+        <thead>
+            <tr>
+                <th>名称</th>
+                <th>标题</th>
+                <th>域名</th>
+                <th>状态</th>
+                <th>成员状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (_tenants.Count == 0)
+            {
+                <tr><td colspan="6" class="muted">暂无租户。</td></tr>
+            }
+            @foreach (var t in _tenants)
+            {
+                <tr>
+                    <td>
+                        <strong>@t.Name</strong>
+                        @if (t.Current)
+                        {
+                            <span class="module-chip info">当前</span>
+                        }
+                    </td>
+                    <td>@(string.IsNullOrWhiteSpace(t.Title) ? "—" : t.Title)</td>
+                    <td class="mono">@(string.IsNullOrWhiteSpace(t.Domain) ? "—" : t.Domain)</td>
+                    <td>@(t.IsActive ? "启用" : "停用")</td>
+                    <td>@(t.Accepted ? "已加入" : "待接受邀请")</td>
+                    <td>
+                        <div class="bb-row-actions">
+                            <PermissionView Code="tenant.update">
+                                <button type="button" class="bb-link-btn" @onclick="() => OpenEdit(t)">编辑</button>
+                            </PermissionView>
+                            <PermissionView Code="tenant.invite">
+                                <button type="button" class="bb-link-btn" @onclick="() => OpenInvite(t)">邀请成员</button>
+                            </PermissionView>
+                            <PermissionView Code="tenant.leave">
+                                <button type="button" class="bb-link-btn danger" @onclick="() => LeaveAsync(t)"
+                                        disabled="@_busy.Contains(t.Id)">离开</button>
+                            </PermissionView>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@* 新建 / 编辑租户 *@
+<BlazorBoilerplateModal @bind-IsOpen="_editOpen"
+                        Title="@(_editing is null ? "新建租户" : "编辑租户")"
+                        OkText="保存" OnOk="SaveAsync">
+    <div class="id-form">
+        <div class="auth-field">
+            <label class="auth-label" for="tn-name">名称 *</label>
+            <input id="tn-name" class="auth-input" @bind="_formName" placeholder="唯一名称" />
+        </div>
+        <div class="auth-field">
+            <label class="auth-label" for="tn-title">标题</label>
+            <input id="tn-title" class="auth-input" @bind="_formTitle" placeholder="展示标题" />
+        </div>
+        <div class="auth-field">
+            <label class="auth-label" for="tn-domain">域名</label>
+            <input id="tn-domain" class="auth-input" @bind="_formDomain" placeholder="tenant.example.com" />
+        </div>
+    </div>
+</BlazorBoilerplateModal>
+
+@* 邀请成员 *@
+<BlazorBoilerplateModal @bind-IsOpen="_inviteOpen"
+                        Title="邀请成员加入租户" OkText="发送邀请" OnOk="InviteAsync">
+    <div class="id-form">
+        <p class="muted">向邮箱发送加入「@_inviteTenantName」的邀请。</p>
+        <div class="auth-field">
+            <label class="auth-label" for="tn-email">成员邮箱 *</label>
+            <input id="tn-email" class="auth-input" type="email" @bind="_inviteEmail" placeholder="member@example.com" />
+        </div>
+    </div>
+</BlazorBoilerplateModal>
+
+@code {
+    private List<TenantDto> _tenants = [];
+    private string? _loadError;
+    private readonly HashSet<Guid> _busy = [];
+
+    private bool _editOpen;
+    private TenantDto? _editing;
+    private string _formName = string.Empty;
+    private string _formTitle = string.Empty;
+    private string _formDomain = string.Empty;
+
+    private bool _inviteOpen;
+    private Guid _inviteTenantId;
+    private string _inviteTenantName = string.Empty;
+    private string _inviteEmail = string.Empty;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loadError = null;
+        try
+        {
+            _tenants = (await Api.GetAllTenantsAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            _loadError = $"读取租户列表失败：{ex.Message}";
+            Toast.Error($"读取租户列表失败：{ex.Message}");
+        }
+    }
+
+    private void OpenCreate()
+    {
+        _editing = null;
+        _formName = string.Empty;
+        _formTitle = string.Empty;
+        _formDomain = string.Empty;
+        _editOpen = true;
+    }
+
+    private void OpenEdit(TenantDto tenant)
+    {
+        _editing = tenant;
+        _formName = tenant.Name;
+        _formTitle = tenant.Title ?? string.Empty;
+        _formDomain = tenant.Domain ?? string.Empty;
+        _editOpen = true;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_formName))
+        {
+            Toast.Warning("租户名称不能为空。");
+            return;
+        }
+        try
+        {
+            var name = _formName.Trim();
+            var title = string.IsNullOrWhiteSpace(_formTitle) ? null : _formTitle.Trim();
+            var domain = string.IsNullOrWhiteSpace(_formDomain) ? null : _formDomain.Trim();
+            if (_editing is null)
+            {
+                var created = await Api.CreateTenantAsync(
+                    new TenantDto(Guid.Empty, name, title, domain, true, true, false));
+                Toast.Success($"租户「{created.Name}」已创建。");
+            }
+            else
+            {
+                var editing = _editing!;
+                var updated = await Api.UpdateTenantAsync(editing with
+                {
+                    Name = name,
+                    Title = title,
+                    Domain = domain
+                });
+                Toast.Success($"租户「{updated.Name}」已更新。");
+            }
+            _editOpen = false;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"保存租户失败：{ex.Message}");
+        }
+    }
+
+    private void OpenInvite(TenantDto tenant)
+    {
+        _inviteTenantId = tenant.Id;
+        _inviteTenantName = tenant.Name;
+        _inviteEmail = string.Empty;
+        _inviteOpen = true;
+    }
+
+    private async Task InviteAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_inviteEmail))
+        {
+            Toast.Warning("请填写成员邮箱。");
+            return;
+        }
+        try
+        {
+            await Api.InviteTenantUserAsync(new InviteUserToTenantRequestDto(_inviteTenantId, _inviteEmail.Trim()));
+            Toast.Success($"已向 {_inviteEmail.Trim()} 发送邀请。");
+            _inviteOpen = false;
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"邀请成员失败：{ex.Message}");
+        }
+    }
+
+    private async Task LeaveAsync(TenantDto tenant)
+    {
+        _busy.Add(tenant.Id);
+        try
+        {
+            await Api.LeaveTenantAsync(tenant.Id);
+            Toast.Success($"已离开租户「{tenant.Name}」。");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"离开租户失败：{ex.Message}");
+        }
+        finally
+        {
+            _busy.Remove(tenant.Id);
+        }
+    }
+}

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>BlazorBoilerplate.ModuleRuntime</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\BlazorBoilerplate.ModuleAbstractions\BlazorBoilerplate.ModuleAbstractions.csproj" />
+    <ProjectReference Include="..\BlazorBoilerplate.Infrastructure\BlazorBoilerplate.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

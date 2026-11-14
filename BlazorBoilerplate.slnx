@@ -1,0 +1,22 @@
+<Solution>
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/BlazorBoilerplate.Domain/BlazorBoilerplate.Domain.csproj" />
+    <Project Path="src/BuildingBlocks/BlazorBoilerplate.Application/BlazorBoilerplate.Application.csproj" />
+    <Project Path="src/BuildingBlocks/BlazorBoilerplate.Infrastructure/BlazorBoilerplate.Infrastructure.csproj" />
+    <Project Path="src/BuildingBlocks/BlazorBoilerplate.ModuleAbstractions/BlazorBoilerplate.ModuleAbstractions.csproj" />
+    <Project Path="src/BuildingBlocks/BlazorBoilerplate.ModuleRuntime/BlazorBoilerplate.ModuleRuntime.csproj" />
+    <Project Path="src/BuildingBlocks/BlazorBoilerplate.Web.Shared/BlazorBoilerplate.Web.Shared.csproj" />
+  </Folder>
+  <Folder Name="/src/Hosts/">
+    <Project Path="src/Hosts/BlazorBoilerplate.ApiHost/BlazorBoilerplate.ApiHost.csproj" />
+    <Project Path="src/Hosts/BlazorBoilerplate.WebHost/BlazorBoilerplate.WebHost.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/">
+    <Project Path="src/Modules/Catalog/BlazorBoilerplate.Modules.Catalog/BlazorBoilerplate.Modules.Catalog.csproj" />
+    <Project Path="src/Modules/Identity/BlazorBoilerplate.Modules.Identity/BlazorBoilerplate.Modules.Identity.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BlazorBoilerplate.ModuleRuntime.Tests/BlazorBoilerplate.ModuleRuntime.Tests.csproj" />
+  </Folder>
+</Solution>
+

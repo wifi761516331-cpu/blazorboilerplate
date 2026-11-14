@@ -1,0 +1,96 @@
+using Bit.BlazorUI;
+using BlazorBoilerplate.WebHost.Auth;
+using BlazorBoilerplate.WebHost.Components;
+using BlazorBoilerplate.WebHost.Services;
+using BlazorBoilerplate.Web.Shared.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http;
+using Serilog;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// ---- 日志：与 ApiHost 一致，Console + 按天滚动的文件（logs/webhost-yyyyMMdd.log）----
+builder.Host.UseSerilog((context, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .Enrich.FromLogContext());
+
+// 直接运行 exe（非 dotnet run）且环境不是 Development 时，静态 Web 资源清单不会自动加载，
+// _content/Bit.BlazorUI、_framework/blazor.web.js 等资源会 404 并落进 ModuleHost catch-all
+// 返回首页 HTML（症状：控制台一排 Unexpected token '<'、页面裸奔）。显式加载修复。
+builder.WebHost.UseStaticWebAssets();
+
+// ---- Bit.BlazorUI 10.7.0 设计系统 ----
+builder.Services.AddBitBlazorUIServices(true);
+
+// ---- Blazor Web App（Interactive Server）----
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
+
+// ---- 统一调用 ApiHost 的 HttpClient（CORS 已在 ApiHost 放行 http://localhost:5200）----
+var apiBaseUrl = builder.Configuration["ApiHost:BaseUrl"] ?? "http://localhost:5100";
+builder.Services.AddHttpClient();
+builder.Services.Configure<HttpClientFactoryOptions>(options =>
+{
+    options.HttpClientActions.Add(client =>
+    {
+        client.BaseAddress = new Uri(apiBaseUrl);
+        client.Timeout = TimeSpan.FromSeconds(30);
+    });
+});
+builder.Services.AddHttpClient<BlazorBoilerplateApiClient>(client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(30);
+})
+// 每个请求附加 Bearer；access_token 临期时先在服务端无感刷新（浏览器只见 Cookie）。
+.AddHttpMessageHandler<AuthHeaderHandler>();
+
+// ---- 浏览器 ↔ WebHost：Cookie 认证票据（内含 JWT）+ 线路级会话 ----
+builder.Services.AddWebHostAuth(apiBaseUrl);
+
+// ---- 全局通知：scoped（每条 Blazor 线路一个实例），BlazorBoilerplateToast 订阅渲染 ----
+builder.Services.AddScoped<ToastService>();
+
+// ---- 登录态 / 设备偏好：scoped，随每条 Blazor 线路 ----
+builder.Services.AddScoped<AccountState>();
+builder.Services.AddScoped<UserPreferences>();
+
+// ---- 导航刷新事件：模块加载/卸载后通知 MainLayout 重建侧边栏菜单 ----
+builder.Services.AddScoped<BlazorBoilerplate.WebHost.Services.NavRefreshService>();
+
+// ---- 动态模块前端程序集目录（运行时注入：上传/切版本后刷新页面即生效，无需重启）----
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<BlazorBoilerplate.WebHost.Services.ModuleAssemblyCatalog>();
+
+var app = builder.Build();
+
+// 启动时装载：优先 ApiHost 激活版本的模块包（版本比编译时新才替换），否则保持静态引用（开发模式）
+app.Services.GetRequiredService<BlazorBoilerplate.WebHost.Services.ModuleAssemblyCatalog>().LoadAll();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+}
+
+app.UseStaticFiles();
+
+// 必须显式 UseRouting 且放在 UseStaticFiles 之后：ModuleHost.razor 的 /{**path} catch-all
+// 会匹配所有路径，若路由先于静态文件运行，StaticFileMiddleware 因请求已匹配 endpoint 而
+// 跳过文件服务，所有 CSS/JS 落进 catch-all 返回首页 HTML（症状：Unexpected token '<'、页面裸奔）。
+app.UseRouting();
+
+// Cookie 认证：SSR 首屏与 Blazor Interactive Server 线路都从 HttpContext.User 拿票据 claims。
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.UseAntiforgery();
+
+// 同源 /auth/*：登录、刷新、切换账号/租户、多账号列表、登出（JS 只拿 accountId，不接触令牌）。
+app.MapWebAuthEndpoints();
+
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
+// 注意：模块组件不走静态 AdditionalAssemblies —— SSR 由 ModuleHost.razor（/{**path} catch-all）
+// 运行时解析渲染；interactive 导航由 Routes.razor 的 Router 绑定 ModuleAssemblyCatalog.Assemblies。
+
+app.Run();

@@ -1,0 +1,32 @@
+# Build outputs
+bin/
+obj/
+artifacts/
+*.user
+*.suo
+.vs/
+.vscode/
+.idea/
+
+# Runtime module packages are build artifacts; keep only source manifests
+modules/installed/
+modules/staging/
+modules/backups/
+modules/quarantine/
+
+# Local runtime state / secrets
+data/
+logs/
+*.local.json
+appsettings.*.local.json
+.env
+.env.local
+
+# Test / tooling
+TestResults/
+coverage*.xml
+*.trx
+
+# OS
+Thumbs.db
+.DS_Store

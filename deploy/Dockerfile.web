@@ -1,0 +1,15 @@
+# 构建上下文为仓库根目录：docker compose -f deploy/docker-compose.yml build
+# 注意：本机 Docker 不可用，此文件尚未实际构建验证（见 README「未验证」）。
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY . .
+RUN dotnet restore BlazorBoilerplate.slnx \
+ && dotnet publish src/Hosts/BlazorBoilerplate.WebHost/BlazorBoilerplate.WebHost.csproj -c Release -o /out/web --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+COPY --from=build /out/web ./
+ENV ASPNETCORE_URLS=http://+:8080 \
+    ApiHost__BaseUrl=http://api:8080
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "BlazorBoilerplate.WebHost.dll"]

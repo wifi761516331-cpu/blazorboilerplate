@@ -1,0 +1,57 @@
+{
+  "id": "identity",
+  "name": "Identity",
+  "displayName": "身份认证",
+  "version": "1.0.0",
+  "publisher": "BlazorBoilerplate",
+  "entryAssembly": "BlazorBoilerplate.Modules.Identity.dll",
+  "entryType": "BlazorBoilerplate.Modules.Identity.IdentityModule",
+  "contractVersion": "1.0",
+  "moduleSdkVersion": "1.0",
+  "hostCompatibility": ">=1.0.0 <2.0.0",
+  "displayOrder": 10,
+  "dependencies": [],
+  "isEssential": true,
+  "permissions": [
+    "identity.user.read",
+    "identity.user.write",
+    "identity.role.read",
+    "identity.role.write",
+    "identity.menu.read",
+    "identity.menu.write",
+    "identity.user.create",
+    "identity.user.update",
+    "identity.user.delete",
+    "identity.role.create",
+    "identity.role.update",
+    "identity.role.delete",
+    "identity.menu.create",
+    "identity.menu.update",
+    "identity.menu.delete",
+    "module.upload",
+    "module.pack",
+    "module.download",
+    "module.load",
+    "module.unload",
+    "catalog.product.create",
+    "catalog.product.update",
+    "catalog.product.delete",
+    "identity.permission.read",
+    "identity.permission.write"
+  ],
+  "database": {
+    "enabled": true
+  },
+  "frontend": {
+    "routes": [ "/sign-in", "/identity/users", "/identity/roles", "/identity/menus" ],
+    "menus": [ "Users", "Roles", "Menus" ],
+    "menuItems": [
+      { "text": "用户管理", "route": "/identity/users", "icon": "People", "sort": 10 },
+      { "text": "角色管理", "route": "/identity/roles", "icon": "SecurityGroup", "sort": 20 },
+      { "text": "菜单管理", "route": "/identity/menus", "icon": "EditList", "sort": 30 }
+    ],
+    "localization": [],
+    "assets": []
+  },
+  "checksumSha256": null
+}

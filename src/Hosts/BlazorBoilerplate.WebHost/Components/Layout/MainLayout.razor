@@ -1,0 +1,338 @@
+@* 布局移植自 Bluebird / bitplatform Boilerplate 的 AppShell：
+   280px 侧边栏 + sticky 顶栏（标题/副标题/账号区）+ 内容区 + 移动端底部导航。
+   Bit.BlazorUI 10.7.0 没有 11.x 的 BitAppShell / BitNavPanel，故用原生 HTML + CSS 复刻。
+   注意：/setup 与 /sign-in 使用独立的 IdentityLayout，不经过本布局，
+   因此这里不再有任何 identity 分支判断（此前双栏插画是挂在本布局上的）。 *@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject BlazorBoilerplateApiClient Api
+@inject NavigationManager Navigation
+@inject ILogger<MainLayout> Logger
+@inject AccountState Account
+@inject UserPreferences Preferences
+
+<div class="app-shell @(_dark ? "bb-dark" : "") @(_navToggled ? "nav-toggled" : "") @(_navOpen ? "nav-open" : "")"
+     data-accent="@_accent" style="@AccentStyle">
+    <main class="app-main-frame">
+        <div class="main-container">
+            <aside class="nav-panel">
+                <div class="nav-brand">
+                    <span class="nav-brand-mark">L</span>
+                    <span class="nav-brand-name">BlazorBoilerplate 平台</span>
+                </div>
+                <nav class="nav-scroll">
+                    @foreach (var group in _navGroups)
+                    {
+                        <div class="nav-group-title">@group.Group</div>
+                        @foreach (var item in group.Items)
+                        {
+                            <a href="@item.Path" class="nav-item @NavClass(item.Path)" title="@item.Text" @onclick="CloseNav">
+                                <AppIcon Name="@item.Icon" />
+                                <span class="nav-text">@item.Text</span>
+                            </a>
+                        }
+                    }
+                </nav>
+                <div class="nav-signin">
+                    <a href="/sign-in" class="nav-item" title="登录 / 切换账号" @onclick="CloseNav">
+                        @if (Account.IsAuthenticated)
+                        {
+                            <span class="nav-signin-avatar">@Initials(Account.CurrentUser!.DisplayName)</span>
+                            <span class="nav-text">@Account.CurrentUser!.DisplayName</span>
+                        }
+                        else
+                        {
+                            <AppIcon Name="People" />
+                            <span class="nav-text">登录 / 切换账号</span>
+                        }
+                    </a>
+                </div>
+                <div class="nav-foot">.NET 10 · Bit.BlazorUI · 动态模块运行时</div>
+            </aside>
+
+            <div class="main-body">
+                <header class="app-header">
+                    <button type="button" class="icon-btn menu-btn" title="打开导航" @onclick="OpenNav">
+                        <AppIcon Name="CollapseMenu" />
+                    </button>
+                    <button type="button" class="icon-btn toggle-btn" title="折叠 / 展开侧边栏" @onclick="() => _navToggled = !_navToggled">
+                        <AppIcon Name="CollapseMenu" />
+                    </button>
+                    <div class="header-titles">
+                        <h1 class="header-title">@_header.Title</h1>
+                        @if (!string.IsNullOrWhiteSpace(_header.Subtitle))
+                        {
+                            <span class="header-sub">@_header.Subtitle</span>
+                        }
+                    </div>
+                    <div class="header-spacer"></div>
+                    <div class="header-actions">
+                        @* 通知铃铛：未读数来自 GetUnreadCountAsync，失败隐藏徽标 *@
+                        <a href="/notifications" class="icon-btn header-bell" title="通知">
+                            <AppIcon Name="Bell" />
+                            @if (_unreadCount > 0)
+                            {
+                                <span class="header-bell-badge">@(_unreadCount > 99 ? "99+" : _unreadCount.ToString())</span>
+                            }
+                        </a>
+                        <AccountMenu @bind-Dark="_dark" @bind-Accent="_accent" />
+                    </div>
+                </header>
+
+                <div class="body">
+                    @Body
+                </div>
+            </div>
+        </div>
+
+        <button type="button" class="nav-overlay" aria-label="关闭导航" @onclick="CloseNav"></button>
+
+        <section class="nav-bar">
+            @foreach (var item in _navGroups.SelectMany(g => g.Items).Take(5))
+            {
+                <a href="@item.Path" class="nav-item @NavClass(item.Path)">
+                    <AppIcon Name="@item.Icon" />
+                    <span>@item.Text</span>
+                </a>
+            }
+        </section>
+    </main>
+
+    @* 全局通知容器：所有操作的成功/失败提示都在这里弹出 *@
+    <BlazorBoilerplateToast />
+</div>
+
+@code {
+    [CascadingParameter]
+    private RouteData? RouteData { get; set; }
+
+    [Inject] private BlazorBoilerplate.WebHost.Services.NavRefreshService NavRefresh { get; set; } = null!;
+
+    private sealed record NavItem(string Text, string Path, string Icon);
+    private sealed record NavGroup(string Group, List<NavItem> Items);
+
+    /// <summary>页面标题交给顶栏（对应 Bluebird 的 AppPageData → Header）。</summary>
+    private static readonly Dictionary<string, (string Title, string Subtitle)> Headers = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Home"] = ("概览", "平台运行状况、模块状态与快捷入口"),
+        ["Dashboard"] = ("仪表盘", "可拖拽的数据看板"),
+        ["Modules"] = ("模块管理", "动态加载 / 卸载业务模块，端点随模块上线或下线"),
+        ["Catalog"] = ("商品目录", "通过统一 OData 适配层查询本模块的商品数据"),
+        ["Users"] = ("用户管理", "创建用户、分配角色、重置密码、启用停用"),
+        ["Roles"] = ("角色管理", "维护角色与菜单授权"),
+        ["Menus"] = ("菜单管理", "维护导航菜单树、排序与可见性"),
+        ["Profile"] = ("个人资料", "账户信息、密码与登录会话"),
+        ["Tenants"] = ("租户管理", "我的租户、成员邀请与切换"),
+        ["Notifications"] = ("通知中心", "查看站内通知并标记已读")
+    };
+
+    private static readonly string[] GroupOrder = ["工作区", "管理", "系统"];
+
+    private List<NavGroup> _navGroups = [];
+    private List<IdentityMenuDto> _dbMenus = [];
+    private List<ModuleDescriptor> _moduleStates = [];
+    private bool _navOpen;
+    private bool _navToggled;
+    private bool _dark;
+    private string? _accent;
+    private int _unreadCount;
+    private (string Title, string Subtitle) _header = ("BlazorBoilerplate 平台", "");
+
+    /// <summary>账号菜单选中的强调色；null = Fluent2 默认蓝（不渲染 data-accent）。</summary>
+    private string AccentStyle => _accent is null ? string.Empty : $"--bb-accent: {_accent};";
+
+    /// <summary>当前 Running 模块声明的全部页面路由（菜单归属判定）。</summary>
+    private HashSet<string> RunningRoutes => _moduleStates
+        .Where(m => m.State == ModuleState.Running)
+        .SelectMany(m => m.Routes)
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 菜单可见性：平台自有页面（/、/modules）始终显示；已认证且服务端下发菜单白名单时，
+    /// 额外按账户菜单授权过滤（管理员 "*" / 全量 MenuPaths 放行）；模块页面仅当所属模块 Running 时显示，
+    /// 模块卸载后其菜单随之消失，重新加载即恢复（数据库行保留，不丢角色授权）。
+    /// 模块状态不可知（ApiHost 不可达）时不过滤。
+    /// </summary>
+    private bool IsMenuVisible(string path)
+    {
+        if (path is "/" or "/modules")
+            return true;
+        // 未认证不额外过滤（避免 setup 流程被挡）；管理员 "*" / 全量 MenuPaths 由 HasMenu 放行。
+        if (Account.IsAuthenticated && Account.MenuPaths.Count > 0 && !Account.HasMenu(path))
+            return false;
+        if (_moduleStates.Count == 0)
+            return true;
+        return RunningRoutes.Contains(path);
+    }
+
+    protected override void OnInitialized() =>
+        NavRefresh.OnChanged += HandleNavRefresh;
+
+    private void HandleNavRefresh() => _ = InvokeAsync(RefreshNavAsync);
+
+    public void Dispose() => NavRefresh.OnChanged -= HandleNavRefresh;
+
+    /// <summary>公共（匿名）路由：登录页与安装向导使用独立的 IdentityLayout，绝不能被本布局的登录守卫重复跳转。</summary>
+    private bool IsPublicRoute()
+    {
+        var path = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/');
+        return string.Equals(path, "/sign-in", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(path, "/setup", StringComparison.OrdinalIgnoreCase);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 账户状态先就绪，IsMenuVisible 的菜单授权过滤才能生效。
+        await Account.EnsureLoadedAsync();
+
+        // 首屏主题 / 强调色恢复：await 后写回并请求重渲染（App.razor 首屏 cookie 由主代理处理）。
+        var prefs = await Preferences.GetAsync();
+        _dark = string.Equals(prefs.Theme, "dark", StringComparison.OrdinalIgnoreCase);
+        _accent = prefs.AccentColor;
+        StateHasChanged();
+
+        await RefreshNavAsync();
+
+        // 未登录自动跳登录页（带 return-url，登录后回跳原页面）。
+        // RefreshNavAsync 内的 /setup 安装向导重定向会先于本判断执行（未安装时优先走向导），
+        // 且 NavigateTo 抛出的 NavigationException 会终止本方法，故这里仅在「已安装」时生效，
+        // 不会与首次运行向导冲突。MainLayout 是除 /sign-in、/setup（用 IdentityLayout）外
+        // 所有页面的默认布局，因此在此一处即可覆盖全部受保护路由。
+        // 已在公共路由（登录/安装向导）上时，绝不重复跳转，避免 /sign-in → /sign-in 的无限重定向。
+        if (!Account.IsAuthenticated && !IsPublicRoute())
+        {
+            var returnUrl = Uri.EscapeDataString(Navigation.Uri);
+            Navigation.NavigateTo($"/sign-in?return-url={returnUrl}");
+            return;
+        }
+
+        await LoadUnreadAsync();
+    }
+
+    /// <summary>顶栏通知铃铛未读数：独立调用 Api.GetUnreadCountAsync()，失败隐藏徽标。</summary>
+    private async Task LoadUnreadAsync()
+    {
+        try { _unreadCount = await Api.GetUnreadCountAsync(); }
+        catch { _unreadCount = 0; }
+    }
+
+    private static string Initials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return string.Concat(char.ToUpperInvariant(parts[0][0]), char.ToUpperInvariant(parts[1][0]));
+        return name.Length >= 2 ? name[..2].ToUpperInvariant() : name.ToUpperInvariant();
+    }
+
+    /// <summary>重建侧边栏导航：取模块状态 + 可见菜单，按模块运行状态过滤。</summary>
+    private async Task RefreshNavAsync()
+    {
+        var page = RouteData?.PageType?.Name ?? string.Empty;
+        _header = Headers.TryGetValue(page, out var header) ? header : ("BlazorBoilerplate 平台", "");
+
+        try
+        {
+            _dbMenus = [.. await Api.GetListAsync<IdentityMenuDto>("api/identity/menus/visible")];
+        }
+        catch
+        {
+            _dbMenus = [];
+        }
+
+        try
+        {
+            _moduleStates = [.. await Api.GetModulesAsync()];
+        }
+        catch
+        {
+            _moduleStates = [];
+        }
+
+        BuildNavGroups();
+        StateHasChanged();
+
+        // 首次运行（未安装）强制进入初始化向导。/setup 与 /sign-in 走独立的 IdentityLayout，
+        // 不会执行到这里。NavigateTo 必须在 try/catch 之外 —— 静态预渲染阶段它以 NavigationException
+        // 作为重定向信号抛出，若被 catch 吞掉，重定向将静默失效。只检查一次（导航刷新事件不重复查）。
+        if (_setupChecked)
+            return;
+        _setupChecked = true;
+        SetupStatus? status;
+        try
+        {
+            status = await Api.GetSetupStatusAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "安装状态检查失败（ApiHost 可能未启动）");
+            return;
+        }
+
+        if (!status.Installed && !status.DevBypass)
+            Navigation.NavigateTo("/setup");
+    }
+
+    private bool _setupChecked;
+
+    private void BuildNavGroups()
+    {
+        List<NavItem> items;
+        if (_dbMenus.Count > 0)
+        {
+            items = [.. _dbMenus.Where(m => m.IsVisible && IsMenuVisible(m.Path))
+                                .OrderBy(m => m.Sort)
+                                .Select(m => new NavItem(m.Name, m.Path,
+                                    string.IsNullOrWhiteSpace(m.Icon) ? IconOf(m.Path) : m.Icon!))];
+        }
+        else
+        {
+            // ApiHost 不可达 / 未安装时的静态回退：模块自注册菜单（仅运行中的模块）+ 平台页面。
+            items = [new NavItem("概览", "/", "Home")];
+            items.AddRange(ModuleFrontendRegistry.All
+                .Where(m => IsMenuVisible(m.Route))
+                .Select(m => new NavItem(m.Text, m.Route, IconOf(m.Route))));
+            if (IsMenuVisible("/identity/users"))
+            {
+                items.Add(new NavItem("用户管理", "/identity/users", "People"));
+                items.Add(new NavItem("角色管理", "/identity/roles", "SecurityGroup"));
+                items.Add(new NavItem("菜单管理", "/identity/menus", "EditList"));
+            }
+            items.Add(new NavItem("模块管理", "/modules", "Puzzle"));
+            items = [.. items.GroupBy(i => i.Path, StringComparer.OrdinalIgnoreCase).Select(g => g.First())];
+        }
+
+        _navGroups = [.. GroupOrder
+            .Select(name => new NavGroup(name, [.. items.Where(i => GroupOf(i.Path) == name)]))
+            .Where(g => g.Items.Count > 0)];
+    }
+
+    private string NavClass(string href)
+    {
+        var current = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/');
+        return string.Equals(current, href.TrimEnd('/'), StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
+    }
+
+    private void OpenNav()
+    {
+        _navOpen = true;
+        _navToggled = false;
+    }
+
+    private void CloseNav() => _navOpen = false;
+
+    private static string GroupOf(string path) =>
+        path.StartsWith("/identity/", StringComparison.OrdinalIgnoreCase) ? "管理" :
+        path.StartsWith("/modules", StringComparison.OrdinalIgnoreCase) ? "系统" : "工作区";
+
+    private static string IconOf(string path) => path switch
+    {
+        "/" => "Home",
+        "/catalog" => "Shop",
+        "/identity/users" => "People",
+        "/identity/roles" => "SecurityGroup",
+        "/identity/menus" => "EditList",
+        "/modules" => "Puzzle",
+        _ => "Grid"
+    };
+}

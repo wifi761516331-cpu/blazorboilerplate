@@ -1,0 +1,25 @@
+@* CSS 加载顺序对齐 Bluebird index.html：核心 → 图标 → Extras → 自定义 app.css（最后覆盖）。 *@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#131313" media="(prefers-color-scheme: dark)" />
+    <base href="/" />
+    <link rel="stylesheet" href="_content/Bit.BlazorUI/styles/bit.blazorui.css" />
+    <link rel="stylesheet" href="_content/Bit.BlazorUI.Icons/styles/bit.blazorui.icons.css" />
+    <link rel="stylesheet" href="_content/Bit.BlazorUI.Extras/styles/bit.blazorui.extras.css" />
+    <link rel="stylesheet" href="app.css" />
+    <HeadOutlet />
+</head>
+<body class="bit-css-clr-bg-pri bit-css-clr-fg-pri">
+    <BitThemeProvider>
+        <Routes />
+    </BitThemeProvider>
+    <script src="_framework/blazor.web.js"></script>
+    <script src="app.js"></script>
+    <script src="_content/Bit.BlazorUI/scripts/bit.blazorui.js"></script>
+    <script src="_content/Bit.BlazorUI.Extras/scripts/bit.blazorui.extras.js"></script>
+</body>
+</html>

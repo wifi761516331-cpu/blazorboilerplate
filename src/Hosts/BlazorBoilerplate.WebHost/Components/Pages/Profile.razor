@@ -1,0 +1,222 @@
+@page "/profile"
+@rendermode RenderMode.InteractiveServer
+@inject BlazorBoilerplateApiClient Api
+@inject ToastService Toast
+@inject AccountState Account
+
+<div class="page-callout">
+    <h1 class="page-title">个人资料</h1>
+    <p class="muted">管理账户信息、登录密码与已登录会话。</p>
+</div>
+
+@if (_loadError is not null)
+{
+    <div class="page-callout error">@_loadError</div>
+}
+
+<div class="account-page-grid">
+    <section class="bb-card">
+        <h2 class="section-title">基本信息</h2>
+        <div class="id-form">
+            <div class="auth-field">
+                <label class="auth-label" for="pf-name">显示名</label>
+                <input id="pf-name" class="auth-input" @bind="_displayName" />
+            </div>
+            <div class="auth-field">
+                <label class="auth-label" for="pf-email">邮箱</label>
+                <input id="pf-email" class="auth-input" type="email" @bind="_email" />
+            </div>
+            <div class="bb-form-actions">
+                <PermissionView Code="identity.user.update">
+                    <button type="button" class="blazorboilerplate-btn primary" @onclick="SaveProfileAsync" disabled="@_savingProfile">
+                        @(_savingProfile ? "保存中…" : "保存资料")
+                    </button>
+                </PermissionView>
+            </div>
+        </div>
+    </section>
+
+    <section class="bb-card">
+        <h2 class="section-title">修改密码</h2>
+        <div class="id-form">
+            <div class="auth-field">
+                <label class="auth-label" for="pf-old">旧密码</label>
+                <input id="pf-old" class="auth-input" type="password" @bind="_oldPassword" />
+            </div>
+            <div class="auth-field">
+                <label class="auth-label" for="pf-new">新密码</label>
+                <input id="pf-new" class="auth-input" type="password" @bind="_newPassword" />
+            </div>
+            <div class="bb-form-actions">
+                <PermissionView Code="identity.user.change-password">
+                    <button type="button" class="blazorboilerplate-btn primary" @onclick="ChangePasswordAsync" disabled="@_savingPassword">
+                        @(_savingPassword ? "提交中…" : "修改密码")
+                    </button>
+                </PermissionView>
+            </div>
+        </div>
+    </section>
+</div>
+
+<section class="bb-card">
+    <div class="bb-card-head">
+        <h2 class="section-title">登录会话</h2>
+        <button type="button" class="blazorboilerplate-btn ghost" @onclick="LoadSessionsAsync">刷新</button>
+    </div>
+    <div class="grid-container">
+        <table class="data-grid">
+            <thead>
+                <tr>
+                    <th>设备 / 浏览器</th>
+                    <th>IP</th>
+                    <th>时区</th>
+                    <th>开始时间</th>
+                    <th>状态</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (_sessions.Count == 0)
+                {
+                    <tr><td colspan="6" class="muted">暂无会话记录。</td></tr>
+                }
+                @foreach (var s in _sessions)
+                {
+                    <tr>
+                        <td>@(string.IsNullOrWhiteSpace(s.DeviceInfo) ? "—" : s.DeviceInfo)</td>
+                        <td class="mono">@(string.IsNullOrWhiteSpace(s.IP) ? "—" : s.IP)</td>
+                        <td class="mono">@(string.IsNullOrWhiteSpace(s.TimeZone) ? "—" : s.TimeZone)</td>
+                        <td>@s.StartedOnUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>
+                            @if (s.Current)
+                            {
+                                <span class="module-chip info">当前会话</span>
+                            }
+                            else
+                            {
+                                <span class="muted">其他设备</span>
+                            }
+                        </td>
+                        <td>
+                            <PermissionView Code="identity.user.revoke-session">
+                                <button type="button" class="bb-link-btn danger" @onclick="() => RevokeAsync(s)"
+                                        disabled="@(s.Current || _revoking.Contains(s.Id))">
+                                    @(_revoking.Contains(s.Id) ? "撤销中…" : "撤销")
+                                </button>
+                            </PermissionView>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+@code {
+    private string _displayName = string.Empty;
+    private string _email = string.Empty;
+    private string _oldPassword = string.Empty;
+    private string _newPassword = string.Empty;
+    private bool _savingProfile;
+    private bool _savingPassword;
+    private List<UserSessionDto> _sessions = [];
+    private readonly HashSet<Guid> _revoking = [];
+    private string? _loadError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Account.EnsureLoadedAsync();
+        if (Account.CurrentUser is { } user)
+        {
+            _displayName = user.DisplayName;
+            _email = user.Email;
+        }
+        else
+        {
+            _loadError = "无法读取当前用户信息，请确认已登录。";
+        }
+        await LoadSessionsAsync();
+    }
+
+    private async Task LoadSessionsAsync()
+    {
+        try
+        {
+            _sessions = (await Api.GetUserSessionsAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            _loadError = $"读取会话列表失败：{ex.Message}";
+            Toast.Error($"读取会话列表失败：{ex.Message}");
+        }
+    }
+
+    private async Task SaveProfileAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_displayName) || string.IsNullOrWhiteSpace(_email))
+        {
+            Toast.Warning("显示名与邮箱不能为空。");
+            return;
+        }
+        _savingProfile = true;
+        try
+        {
+            var updated = await Api.UpdateProfileAsync(new EditUserRequestDto(_email.Trim(), _displayName.Trim()));
+            _displayName = updated.DisplayName;
+            _email = updated.Email;
+            Toast.Success("个人资料已保存。");
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"保存资料失败：{ex.Message}");
+        }
+        finally
+        {
+            _savingProfile = false;
+        }
+    }
+
+    private async Task ChangePasswordAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_oldPassword) || string.IsNullOrWhiteSpace(_newPassword))
+        {
+            Toast.Warning("请填写旧密码与新密码。");
+            return;
+        }
+        _savingPassword = true;
+        try
+        {
+            await Api.ChangePasswordAsync(new ChangePasswordRequestDto(_oldPassword, _newPassword));
+            _oldPassword = string.Empty;
+            _newPassword = string.Empty;
+            Toast.Success("密码已修改，其他设备可能需要重新登录。");
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"修改密码失败：{ex.Message}");
+        }
+        finally
+        {
+            _savingPassword = false;
+        }
+    }
+
+    private async Task RevokeAsync(UserSessionDto session)
+    {
+        _revoking.Add(session.Id);
+        try
+        {
+            await Api.RevokeSessionAsync(session.Id);
+            _sessions.RemoveAll(s => s.Id == session.Id);
+            Toast.Success("会话已撤销。");
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"撤销会话失败：{ex.Message}");
+        }
+        finally
+        {
+            _revoking.Remove(session.Id);
+        }
+    }
+}

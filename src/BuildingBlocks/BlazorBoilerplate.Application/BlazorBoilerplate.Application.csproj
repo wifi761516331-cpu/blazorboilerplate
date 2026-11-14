@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>BlazorBoilerplate.Application</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorBoilerplate.Domain\BlazorBoilerplate.Domain.csproj" />
+  </ItemGroup>
+</Project>

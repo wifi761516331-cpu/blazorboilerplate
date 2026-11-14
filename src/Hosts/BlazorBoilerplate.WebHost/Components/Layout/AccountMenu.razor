@@ -1,0 +1,657 @@
+@* 账号菜单：结构沿用 Bluebird AppMenu.razor + SignOutConfirmDialog.razor（原生 HTML 复刻）。
+   全部为真实功能：当前用户来自 AccountState / GetCurrentUserAsync；其他账号、登录态切换、
+   语言、租户、时区、通知、主题、强调色、退出登录分别对接 Web.Shared 的强类型 API 与
+   app.js 提供的 blazorAuth / blazorPrefs 全局函数。弹框 DOM 常驻但用 hidden 控制显隐。 *@
+@implements IDisposable
+@inject NavigationManager Navigation
+@inject ToastService Toast
+@inject AccountState Account
+@inject UserPreferences Preferences
+@inject BlazorBoilerplateApiClient Api
+@inject IJSRuntime JS
+
+<div class="account-menu-root">
+    <button type="button" class="header-persona" title="账户菜单" aria-expanded="@_isOpen" @onclick="Toggle">
+        @if (Account.IsAuthenticated)
+        {
+            <span class="persona-avatar">@UserInitials()<span class="persona-presence"></span></span>
+            <span class="persona-name">@Account.CurrentUser!.DisplayName</span>
+        }
+        else
+        {
+            <span class="persona-avatar"><AppIcon Name="People" /></span>
+            <span class="persona-name">登录</span>
+        }
+        <span class="menu-chevron"><AppIcon Name="ChevronDown" /></span>
+    </button>
+
+    <button type="button" class="menu-backdrop" hidden="@(!_isOpen)" aria-label="关闭账户菜单" @onclick="Close"></button>
+
+    <div class="account-menu" hidden="@(!_isOpen)" role="menu">
+        @if (_hint is not null)
+        {
+            <div class="account-hint">@_hint</div>
+        }
+
+        @if (_panel == MenuPanel.Main)
+        {
+            <div class="account-identity">
+                <button type="button" class="account-avatar-lg" title="编辑个人资料" @onclick="GoToProfile">
+                    <span class="avatar-lg-text">@UserInitials()</span>
+                    <span class="avatar-overlay">编辑</span>
+                    <span class="presence-dot" title="在线"></span>
+                </button>
+                <div class="account-identity-text">
+                    <strong>@(Account.CurrentUser?.DisplayName ?? "未登录")</strong>
+                    <span>@(Account.CurrentUser?.Email ?? "")</span>
+                </div>
+            </div>
+
+            <div class="account-section-label">其他账号</div>
+            @if (_accounts.Count == 0)
+            {
+                <div class="account-empty">暂无其他已登录账号</div>
+            }
+            @foreach (var account in _accounts)
+            {
+                <button type="button" class="account-action" @onclick="() => SwitchAccount(account)">
+                    <span class="account-mini-avatar">@MakeInitials(LabelOf(account))</span>
+                    <span class="account-action-text">
+                        <strong>@LabelOf(account)</strong>
+                        <small>@account.Email</small>
+                    </span>
+                </button>
+            }
+            <button type="button" class="account-action" @onclick="AddAccount">
+                <AppIcon Name="AddFriend" />
+                <span>添加其他账号</span>
+            </button>
+
+            <div class="account-separator"></div>
+
+            <button type="button" class="account-action" @onclick="GoToProfile">
+                <AppIcon Name="Contact" />
+                <span>个人资料</span>
+            </button>
+            <button type="button" class="account-action has-chevron" @onclick="OpenLanguages">
+                <AppIcon Name="Globe" />
+                <span>语言</span>
+                <span class="account-chevron"><AppIcon Name="ChevronRight" /></span>
+            </button>
+            <button type="button" class="account-action has-chevron" @onclick="OpenTenants">
+                <AppIcon Name="Org" />
+                <span>租户</span>
+                <span class="account-chevron"><AppIcon Name="ChevronRight" /></span>
+            </button>
+
+            <div class="account-row">
+                <AppIcon Name="Clock" />
+                <select class="account-select" @bind="_timeZone" @bind:after="OnTimeZoneChangedAsync" title="时区">
+                    @foreach (var zone in _timeZoneOptions)
+                    {
+                        <option value="@zone.Id">@zone.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="account-zone-now">
+                <AppIcon Name="Clock" />
+                <span>当地时间 @_zoneNow</span>
+            </div>
+
+            <div class="account-row">
+                <AppIcon Name="@(_notifications ? "Bell" : "RingerOff")" />
+                <button type="button" class="account-row-link" title="查看通知" @onclick="GoToNotifications">
+                    通知
+                    @if (_unreadCount > 0)
+                    {
+                        <span class="account-unread">@(_unreadCount > 99 ? "99+" : _unreadCount.ToString())</span>
+                    }
+                </button>
+                <span class="account-spacer"></span>
+                <button type="button" class="account-switch @(_notifications ? "on" : "")" role="switch"
+                        aria-checked="@_notifications" title="接收通知" @onclick="ToggleNotifications">
+                    <span></span>
+                </button>
+            </div>
+
+            <div class="account-row">
+                <AppIcon Name="@(Dark ? "Sunny" : "ClearNight")" />
+                <span class="account-row-label">@(Dark ? "深色主题" : "浅色主题")</span>
+                <span class="account-spacer"></span>
+                <button type="button" class="account-switch @(Dark ? "on" : "")" role="switch"
+                        aria-checked="@Dark" title="切换明暗主题" @onclick="ToggleTheme">
+                    <span></span>
+                </button>
+            </div>
+
+            <div class="accent-block">
+                <span class="account-section-label">强调色</span>
+                <div class="accent-swatches">
+                    @foreach (var color in AccentColors)
+                    {
+                        <button type="button" class="accent-swatch @(CurrentAccent == color.Hex ? "selected" : "")"
+                                style="background:@color.Hex" title="@color.Name"
+                                @onclick="() => SetAccent(color.Hex)">
+                            @if (CurrentAccent == color.Hex)
+                            {
+                                <AppIcon Name="Check" />
+                            }
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <div class="account-separator"></div>
+
+            <button type="button" class="account-action danger" @onclick="OpenSignOut">
+                <AppIcon Name="SignOut" />
+                <span>退出登录</span>
+            </button>
+        }
+        else if (_panel == MenuPanel.Languages)
+        {
+            <button type="button" class="account-action account-back" @onclick="BackToMain">
+                <AppIcon Name="ChevronLeft" />
+                <span>选择语言</span>
+            </button>
+            <div class="account-separator"></div>
+            @foreach (var culture in _cultures)
+            {
+                <button type="button" class="account-choice @(_culture == culture.Code ? "selected" : "")"
+                        @onclick="() => SelectLanguage(culture)">
+                    <span>@culture.Text</span>
+                    @if (_culture == culture.Code)
+                    {
+                        <AppIcon Name="Check" />
+                    }
+                </button>
+            }
+        }
+        else
+        {
+            <button type="button" class="account-action account-back" @onclick="BackToMain">
+                <AppIcon Name="ChevronLeft" />
+                <span>切换租户</span>
+            </button>
+            <div class="account-separator"></div>
+            @if (_tenants.Count == 0)
+            {
+                <div class="account-empty">暂无可切换的租户</div>
+            }
+            @foreach (var tenant in _tenants)
+            {
+                <button type="button" class="account-choice @(IsCurrentTenant(tenant) ? "selected" : "")"
+                        @onclick="() => SelectTenant(tenant)">
+                    <AppIcon Name="@(tenant.Accepted ? "Org" : "Mail")" />
+                    <span>@tenant.Name</span>
+                    @if (!tenant.Accepted)
+                    {
+                        <small class="pending-badge">待接受邀请</small>
+                    }
+                    else if (IsCurrentTenant(tenant))
+                    {
+                        <AppIcon Name="Check" />
+                    }
+                </button>
+            }
+            <div class="account-separator"></div>
+            <button type="button" class="account-action" @onclick="ManageTenants">
+                <AppIcon Name="Settings" />
+                <span>管理我的租户</span>
+            </button>
+        }
+    </div>
+
+    @* 退出确认框：沿用自包含 BlazorBoilerplateModal（与其他弹框同一套样式） *@
+    <BlazorBoilerplateModal @bind-IsOpen="_signOutOpen"
+                Title="退出登录" OkText="退出登录" Danger
+                Message="确定要退出当前账号吗？退出后需要重新登录。"
+                ShowClose="false" CloseOnBackdrop="false"
+                OnOk="ConfirmSignOutAsync">
+        <label class="account-check">
+            <input type="checkbox" @bind="_signOutAll" /> 退出所有账号
+        </label>
+    </BlazorBoilerplateModal>
+</div>
+
+@code {
+    private enum MenuPanel { Main, Languages, Tenants }
+
+    /// <summary>与主布局双向绑定：切换明暗主题。</summary>
+    [Parameter] public bool Dark { get; set; }
+    [Parameter] public EventCallback<bool> DarkChanged { get; set; }
+
+    /// <summary>与主布局双向绑定：强调色 hex；null = Fluent2 默认蓝。</summary>
+    [Parameter] public string? Accent { get; set; }
+    [Parameter] public EventCallback<string?> AccentChanged { get; set; }
+
+    private const string DefaultAccent = "#0f6cbd";
+
+    private static readonly (string Name, string Hex)[] AccentColors =
+    [
+        ("Fluent 蓝", DefaultAccent), ("紫罗兰", "#7c3aed"), ("青绿", "#0e8a8a"),
+        ("橙红", "#d83b01"), ("森绿", "#107c10"), ("玫红", "#c239b3")
+    ];
+
+    /// <summary>IANA 时区清单（value 交给 TimeZoneInfo.FindSystemTimeZoneById）。</summary>
+    private static readonly (string Id, string Text)[] TimeZones =
+    [
+        ("Asia/Shanghai", "(UTC+08:00) 北京 / 上海 / 中国香港"),
+        ("UTC", "(UTC+00:00) 协调世界时"),
+        ("America/Los_Angeles", "(UTC-08:00) 太平洋时间（美国、加拿大）"),
+        ("Europe/London", "(UTC+00:00) 伦敦"),
+        ("Asia/Tokyo", "(UTC+09:00) 东京"),
+        ("Europe/Berlin", "(UTC+01:00) 柏林 / 巴黎"),
+        ("America/New_York", "(UTC-05:00) 东部时间（美国、加拿大）"),
+        ("Australia/Sydney", "(UTC+10:00) 悉尼")
+    ];
+
+    private static readonly CultureOption[] FallbackCultures =
+    [
+        new("zh-CN", "简体中文"), new("en-US", "英语（美国）"),
+        new("ja-JP", "日语"), new("de-DE", "德语")
+    ];
+
+    // 只拿不透明的 accountId：refresh_token 留在 WebHost 的加密 Cookie 票据里，不下发到浏览器。
+    private sealed record OtherAccount(string UserId, string UserName, string Email, string DisplayName, string AccountId);
+    private sealed record CultureOption(string Code, string Text);
+
+    private bool _isOpen;
+    private bool _signOutOpen;
+    private bool _signOutAll;
+    private MenuPanel _panel = MenuPanel.Main;
+    private string? _hint;
+    private List<OtherAccount> _accounts = [];
+    private List<CultureOption> _cultures = [.. FallbackCultures];
+    private List<TenantDto> _tenants = [];
+    private List<(string Id, string Text)> _timeZoneOptions = [.. TimeZones];
+    private string _culture = "zh-CN";
+    private string _timeZone = "Asia/Shanghai";
+    private bool _notifications;
+    private int _unreadCount;
+    private string _zoneNow = "—";
+    private CancellationTokenSource? _clockCts;
+
+    private string CurrentAccent => Accent ?? DefaultAccent;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Account.EnsureLoadedAsync();
+
+        var prefs = await Preferences.GetAsync();
+        _culture = prefs.Culture;
+        _timeZone = prefs.TimeZone;
+        _notifications = prefs.NotificationsEnabled;
+        if (_timeZoneOptions.All(z => z.Id != _timeZone))
+            _timeZoneOptions.Insert(0, (_timeZone, _timeZone));
+        ApplyZoneNow();
+
+        await Task.WhenAll(
+            LoadAccountsAsync(),
+            LoadCulturesAsync(),
+            LoadTenantsAsync(),
+            LoadUnreadAsync());
+
+        StartClock();
+    }
+
+    /// <summary>每 30 秒刷新菜单内的「该时区当前时间」（可选增强，失败自动停止）。</summary>
+    private void StartClock()
+    {
+        _clockCts = new CancellationTokenSource();
+        _ = RunClockAsync(_clockCts.Token);
+    }
+
+    private async Task RunClockAsync(CancellationToken ct)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                ApplyZoneNow();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch
+        {
+            // 组件销毁 / 预渲染阶段无 renderer：停止刷新即可。
+        }
+    }
+
+    public void Dispose()
+    {
+        _clockCts?.Cancel();
+        _clockCts?.Dispose();
+    }
+
+    private async Task LoadAccountsAsync()
+    {
+        try
+        {
+            var result = await JS.InvokeAsync<JsonElement>("blazorAuth.getAccounts");
+            _accounts = ParseAccounts(result);
+        }
+        catch (Exception ex)
+        {
+            _accounts = [];
+            Fail($"读取其他账号失败：{ex.Message}");
+        }
+    }
+
+    private async Task LoadCulturesAsync()
+    {
+        try
+        {
+            var codes = await Api.GetSupportedCulturesAsync();
+            _cultures = codes is { Count: > 0 }
+                ? codes.Select(c => new CultureOption(c, CultureName(c))).ToList()
+                : [.. FallbackCultures];
+        }
+        catch (Exception ex)
+        {
+            _cultures = [.. FallbackCultures];
+            Fail($"读取语言列表失败，已使用默认清单：{ex.Message}");
+        }
+        if (_cultures.All(c => c.Code != _culture))
+            _cultures.Insert(0, new CultureOption(_culture, CultureName(_culture)));
+    }
+
+    private async Task LoadTenantsAsync()
+    {
+        try { _tenants = (await Api.GetTenantsAsync()).ToList(); }
+        catch (Exception ex) { _tenants = []; Fail($"读取租户列表失败：{ex.Message}"); }
+    }
+
+    private async Task LoadUnreadAsync()
+    {
+        try { _unreadCount = await Api.GetUnreadCountAsync(); }
+        catch (Exception ex)
+        {
+            _unreadCount = 0; // 失败隐藏徽标
+            _hint ??= $"读取未读通知失败：{ex.Message}"; // 内联提示，不静默
+        }
+    }
+
+    private async Task Toggle()
+    {
+        if (!Account.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/sign-in");
+            return;
+        }
+        if (_isOpen)
+        {
+            Close();
+            return;
+        }
+        _isOpen = true;
+        _panel = MenuPanel.Main;
+        _hint = null;
+        ApplyZoneNow();
+        await LoadUnreadAsync();
+    }
+
+    /// <summary>关闭时重置子面板，下次打开回到主菜单。</summary>
+    private void Close()
+    {
+        _isOpen = false;
+        _panel = MenuPanel.Main;
+    }
+
+    private void Fail(string text)
+    {
+        _hint = text;
+        Toast.Error(text);
+    }
+
+    private async Task ToggleNotifications()
+    {
+        var enabled = !_notifications;
+        try
+        {
+            await Api.SetNotificationEnabledAsync(enabled);
+        }
+        catch (Exception ex)
+        {
+            Fail($"更新通知开关失败：{ex.Message}");
+            return;
+        }
+        _notifications = enabled;
+        var prefs = await Preferences.GetAsync();
+        await Preferences.SetAsync(prefs with { NotificationsEnabled = enabled });
+        Toast.Info(enabled ? "通知已开启。" : "通知已关闭。");
+        if (enabled)
+        {
+            try
+            {
+                await Api.SubscribePushAsync(new PushNotificationSubscriptionDto(
+                    Guid.NewGuid().ToString("N"), "browser", "in-app"));
+            }
+            catch
+            {
+                // 推送订阅失败忽略：不影响站内通知。
+            }
+        }
+        await LoadUnreadAsync();
+    }
+
+    private async Task ToggleTheme()
+    {
+        var next = !Dark;
+        await DarkChanged.InvokeAsync(next);
+        var prefs = await Preferences.GetAsync();
+        await Preferences.SetAsync(prefs with { Theme = next ? "dark" : "light" });
+    }
+
+    private async Task SetAccent(string hex)
+    {
+        var next = hex == DefaultAccent ? null : hex;
+        await AccentChanged.InvokeAsync(next);
+        var prefs = await Preferences.GetAsync();
+        await Preferences.SetAsync(prefs with { AccentColor = next });
+    }
+
+    private void GoToProfile() { Close(); Navigation.NavigateTo("/profile"); }
+    private void GoToNotifications() { Close(); Navigation.NavigateTo("/notifications"); }
+    private void ManageTenants() { Close(); Navigation.NavigateTo("/tenants"); }
+
+    private Task AddAccount() => Redirect("/sign-in?add-account=1&return-url=%2F");
+
+    private async Task SwitchAccount(OtherAccount account)
+    {
+        try
+        {
+            var result = await JS.InvokeAsync<JsonElement>("blazorAuth.switchAccount", account.AccountId);
+            if (!Ok(result))
+            {
+                Fail(Err(result) ?? "切换账号失败。");
+                return;
+            }
+            Toast.Success($"正在切换到 {LabelOf(account)}…");
+            await Redirect("/");
+        }
+        catch (Exception ex)
+        {
+            Fail($"切换账号失败：{ex.Message}");
+        }
+    }
+
+    private void OpenLanguages() { _panel = MenuPanel.Languages; _hint = null; }
+    private void OpenTenants() { _panel = MenuPanel.Tenants; _hint = null; }
+    private void BackToMain() => _panel = MenuPanel.Main;
+
+    private async Task SelectLanguage(CultureOption culture)
+    {
+        _culture = culture.Code;
+        _panel = MenuPanel.Main;
+        var prefs = await Preferences.GetAsync();
+        await Preferences.SetAsync(prefs with { Culture = culture.Code });
+        Toast.Info($"语言已切换为 {culture.Text}，正在刷新页面…");
+        await Redirect(CurrentUrl());
+    }
+
+    private async Task SelectTenant(TenantDto tenant)
+    {
+        _panel = MenuPanel.Main;
+        try
+        {
+            var result = await JS.InvokeAsync<JsonElement>("blazorAuth.switchTenant", tenant.Id.ToString());
+            if (!Ok(result))
+            {
+                Fail(Err(result) ?? "切换租户失败。");
+                return;
+            }
+            Toast.Success($"正在切换到租户「{tenant.Name}」…");
+            await Redirect("/");
+        }
+        catch (Exception ex)
+        {
+            Fail($"切换租户失败：{ex.Message}");
+        }
+    }
+
+    private bool IsCurrentTenant(TenantDto tenant) =>
+        tenant.Current || Account.CurrentUser?.TenantId == tenant.Id;
+
+    /// <summary>&lt;select @bind&gt; 变化后：写入偏好 + 显式同步会话时区 + 刷新当地时间。</summary>
+    private async Task OnTimeZoneChangedAsync()
+    {
+        ApplyZoneNow();
+        var prefs = await Preferences.GetAsync();
+        await Preferences.SetAsync(prefs with { TimeZone = _timeZone });
+        try
+        {
+            // SetAsync 已同步过一次会话；这里按契约显式再同步，二者幂等。
+            await Api.UpdateSessionAsync(new UpdateUserSessionRequestDto(
+                prefs.Culture, _timeZone, prefs.NotificationsEnabled, "browser"));
+        }
+        catch (Exception ex)
+        {
+            Fail($"会话时区同步失败：{ex.Message}");
+        }
+        Toast.Info($"时区已切换为 {_timeZone}。");
+    }
+
+    private void OpenSignOut()
+    {
+        Close();
+        _signOutOpen = true;
+    }
+
+    private async Task ConfirmSignOutAsync()
+    {
+        var all = _signOutAll;
+        _signOutOpen = false;
+        _signOutAll = false;
+        try
+        {
+            var result = await JS.InvokeAsync<JsonElement>("blazorAuth.logout", all);
+            if (!Ok(result))
+            {
+                Fail("退出登录失败，请重试。");
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            Fail($"退出登录失败：{ex.Message}");
+            return;
+        }
+        Account.Invalidate();
+        Toast.Success(all ? "已退出所有账号，正在返回登录页…" : "已退出登录，正在返回登录页…");
+        await Redirect("/sign-in");
+    }
+
+    private async Task Redirect(string url)
+    {
+        try { await JS.InvokeVoidAsync("blazorAuth.redirect", url); }
+        catch { /* 整页跳转会销毁 JS 上下文，忽略跳转引发的 interop 异常 */ }
+    }
+
+    private string CurrentUrl()
+    {
+        try { return new Uri(Navigation.Uri).PathAndQuery; }
+        catch { return "/"; }
+    }
+
+    private void ApplyZoneNow()
+    {
+        try
+        {
+            var tz = TimeZoneInfo.FindSystemTimeZoneById(_timeZone);
+            _zoneNow = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, tz).ToString("MM-dd HH:mm");
+        }
+        catch
+        {
+            _zoneNow = DateTimeOffset.UtcNow.ToString("MM-dd HH:mm") + " (UTC)";
+        }
+    }
+
+    private static List<OtherAccount> ParseAccounts(JsonElement el)
+    {
+        var list = new List<OtherAccount>();
+        if (el.ValueKind != JsonValueKind.Array) return list;
+        foreach (var item in el.EnumerateArray())
+        {
+            list.Add(new OtherAccount(
+                GetString(item, "userId"),
+                GetString(item, "userName"),
+                GetString(item, "email"),
+                GetString(item, "displayName"),
+                GetString(item, "accountId")));
+        }
+        return list;
+    }
+
+    private static string GetString(JsonElement el, string name) =>
+        el.ValueKind == JsonValueKind.Object &&
+        el.TryGetProperty(name, out var v) &&
+        v.ValueKind == JsonValueKind.String
+            ? v.GetString() ?? string.Empty
+            : string.Empty;
+
+    private static bool Ok(JsonElement el) =>
+        el.ValueKind == JsonValueKind.Object &&
+        el.TryGetProperty("ok", out var v) &&
+        v.ValueKind == JsonValueKind.True;
+
+    private static string? Err(JsonElement el) =>
+        el.ValueKind == JsonValueKind.Object &&
+        el.TryGetProperty("error", out var v) &&
+        v.ValueKind == JsonValueKind.String
+            ? v.GetString()
+            : null;
+
+    private static string CultureName(string code) => code switch
+    {
+        "zh-CN" => "简体中文", "zh-TW" => "繁體中文",
+        "en-US" => "英语（美国）", "en-GB" => "英语（英国）",
+        "ja-JP" => "日语", "de-DE" => "德语", "fr-FR" => "法语",
+        "ko-KR" => "韩语", "es-ES" => "西班牙语",
+        _ => code
+    };
+
+    private string UserInitials() => MakeInitials(FirstNonEmpty(
+        Account.CurrentUser?.DisplayName, Account.CurrentUser?.UserName,
+        Account.CurrentUser?.Email, "?"));
+
+    private static string LabelOf(OtherAccount a) =>
+        FirstNonEmpty(a.DisplayName, a.UserName, a.Email, "未命名账号");
+
+    private static string FirstNonEmpty(params string?[] values)
+    {
+        foreach (var v in values)
+            if (!string.IsNullOrWhiteSpace(v)) return v!;
+        return "?";
+    }
+
+    private static string MakeInitials(string name)
+    {
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return string.Concat(char.ToUpperInvariant(parts[0][0]), char.ToUpperInvariant(parts[1][0]));
+        var s = name.Trim();
+        return s.Length >= 2 ? s[..2].ToUpperInvariant() : s.ToUpperInvariant();
+    }
+}

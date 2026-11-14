@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>BlazorBoilerplate.WebHost</RootNamespace>
+    <AssemblyName>BlazorBoilerplate.WebHost</AssemblyName>
+    <UseRazorComponents>true</UseRazorComponents>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Bit.BlazorUI" />
+    <PackageReference Include="Bit.BlazorUI.Extras" />
+    <PackageReference Include="Bit.BlazorUI.Icons" />
+    <PackageReference Include="Serilog.AspNetCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\BuildingBlocks\BlazorBoilerplate.Application\BlazorBoilerplate.Application.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\BlazorBoilerplate.ModuleAbstractions\BlazorBoilerplate.ModuleAbstractions.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\BlazorBoilerplate.Web.Shared\BlazorBoilerplate.Web.Shared.csproj" />
+    <ProjectReference Include="..\..\Modules\Catalog\BlazorBoilerplate.Modules.Catalog\BlazorBoilerplate.Modules.Catalog.csproj" />
+    <ProjectReference Include="..\..\Modules\Identity\BlazorBoilerplate.Modules.Identity\BlazorBoilerplate.Modules.Identity.csproj" />
+  </ItemGroup>
+
+</Project>
