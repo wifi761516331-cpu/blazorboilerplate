@@ -167,40 +167,9 @@
                 </button>
             }
         }
-        else
-        {
-            <button type="button" class="account-action account-back" @onclick="BackToMain">
-                <AppIcon Name="ChevronLeft" />
-                <span>切换租户</span>
-            </button>
-            <div class="account-separator"></div>
-            @if (_tenants.Count == 0)
-            {
-                <div class="account-empty">暂无可切换的租户</div>
-            }
-            @foreach (var tenant in _tenants)
-            {
-                <button type="button" class="account-choice @(IsCurrentTenant(tenant) ? "selected" : "")"
-                        @onclick="() => SelectTenant(tenant)">
-                    <AppIcon Name="@(tenant.Accepted ? "Org" : "Mail")" />
-                    <span>@tenant.Name</span>
-                    @if (!tenant.Accepted)
-                    {
-                        <small class="pending-badge">待接受邀请</small>
-                    }
-                    else if (IsCurrentTenant(tenant))
-                    {
-                        <AppIcon Name="Check" />
-                    }
-                </button>
-            }
-            <div class="account-separator"></div>
-            <button type="button" class="account-action" @onclick="ManageTenants">
-                <AppIcon Name="Settings" />
-                <span>管理我的租户</span>
-            </button>
-        }
     </div>
+
+    <SwitchTenantModal @bind-IsOpen="_switchOpen" />
 
     @* 退出确认框：沿用自包含 BlazorBoilerplateModal（与其他弹框同一套样式） *@
     <BlazorBoilerplateModal @bind-IsOpen="_signOutOpen"
@@ -215,7 +184,7 @@
 </div>
 
 @code {
-    private enum MenuPanel { Main, Languages, Tenants }
+    private enum MenuPanel { Main, Languages }
 
     /// <summary>与主布局双向绑定：切换明暗主题。</summary>
     [Parameter] public bool Dark { get; set; }
@@ -257,13 +226,13 @@
     private sealed record CultureOption(string Code, string Text);
 
     private bool _isOpen;
+    private bool _switchOpen;
     private bool _signOutOpen;
     private bool _signOutAll;
     private MenuPanel _panel = MenuPanel.Main;
     private string? _hint;
     private List<OtherAccount> _accounts = [];
     private List<CultureOption> _cultures = [.. FallbackCultures];
-    private List<TenantDto> _tenants = [];
     private List<(string Id, string Text)> _timeZoneOptions = [.. TimeZones];
     private string _culture = "zh-CN";
     private string _timeZone = "Asia/Shanghai";
@@ -289,7 +258,6 @@
         await Task.WhenAll(
             LoadAccountsAsync(),
             LoadCulturesAsync(),
-            LoadTenantsAsync(),
             LoadUnreadAsync());
 
         StartClock();
@@ -355,12 +323,6 @@
         }
         if (_cultures.All(c => c.Code != _culture))
             _cultures.Insert(0, new CultureOption(_culture, CultureName(_culture)));
-    }
-
-    private async Task LoadTenantsAsync()
-    {
-        try { _tenants = (await Api.GetTenantsAsync()).ToList(); }
-        catch (Exception ex) { _tenants = []; Fail($"读取租户列表失败：{ex.Message}"); }
     }
 
     private async Task LoadUnreadAsync()
@@ -478,7 +440,9 @@
     }
 
     private void OpenLanguages() { _panel = MenuPanel.Languages; _hint = null; }
-    private void OpenTenants() { _panel = MenuPanel.Tenants; _hint = null; }
+
+    /// <summary>打开切换租户弹框：仅置绑定状态，由参数驱动子组件渲染并自行加载数据。</summary>
+    private void OpenTenants() { Close(); _switchOpen = true; }
     private void BackToMain() => _panel = MenuPanel.Main;
 
     private async Task SelectLanguage(CultureOption culture)
@@ -490,29 +454,6 @@
         Toast.Info($"语言已切换为 {culture.Text}，正在刷新页面…");
         await Redirect(CurrentUrl());
     }
-
-    private async Task SelectTenant(TenantDto tenant)
-    {
-        _panel = MenuPanel.Main;
-        try
-        {
-            var result = await JS.InvokeAsync<JsonElement>("blazorAuth.switchTenant", tenant.Id.ToString());
-            if (!Ok(result))
-            {
-                Fail(Err(result) ?? "切换租户失败。");
-                return;
-            }
-            Toast.Success($"正在切换到租户「{tenant.Name}」…");
-            await Redirect("/");
-        }
-        catch (Exception ex)
-        {
-            Fail($"切换租户失败：{ex.Message}");
-        }
-    }
-
-    private bool IsCurrentTenant(TenantDto tenant) =>
-        tenant.Current || Account.CurrentUser?.TenantId == tenant.Id;
 
     /// <summary>&lt;select @bind&gt; 变化后：写入偏好 + 显式同步会话时区 + 刷新当地时间。</summary>
     private async Task OnTimeZoneChangedAsync()

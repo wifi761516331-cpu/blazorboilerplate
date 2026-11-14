@@ -1139,6 +1139,89 @@ a { color: var(--bb-pri); }
     padding: .75rem 1rem;
     border-top: 1px solid var(--bb-brd-ter);
 }
+
+/* ===== 切换租户弹框（对齐 Bluebird 切换租户模态） ===== */
+.switch-tenant-root { position: relative; }
+.switch-tenant-backdrop {
+    position: fixed; inset: 0; z-index: 1400;
+    border: 0; padding: 0; cursor: default;
+    background: rgba(0, 0, 0, .45);
+    animation: blazorboilerplate-fade-in .15s ease-out;
+}
+.switch-tenant-modal {
+    position: fixed; z-index: 1401; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex; flex-direction: column;
+    width: min(22rem, 100%);
+    max-height: calc(100vh - 2rem);
+    background: var(--bb-bg-pri); color: var(--bb-fg-pri);
+    border: 1px solid var(--bb-brd-ter);
+    border-radius: var(--bb-radius-lg);
+    box-shadow: var(--bb-shd-4), 0 12px 28px rgba(0, 0, 0, .22);
+    animation: blazorboilerplate-modal-in .16s ease-out;
+}
+.switch-tenant-header {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .5rem .5rem .5rem .25rem;
+    border-bottom: 1px solid var(--bb-brd-ter);
+}
+.switch-tenant-back {
+    display: grid; place-items: center;
+    width: 2rem; height: 2rem;
+    border: 0; border-radius: var(--bb-radius-sm);
+    background: transparent; color: var(--bb-fg-pri);
+    cursor: pointer; font-size: 1.1rem; line-height: 1;
+}
+.switch-tenant-back:hover { background: var(--bb-bg-sec); }
+.switch-tenant-title {
+    flex: 1; text-align: center;
+    font-size: 1rem; font-weight: 600; color: var(--bb-fg-pri);
+    margin-right: 2rem; /* 抵消左侧返回按钮宽度，使标题视觉居中 */
+}
+.switch-tenant-body {
+    flex: 1; overflow: auto;
+    display: flex; flex-direction: column; gap: .25rem;
+    padding: .75rem;
+}
+.switch-tenant-empty {
+    display: flex; justify-content: center;
+    padding: 2.5rem 1rem;
+    font-size: .875rem; color: var(--bb-fg-sec);
+}
+.switch-tenant-item {
+    display: flex; align-items: center; gap: .65rem;
+    width: 100%; text-align: left;
+    padding: .65rem .75rem;
+    border: 1px solid var(--bb-brd-ter);
+    border-radius: var(--bb-radius-md);
+    background: var(--bb-bg-pri); color: var(--bb-fg-pri);
+    cursor: pointer; font-size: .9rem;
+    transition: background .12s ease, border-color .12s ease;
+}
+.switch-tenant-item:hover:not(:disabled) { background: var(--bb-bg-sec); border-color: var(--bb-brd-sec); }
+.switch-tenant-item.selected { border-color: color-mix(in srgb, var(--bb-pri) 45%, transparent); background: var(--bb-pri-tint); cursor: default; }
+.switch-tenant-item:disabled { opacity: .85; cursor: default; }
+.switch-tenant-item .switch-tenant-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.switch-tenant-item .pending { color: var(--bb-warn, #b25b00); }
+.switch-tenant-item .current { color: var(--bb-succ, #0e700e); }
+.switch-tenant-item .pending-badge {
+    flex-shrink: 0;
+    font-size: .7rem; line-height: 1;
+    padding: .25rem .4rem;
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--bb-warn, #b25b00) 14%, transparent);
+    color: var(--bb-warn, #b25b00);
+}
+.switch-tenant-manage {
+    display: flex; align-items: center; gap: .65rem;
+    width: 100%; text-align: left;
+    padding: .75rem 1rem;
+    border: 0; border-top: 1px solid var(--bb-brd-ter);
+    background: var(--bb-bg-sec); color: var(--bb-fg-pri);
+    cursor: pointer; font-size: .9rem; font-weight: 500;
+    border-radius: 0 0 var(--bb-radius-lg) var(--bb-radius-lg);
+}
+.switch-tenant-manage:hover { background: var(--bb-bg-ter); }
 .blazorboilerplate-btn {
     display: inline-flex; align-items: center; gap: .4rem;
     min-width: 4.5rem; padding: .4rem .875rem;
@@ -1361,4 +1444,102 @@ a { color: var(--bb-pri); }
 @media (max-width: 599px) {
     .account-page-grid { grid-template-columns: 1fr; }
     .notif-head { flex-direction: column; gap: .125rem; }
+}
+
+/* =========================================================================================
+   租户管理页（Tenants.razor）—— 对齐 Bluebird ManageMyTenantsPage + ManageAllTenantsPage
+   手风琴（新建 / 邀请 / 编辑当前租户）+ 租户卡片列表 + 管理员网格
+   ========================================================================================= */
+.mytenants-loading {
+    display: flex; align-items: center; justify-content: center; gap: .5rem;
+    padding: 3rem 1rem; color: var(--bb-fg-ter); font-size: .875rem;
+}
+
+/* ---- 手风琴（单展开） ---- */
+.mytenants-accordion {
+    display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1.5rem;
+}
+.mt-section {
+    background: var(--bb-bg-pri); border: 1px solid var(--bb-brd-ter);
+    border-radius: var(--bb-radius-md); overflow: hidden;
+}
+.mt-section.expanded { border-color: var(--bb-pri); }
+.mt-section.disabled { opacity: .6; }
+.mt-section-header {
+    display: flex; align-items: center; gap: .625rem; width: 100%;
+    padding: .75rem 1rem; border: 0; background: transparent; cursor: pointer;
+    font: inherit; font-size: .875rem; font-weight: 600; color: var(--bb-fg-pri);
+    text-align: start;
+}
+.mt-section-header:hover { background: var(--bb-bg-sec); }
+.mt-section-header:disabled { cursor: not-allowed; }
+.mt-section-header:disabled:hover { background: transparent; }
+.mt-section-header .app-icon { width: 1.125rem; height: 1.125rem; flex: 0 0 1.125rem; color: var(--bb-pri); }
+.mt-section-title { flex: 1; min-width: 0; }
+.mt-chevron { transition: transform .15s ease; }
+.mt-section.expanded .mt-chevron { transform: rotate(180deg); }
+.mt-section-body {
+    padding: .25rem 1rem 1rem; border-top: 1px solid var(--bb-brd-ter);
+    display: flex; flex-direction: column; gap: .75rem;
+}
+.mt-section-body .muted { margin: 0; }
+.mt-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: .75rem; }
+.mt-section-body > .blazorboilerplate-btn { display: flex; width: 100%; justify-content: center; }
+.mt-form .auth-field { margin-bottom: 0; }
+
+/* ---- 租户卡片列表 ---- */
+.tenant-cards {
+    display: flex; flex-direction: column; gap: .75rem; margin-bottom: 1.5rem;
+}
+.tenant-card {
+    background: var(--bb-bg-pri); border: 1px solid var(--bb-brd-ter);
+    border-radius: var(--bb-radius-md); padding: 1rem;
+    display: flex; flex-direction: column; gap: .875rem;
+}
+.tenant-card:hover { box-shadow: var(--bb-shd-1); }
+.tenant-card-main { display: flex; align-items: center; gap: 1rem; }
+.tenant-card-icon {
+    display: flex; align-items: center; justify-content: center;
+    width: 2.5rem; height: 2.5rem; flex: 0 0 2.5rem;
+    border-radius: 50%; background: var(--bb-bg-sec); color: var(--bb-fg-sec);
+}
+.tenant-card-icon .app-icon { width: 1.75rem; height: 1.75rem; }
+.tenant-card-icon.current { color: var(--bb-suc); background: color-mix(in srgb, var(--bb-suc) 12%, var(--bb-bg-pri)); }
+.tenant-card-icon.pending { color: var(--bb-wrn); background: color-mix(in srgb, var(--bb-wrn) 12%, var(--bb-bg-pri)); }
+.tenant-card-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .125rem; }
+.tenant-card-title { font-size: .9375rem; font-weight: 600; color: var(--bb-fg-pri); }
+.tenant-card-name { font-size: .8125rem; color: var(--bb-fg-sec); }
+.tenant-card-domain { font-size: .75rem; color: var(--bb-fg-ter); font-family: var(--bb-mono); }
+.tenant-tag {
+    flex-shrink: 0; padding: .25rem .625rem; border-radius: 999px;
+    font-size: .75rem; font-weight: 600; border: 1px solid;
+}
+.tenant-tag.active { color: var(--bb-suc); border-color: color-mix(in srgb, var(--bb-suc) 40%, transparent); background: color-mix(in srgb, var(--bb-suc) 8%, transparent); }
+.tenant-tag.inactive { color: var(--bb-err); border-color: color-mix(in srgb, var(--bb-err) 40%, transparent); background: color-mix(in srgb, var(--bb-err) 8%, transparent); }
+.tenant-card-actions {
+    display: flex; justify-content: flex-end; align-items: center; gap: .5rem; flex-wrap: wrap;
+}
+.tenant-empty {
+    display: flex; flex-direction: column; align-items: center; gap: .75rem;
+    padding: 3rem 1rem; color: var(--bb-fg-ter); font-size: .875rem;
+    border: 1px dashed var(--bb-brd-sec); border-radius: var(--bb-radius-md);
+}
+.tenant-empty-icon { width: 3rem !important; height: 3rem !important; color: var(--bb-pri); }
+.tenant-empty p { margin: 0; }
+
+/* ---- 管理员「管理所有租户」 ---- */
+.page-subtitle { margin: 0 0 .25rem; font-size: 1.125rem; font-weight: 700; color: var(--bb-fg-pri); }
+.page-callout.admin-section { border-inline-start: 3px solid var(--bb-pri); }
+.tenant-toggle {
+    padding: .25rem .75rem; border-radius: var(--bb-radius-sm);
+    font-size: .8125rem; font-weight: 600; cursor: pointer; border: 1px solid;
+}
+.tenant-toggle.on { color: var(--bb-suc); border-color: color-mix(in srgb, var(--bb-suc) 40%, transparent); background: color-mix(in srgb, var(--bb-suc) 8%, transparent); }
+.tenant-toggle.off { color: var(--bb-fg-ter); border-color: var(--bb-brd-sec); background: transparent; }
+.tenant-toggle:disabled { opacity: .6; cursor: not-allowed; }
+
+@media (max-width: 599px) {
+    .tenant-card-main { flex-wrap: wrap; }
+    .tenant-tag { margin-inline-start: 3.5rem; }
+    .mt-form { grid-template-columns: 1fr; }
 }

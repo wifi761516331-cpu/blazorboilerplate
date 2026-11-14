@@ -188,6 +188,8 @@
             if (pair.Length == 2 && pair[0] == "return-url")
                 _returnUrl = Uri.UnescapeDataString(pair[1].Replace("+", " "));
         }
+        // 仅允许站内跳转，杜绝开放重定向；跨站或非法 return-url 回落到首页。
+        _returnUrl = NormalizeReturnUrl(_returnUrl, Navigation.BaseUri);
 
         // 可选：显示平台支持的语言。匿名阶段该接口可能不可用，失败时静默，不影响登录。
         try { _supportedCultures = [.. await Api.GetSupportedCulturesAsync()]; }
@@ -224,12 +226,13 @@
 
             if (result is { Ok: true })
             {
-                // 登录成功：用 Blazor 的 NavigationManager 做整页硬刷新（forceLoad），
-                // 让服务器重新读取认证 Cookie 并完成 SSR 鉴权。
-                // 注意：不能用 window.location.assign —— Blazor Server 电路下纯 JS 改 location
-                // 会与 SignalR 线路导航冲突、跳转不提交，表现为“登录成功却不跳转”。
-                var target = string.IsNullOrWhiteSpace(_returnUrl) ? "/" : _returnUrl;
-                Navigation.NavigateTo(target, forceLoad: true);
+                // 登录成功：用全局 blazorAuth.redirect（window.location.assign）做整页硬刷新，
+                // 让服务器重新读取认证 Cookie 完成 SSR 鉴权。该方式与账户菜单的退出登录、切换账号
+                // 完全一致，在 Blazor Server 电路下可靠提交跳转（退出登录 → /sign-in 已验证可用）。
+                // 注意：此前用 Navigation.NavigateTo(forceLoad:true) 在「退出后再登录」场景下跳转不提交，
+                // 故改回经实测可靠的 window.location.assign 路径。
+                var target = NormalizeReturnUrl(_returnUrl, Navigation.BaseUri) ?? "/";
+                await JS.InvokeVoidAsync("blazorAuth.redirect", target);
                 return;
             }
 
@@ -282,4 +285,30 @@
     private void ToggleReveal() => _reveal = !_reveal;
     private void SelectEmail() => _tab = AccountTab.Email;
     private void SelectPhone() => _tab = AccountTab.Phone;
+
+    /// <summary>
+    /// 规范化登录成功后的回跳地址，杜绝开放重定向。
+    /// 仅允许与当前站点同域的相对/绝对站内路径；跨站或非法地址回落到首页（返回 null）。
+    /// </summary>
+    private static string? NormalizeReturnUrl(string? returnUrl, string baseUri)
+    {
+        if (string.IsNullOrWhiteSpace(returnUrl)) return null;
+
+        // 绝对 URL：必须同域，否则拒绝（防止 return-url 指向外部钓鱼站点）。
+        if (Uri.TryCreate(returnUrl, UriKind.Absolute, out var abs))
+        {
+            if (!Uri.TryCreate(baseUri, UriKind.Absolute, out var origin) || abs.Host != origin.Host)
+                return null;
+            return abs.PathAndQuery.StartsWith("/") ? abs.PathAndQuery : "/";
+        }
+
+        // 相对 URL：标准化为以 "/" 开头，避免 "//evil.com" 这类协议相对地址逃逸。
+        if (Uri.TryCreate(returnUrl, UriKind.Relative, out var rel) && !rel.IsAbsoluteUri)
+        {
+            var raw = rel.OriginalString;
+            return raw.StartsWith("/") ? raw : "/" + raw.TrimStart('/');
+        }
+
+        return null;
+    }
 }

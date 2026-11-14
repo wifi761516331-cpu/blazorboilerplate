@@ -2,10 +2,20 @@
 @rendermode RenderMode.InteractiveServer
 @inject BlazorBoilerplateApiClient Api
 @inject ToastService Toast
+@inject NavigationManager Navigation
+@inject AccountState Account
+@inject IJSRuntime JS
+
+@* 租户管理：对齐 Bluebird ManageMyTenantsPage（手风琴 + 卡片列表）+ ManageAllTenantsPage（管理员网格）。
+   普通用户视图 = 「我的租户」：手风琴（新建租户 / 邀请成员 / 编辑当前租户）+ 卡片列表（切换·接受 / 离开·拒绝）。
+   管理员（tenant.create）额外看到「管理所有租户」网格：启用停用开关 + 编辑。
+   数据来自 UserController.GetTenants（当前用户的租户成员关系，含待接受邀请）；切换/接受经由 blazorAuth.switchTenant，
+   离开/拒绝经由 Api.LeaveTenantAsync；创建/编辑调用 Api.CreateTenantAsync / UpdateTenantAsync。
+   Accepted=false 表示待接受邀请，Accepted=true 表示已是成员；Current=true 表示 claims 中当前选中的租户。 *@
 
 <div class="page-callout">
-    <h1 class="page-title">租户管理</h1>
-    <p class="muted">查看全部租户、新建或编辑租户信息、邀请成员与离开租户。</p>
+    <h1 class="page-title">我的租户</h1>
+    <p class="muted">管理你所在的租户：切换、接受邀请、新建或离开租户。</p>
 </div>
 
 @if (_loadError is not null)
@@ -13,220 +23,515 @@
     <div class="page-callout error">@_loadError</div>
 }
 
-<div class="bb-toolbar">
-    <div class="bb-spacer"></div>
-    <PermissionView Code="tenant.create">
-        <button type="button" class="blazorboilerplate-btn primary" @onclick="OpenCreate">新建租户</button>
-    </PermissionView>
-    <button type="button" class="blazorboilerplate-btn ghost" @onclick="LoadAsync">刷新</button>
-</div>
-
-<div class="grid-container">
-    <table class="data-grid">
-        <thead>
-            <tr>
-                <th>名称</th>
-                <th>标题</th>
-                <th>域名</th>
-                <th>状态</th>
-                <th>成员状态</th>
-                <th>操作</th>
-            </tr>
-        </thead>
-        <tbody>
-            @if (_tenants.Count == 0)
-            {
-                <tr><td colspan="6" class="muted">暂无租户。</td></tr>
-            }
-            @foreach (var t in _tenants)
-            {
-                <tr>
-                    <td>
-                        <strong>@t.Name</strong>
-                        @if (t.Current)
-                        {
-                            <span class="module-chip info">当前</span>
-                        }
-                    </td>
-                    <td>@(string.IsNullOrWhiteSpace(t.Title) ? "—" : t.Title)</td>
-                    <td class="mono">@(string.IsNullOrWhiteSpace(t.Domain) ? "—" : t.Domain)</td>
-                    <td>@(t.IsActive ? "启用" : "停用")</td>
-                    <td>@(t.Accepted ? "已加入" : "待接受邀请")</td>
-                    <td>
-                        <div class="bb-row-actions">
-                            <PermissionView Code="tenant.update">
-                                <button type="button" class="bb-link-btn" @onclick="() => OpenEdit(t)">编辑</button>
-                            </PermissionView>
-                            <PermissionView Code="tenant.invite">
-                                <button type="button" class="bb-link-btn" @onclick="() => OpenInvite(t)">邀请成员</button>
-                            </PermissionView>
-                            <PermissionView Code="tenant.leave">
-                                <button type="button" class="bb-link-btn danger" @onclick="() => LeaveAsync(t)"
-                                        disabled="@_busy.Contains(t.Id)">离开</button>
-                            </PermissionView>
+@if (_loading)
+{
+    <div class="mytenants-loading"><span class="blazorboilerplate-spinner"></span> 加载中…</div>
+}
+else
+{
+    @* 手风琴：同一时刻仅展开一个分区。无租户时默认展开「新建租户」。 *@
+    <div class="mytenants-accordion">
+        @* 1. 新建租户（始终可用）。 *@
+        <PermissionView Code="tenant.create">
+            <div class="mt-section @(_expanded == "create" ? "expanded" : "")">
+                <button type="button" class="mt-section-header" @onclick="ToggleCreate">
+                    <AppIcon Name="Add" />
+                    <span class="mt-section-title">新建租户</span>
+                    <AppIcon Name="ChevronDown" Class="mt-chevron" />
+                </button>
+                @if (_expanded == "create")
+                {
+                    <div class="mt-section-body">
+                        <div class="mt-form">
+                            <div class="auth-field">
+                                <label class="auth-label" for="tn-create-name">名称 *</label>
+                                <input id="tn-create-name" class="auth-input" @bind="_createName" placeholder="唯一名称" />
+                            </div>
+                            <div class="auth-field">
+                                <label class="auth-label" for="tn-create-title">标题</label>
+                                <input id="tn-create-title" class="auth-input" @bind="_createTitle" placeholder="展示标题" />
+                            </div>
+                            <div class="auth-field">
+                                <label class="auth-label" for="tn-create-domain">域名</label>
+                                <input id="tn-create-domain" class="auth-input" @bind="_createDomain" placeholder="tenant.example.com" />
+                            </div>
                         </div>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-</div>
+                        <button type="button" class="blazorboilerplate-btn primary" disabled="@_busy" @onclick="CreateAsync">
+                            @(_busy ? "创建中…" : "保存")
+                        </button>
+                    </div>
+                }
+            </div>
+        </PermissionView>
 
-@* 新建 / 编辑租户 *@
-<BlazorBoilerplateModal @bind-IsOpen="_editOpen"
-                        Title="@(_editing is null ? "新建租户" : "编辑租户")"
-                        OkText="保存" OnOk="SaveAsync">
-    <div class="id-form">
-        <div class="auth-field">
-            <label class="auth-label" for="tn-name">名称 *</label>
-            <input id="tn-name" class="auth-input" @bind="_formName" placeholder="唯一名称" />
-        </div>
-        <div class="auth-field">
-            <label class="auth-label" for="tn-title">标题</label>
-            <input id="tn-title" class="auth-input" @bind="_formTitle" placeholder="展示标题" />
-        </div>
-        <div class="auth-field">
-            <label class="auth-label" for="tn-domain">域名</label>
-            <input id="tn-domain" class="auth-input" @bind="_formDomain" placeholder="tenant.example.com" />
-        </div>
+        @* 2. 邀请成员（仅租户管理员，且需先有当前租户）。 *@
+        <PermissionView Code="tenant.invite">
+            <div class="mt-section @(_expanded == "invite" ? "expanded" : "") @(_currentTenant is null ? "disabled" : "")">
+                <button type="button" class="mt-section-header" disabled="@(_currentTenant is null)"
+                        @onclick="ToggleInvite">
+                    <AppIcon Name="People" />
+                    <span class="mt-section-title">@InviteSectionTitle</span>
+                    <AppIcon Name="ChevronDown" Class="mt-chevron" />
+                </button>
+                @if (_expanded == "invite" && _currentTenant is not null)
+                {
+                    <div class="mt-section-body">
+                        <p class="muted">向邮箱发送加入「@(string.IsNullOrWhiteSpace(_currentTenant.Title) ? _currentTenant.Name : _currentTenant.Title)」的邀请。</p>
+                        <div class="mt-form">
+                            <div class="auth-field">
+                                <label class="auth-label" for="tn-invite-email">成员邮箱 *</label>
+                                <input id="tn-invite-email" class="auth-input" type="email" @bind="_inviteEmail" placeholder="member@example.com" />
+                            </div>
+                        </div>
+                        <button type="button" class="blazorboilerplate-btn primary" disabled="@_busy" @onclick="InviteAsync">
+                            @(_busy ? "发送中…" : "发送邀请")
+                        </button>
+                    </div>
+                }
+                else if (_currentTenant is null)
+                {
+                    <div class="mt-section-body muted">请先切换到某个租户后再邀请成员。</div>
+                }
+            </div>
+        </PermissionView>
+
+        @* 3. 编辑当前租户（仅租户管理员，且需先有当前租户）。 *@
+        <PermissionView Code="tenant.update">
+            <div class="mt-section @(_expanded == "update" ? "expanded" : "") @(_currentTenant is null ? "disabled" : "")">
+                <button type="button" class="mt-section-header" disabled="@(_currentTenant is null)"
+                        @onclick="ToggleUpdate">
+                    <AppIcon Name="Edit" />
+                    <span class="mt-section-title">编辑当前租户</span>
+                    <AppIcon Name="ChevronDown" Class="mt-chevron" />
+                </button>
+                @if (_expanded == "update" && _currentTenant is not null)
+                {
+                    <div class="mt-section-body">
+                        <div class="mt-form">
+                            <div class="auth-field">
+                                <label class="auth-label" for="tn-edit-name">名称 *</label>
+                                <input id="tn-edit-name" class="auth-input" @bind="_editName" placeholder="唯一名称" />
+                            </div>
+                            <div class="auth-field">
+                                <label class="auth-label" for="tn-edit-title">标题</label>
+                                <input id="tn-edit-title" class="auth-input" @bind="_editTitle" placeholder="展示标题" />
+                            </div>
+                            <div class="auth-field">
+                                <label class="auth-label" for="tn-edit-domain">域名</label>
+                                <input id="tn-edit-domain" class="auth-input" @bind="_editDomain" placeholder="tenant.example.com" />
+                            </div>
+                        </div>
+                        <button type="button" class="blazorboilerplate-btn primary" disabled="@_busy" @onclick="UpdateAsync">
+                            @(_busy ? "保存中…" : "保存")
+                        </button>
+                    </div>
+                }
+                else if (_currentTenant is null)
+                {
+                    <div class="mt-section-body muted">请先切换到某个租户后再编辑。</div>
+                }
+            </div>
+        </PermissionView>
     </div>
+
+    @* 租户卡片列表 *@
+    <div class="tenant-cards">
+        @if (_tenants.Count == 0)
+        {
+            <div class="tenant-empty">
+                <AppIcon Name="Org" Class="tenant-empty-icon" />
+                <p>你还没有加入任何租户。</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var tenant in _tenants)
+            {
+                <div class="tenant-card" @key="tenant.Id">
+                    <div class="tenant-card-main">
+                        <span class="tenant-card-icon @(IsCurrent(tenant) ? "current" : (!tenant.Accepted ? "pending" : ""))">
+                            <AppIcon Name="@(IsCurrent(tenant) ? "Check" : (!tenant.Accepted ? "Mail" : "Org"))" />
+                        </span>
+                        <div class="tenant-card-info">
+                            <span class="tenant-card-title">@(string.IsNullOrWhiteSpace(tenant.Title) ? tenant.Name : tenant.Title)</span>
+                            <span class="tenant-card-name">@tenant.Name</span>
+                            @if (!string.IsNullOrWhiteSpace(tenant.Domain))
+                            {
+                                <span class="tenant-card-domain">@tenant.Domain</span>
+                            }
+                        </div>
+                        <span class="tenant-tag @(tenant.IsActive ? "active" : "inactive")">@(tenant.IsActive ? "启用" : "停用")</span>
+                    </div>
+                    <div class="tenant-card-actions">
+                        @if (!IsCurrent(tenant))
+                        {
+                            <button type="button" class="blazorboilerplate-btn ghost" disabled="@_busy"
+                                    @onclick="() => SwitchOrAcceptAsync(tenant)">
+                                @(tenant.Accepted ? "切换" : "接受邀请")
+                            </button>
+                        }
+                        @if (tenant.Accepted)
+                        {
+                            <button type="button" class="blazorboilerplate-btn danger" disabled="@_busy"
+                                    @onclick="() => AskLeave(tenant)">离开</button>
+                        }
+                        else
+                        {
+                            <button type="button" class="blazorboilerplate-btn danger" disabled="@_busy"
+                                    @onclick="() => AskLeave(tenant)">拒绝邀请</button>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    </div>
+}
+
+@* 离开 / 拒绝邀请确认框 *@
+<BlazorBoilerplateModal @bind-IsOpen="_confirmLeaveOpen"
+                        Title="@(_leavingTenant is not null && !_leavingTenant.Accepted ? "拒绝邀请" : "离开租户")"
+                        OkText="@(_leavingTenant is not null && !_leavingTenant.Accepted ? "拒绝邀请" : "离开")"
+                        Danger ShowCancel="true" OnOk="ConfirmLeaveAsync">
+    <p class="muted">
+        @if (_leavingTenant is not null && !_leavingTenant.Accepted)
+        {
+            @($"确定要拒绝「{(string.IsNullOrWhiteSpace(_leavingTenant.Title) ? _leavingTenant.Name : _leavingTenant.Title)}」的邀请吗？拒绝后需重新邀请才能加入。")
+        }
+        else if (_leavingTenant is not null)
+        {
+            @($"确定要离开租户「{(string.IsNullOrWhiteSpace(_leavingTenant.Title) ? _leavingTenant.Name : _leavingTenant.Title)}」吗？")
+        }
+    </p>
 </BlazorBoilerplateModal>
 
-@* 邀请成员 *@
-<BlazorBoilerplateModal @bind-IsOpen="_inviteOpen"
-                        Title="邀请成员加入租户" OkText="发送邀请" OnOk="InviteAsync">
-    <div class="id-form">
-        <p class="muted">向邮箱发送加入「@_inviteTenantName」的邀请。</p>
-        <div class="auth-field">
-            <label class="auth-label" for="tn-email">成员邮箱 *</label>
-            <input id="tn-email" class="auth-input" type="email" @bind="_inviteEmail" placeholder="member@example.com" />
+@* 管理员：管理所有租户 *@
+<PermissionView Code="tenant.create">
+    @if (_isAdmin)
+    {
+        <div class="page-callout admin-section">
+            <h2 class="page-subtitle">管理所有租户</h2>
+            <p class="muted">查看平台全部租户，启用或停用，并编辑其信息。</p>
         </div>
+
+        <div class="grid-container">
+            <table class="data-grid">
+                <thead>
+                    <tr>
+                        <th>名称</th>
+                        <th>标题</th>
+                        <th>域名</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (_allTenants.Count == 0)
+                    {
+                        <tr><td colspan="5" class="muted">暂无租户。</td></tr>
+                    }
+                    @foreach (var t in _allTenants)
+                    {
+                        <tr>
+                            <td><strong>@t.Name</strong></td>
+                            <td>@(string.IsNullOrWhiteSpace(t.Title) ? "—" : t.Title)</td>
+                            <td class="mono">@(string.IsNullOrWhiteSpace(t.Domain) ? "—" : t.Domain)</td>
+                            <td>
+                                <button type="button" class="tenant-toggle @(t.IsActive ? "on" : "off")"
+                                        disabled="@_busy" @onclick="() => ToggleActiveAsync(t)">
+                                    @(t.IsActive ? "启用" : "停用")
+                                </button>
+                            </td>
+                            <td>
+                                <div class="bb-row-actions">
+                                    <PermissionView Code="tenant.update">
+                                        <button type="button" class="bb-link-btn" @onclick="() => OpenAdminEdit(t)">编辑</button>
+                                    </PermissionView>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</PermissionView>
+
+@* 管理员编辑租户 *@
+<BlazorBoilerplateModal @bind-IsOpen="_adminEditOpen"
+                        Title="编辑租户" OkText="保存" OnOk="SaveAdminEditAsync">
+    <div class="id-form">
+        <div class="auth-field">
+            <label class="auth-label" for="tn-adm-name">名称 *</label>
+            <input id="tn-adm-name" class="auth-input" @bind="_adminName" placeholder="唯一名称" />
+        </div>
+        <div class="auth-field">
+            <label class="auth-label" for="tn-adm-title">标题</label>
+            <input id="tn-adm-title" class="auth-input" @bind="_adminTitle" placeholder="展示标题" />
+        </div>
+        <div class="auth-field">
+            <label class="auth-label" for="tn-adm-domain">域名</label>
+            <input id="tn-adm-domain" class="auth-input" @bind="_adminDomain" placeholder="tenant.example.com" />
+        </div>
+        <label class="account-check">
+            <input type="checkbox" @bind="_adminActive" /> 启用
+        </label>
     </div>
 </BlazorBoilerplateModal>
 
 @code {
     private List<TenantDto> _tenants = [];
+    private List<TenantDto> _allTenants = [];
+    private TenantDto? _currentTenant;
     private string? _loadError;
-    private readonly HashSet<Guid> _busy = [];
+    private bool _loading;
+    private bool _busy;
+    private bool _isAdmin;
 
-    private bool _editOpen;
-    private TenantDto? _editing;
-    private string _formName = string.Empty;
-    private string _formTitle = string.Empty;
-    private string _formDomain = string.Empty;
+    private string? _expanded;
 
-    private bool _inviteOpen;
-    private Guid _inviteTenantId;
-    private string _inviteTenantName = string.Empty;
+    // 新建
+    private string _createName = string.Empty;
+    private string _createTitle = string.Empty;
+    private string _createDomain = string.Empty;
+
+    // 邀请
     private string _inviteEmail = string.Empty;
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    // 编辑当前租户
+    private string _editName = string.Empty;
+    private string _editTitle = string.Empty;
+    private string _editDomain = string.Empty;
+
+    // 离开 / 拒绝
+    private bool _confirmLeaveOpen;
+    private TenantDto? _leavingTenant;
+
+    // 管理员编辑
+    private bool _adminEditOpen;
+    private TenantDto? _adminEditing;
+    private string _adminName = string.Empty;
+    private string _adminTitle = string.Empty;
+    private string _adminDomain = string.Empty;
+    private bool _adminActive;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Account.EnsureLoadedAsync();
+        _isAdmin = Account.HasPermission("tenant.create");
+        await LoadAsync();
+        if (_isAdmin)
+            await LoadAllAsync();
+    }
 
     private async Task LoadAsync()
     {
+        _loading = true;
         _loadError = null;
         try
         {
-            _tenants = (await Api.GetAllTenantsAsync()).ToList();
+            _tenants = (await Api.GetTenantsAsync()).ToList();
+            _currentTenant = _tenants.FirstOrDefault(IsCurrent);
+            if (_currentTenant is not null)
+            {
+                _editName = _currentTenant.Name;
+                _editTitle = _currentTenant.Title ?? string.Empty;
+                _editDomain = _currentTenant.Domain ?? string.Empty;
+            }
+            // 无租户时默认展开「新建租户」；否则默认收起。
+            _expanded = _tenants.Count == 0 ? "create" : null;
         }
         catch (Exception ex)
         {
             _loadError = $"读取租户列表失败：{ex.Message}";
-            Toast.Error($"读取租户列表失败：{ex.Message}");
+            Toast.Error(_loadError);
+        }
+        finally
+        {
+            _loading = false;
         }
     }
 
-    private void OpenCreate()
+    private async Task LoadAllAsync()
     {
-        _editing = null;
-        _formName = string.Empty;
-        _formTitle = string.Empty;
-        _formDomain = string.Empty;
-        _editOpen = true;
+        try { _allTenants = (await Api.GetAllTenantsAsync()).ToList(); }
+        catch (Exception ex) { Toast.Error($"读取全部租户失败：{ex.Message}"); }
     }
 
-    private void OpenEdit(TenantDto tenant)
+    private bool IsCurrent(TenantDto tenant) =>
+        tenant.Current || (Account.CurrentUser?.TenantId is { } tid && tid == tenant.Id);
+
+    // 手风琴分区标题用属性计算，事件处理器用方法组（规避 Razor 属性内字符串字面量 lambda 的引号解析问题）。
+    private string InviteSectionTitle => _currentTenant is null
+        ? "邀请成员"
+        : $"邀请成员加入「{(string.IsNullOrWhiteSpace(_currentTenant.Title) ? _currentTenant.Name : _currentTenant.Title)}」";
+
+    private void ToggleCreate() => ToggleSection("create");
+    private void ToggleInvite() => ToggleSection("invite");
+    private void ToggleUpdate() => ToggleSection("update");
+
+    private void ToggleSection(string key)
     {
-        _editing = tenant;
-        _formName = tenant.Name;
-        _formTitle = tenant.Title ?? string.Empty;
-        _formDomain = tenant.Domain ?? string.Empty;
-        _editOpen = true;
+        if (_currentTenant is null && (key == "invite" || key == "update")) return;
+        _expanded = _expanded == key ? null : key;
     }
 
-    private async Task SaveAsync()
+    private async Task Redirect(string url)
     {
-        if (string.IsNullOrWhiteSpace(_formName))
+        try { await JS.InvokeVoidAsync("blazorAuth.redirect", url); }
+        catch { /* 整页跳转会销毁 JS 上下文，忽略跳转引发的 interop 异常 */ }
+    }
+
+    /// <summary>切换/接受邀请入口（带 busy 守卫，供卡片按钮直接触发）。</summary>
+    private async Task SwitchOrAcceptAsync(TenantDto tenant)
+    {
+        if (IsCurrent(tenant) || _busy) return;
+        _busy = true;
+        try
+        {
+            await SwitchTenantCoreAsync(tenant.Id, tenant.Name);
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"切换租户失败：{ex.Message}");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>切换核心逻辑（不含 busy 守卫）：CreateAsync / ConfirmLeaveAsync 已持有 _busy，
+    /// 若经 SwitchOrAcceptAsync 进入会被开头的 _busy 检查静默吞掉（切换与跳转都不执行）。</summary>
+    private async Task SwitchTenantCoreAsync(Guid tenantId, string tenantName)
+    {
+        var result = await JS.InvokeAsync<JsonElement>("blazorAuth.switchTenant", tenantId.ToString());
+        if (!Ok(result))
+        {
+            Toast.Error(Err(result) ?? "切换租户失败。");
+            return;
+        }
+        Toast.Success($"正在切换到租户「{tenantName}」…");
+        await Redirect("/");
+    }
+
+    private async Task CreateAsync()
+    {
+        if (_busy) return;
+        if (string.IsNullOrWhiteSpace(_createName))
         {
             Toast.Warning("租户名称不能为空。");
             return;
         }
+        _busy = true;
         try
         {
-            var name = _formName.Trim();
-            var title = string.IsNullOrWhiteSpace(_formTitle) ? null : _formTitle.Trim();
-            var domain = string.IsNullOrWhiteSpace(_formDomain) ? null : _formDomain.Trim();
-            if (_editing is null)
-            {
-                var created = await Api.CreateTenantAsync(
-                    new TenantDto(Guid.Empty, name, title, domain, true, true, false));
-                Toast.Success($"租户「{created.Name}」已创建。");
-            }
-            else
-            {
-                var editing = _editing!;
-                var updated = await Api.UpdateTenantAsync(editing with
-                {
-                    Name = name,
-                    Title = title,
-                    Domain = domain
-                });
-                Toast.Success($"租户「{updated.Name}」已更新。");
-            }
-            _editOpen = false;
-            await LoadAsync();
+            var name = _createName.Trim();
+            var title = string.IsNullOrWhiteSpace(_createTitle) ? null : _createTitle.Trim();
+            var domain = string.IsNullOrWhiteSpace(_createDomain) ? null : _createDomain.Trim();
+            var created = await Api.CreateTenantAsync(
+                new TenantDto(Guid.Empty, name, title, domain, true, true, false));
+            Toast.Success($"租户「{created.Name}」已创建，正在进入…");
+            // 创建者即成为该租户管理员，直接切入（与 Bluebird 一致）。
+            await SwitchTenantCoreAsync(created.Id, created.Name);
         }
         catch (Exception ex)
         {
-            Toast.Error($"保存租户失败：{ex.Message}");
+            Toast.Error($"创建租户失败：{ex.Message}");
         }
-    }
-
-    private void OpenInvite(TenantDto tenant)
-    {
-        _inviteTenantId = tenant.Id;
-        _inviteTenantName = tenant.Name;
-        _inviteEmail = string.Empty;
-        _inviteOpen = true;
+        finally
+        {
+            _busy = false;
+        }
     }
 
     private async Task InviteAsync()
     {
+        if (_busy || _currentTenant is null) return;
         if (string.IsNullOrWhiteSpace(_inviteEmail))
         {
             Toast.Warning("请填写成员邮箱。");
             return;
         }
+        _busy = true;
         try
         {
-            await Api.InviteTenantUserAsync(new InviteUserToTenantRequestDto(_inviteTenantId, _inviteEmail.Trim()));
+            await Api.InviteTenantUserAsync(new InviteUserToTenantRequestDto(_currentTenant.Id, _inviteEmail.Trim()));
             Toast.Success($"已向 {_inviteEmail.Trim()} 发送邀请。");
-            _inviteOpen = false;
+            _inviteEmail = string.Empty;
+            _expanded = null;
         }
         catch (Exception ex)
         {
             Toast.Error($"邀请成员失败：{ex.Message}");
         }
+        finally
+        {
+            _busy = false;
+        }
     }
 
-    private async Task LeaveAsync(TenantDto tenant)
+    private async Task UpdateAsync()
     {
-        _busy.Add(tenant.Id);
+        if (_busy || _currentTenant is null) return;
+        if (string.IsNullOrWhiteSpace(_editName))
+        {
+            Toast.Warning("租户名称不能为空。");
+            return;
+        }
+        _busy = true;
+        try
+        {
+            var name = _editName.Trim();
+            var title = string.IsNullOrWhiteSpace(_editTitle) ? null : _editTitle.Trim();
+            var domain = string.IsNullOrWhiteSpace(_editDomain) ? null : _editDomain.Trim();
+            await Api.UpdateTenantAsync(_currentTenant with { Name = name, Title = title, Domain = domain });
+            Toast.Success($"租户「{name}」已更新。");
+            _expanded = null;
+            await Redirect(Navigation.Uri); // 整页刷新以反映新名称/标题
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"更新租户失败：{ex.Message}");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void AskLeave(TenantDto tenant)
+    {
+        _leavingTenant = tenant;
+        _confirmLeaveOpen = true;
+    }
+
+    private async Task ConfirmLeaveAsync()
+    {
+        if (_leavingTenant is null) return;
+        var tenant = _leavingTenant;
+        var wasCurrent = IsCurrent(tenant);
+        _busy = true;
         try
         {
             await Api.LeaveTenantAsync(tenant.Id);
-            Toast.Success($"已离开租户「{tenant.Name}」。");
+            Toast.Success(tenant.Accepted
+                ? $"已离开租户「{tenant.Name}」。"
+                : $"已拒绝「{tenant.Name}」的邀请。");
+            _confirmLeaveOpen = false;
+            _leavingTenant = null;
+
             await LoadAsync();
+            // 离开的是当前租户：若还有其他已接受租户则切入，否则整页刷新（cookie 的 tid 可能短暂滞后）。
+            if (wasCurrent)
+            {
+                var fallback = _tenants.FirstOrDefault(t => t.Accepted);
+                if (fallback is not null)
+                {
+                    await SwitchTenantCoreAsync(fallback.Id, fallback.Name);
+                    return;
+                }
+            }
+            await Redirect(Navigation.Uri);
         }
         catch (Exception ex)
         {
@@ -234,7 +539,78 @@
         }
         finally
         {
-            _busy.Remove(tenant.Id);
+            _busy = false;
         }
     }
+
+    private async Task ToggleActiveAsync(TenantDto tenant)
+    {
+        if (_busy) return;
+        _busy = true;
+        try
+        {
+            var updated = await Api.UpdateTenantAsync(tenant with { IsActive = !tenant.IsActive });
+            var idx = _allTenants.FindIndex(t => t.Id == updated.Id);
+            if (idx >= 0) _allTenants[idx] = updated;
+            Toast.Success(updated.IsActive ? $"已启用「{updated.Name}」。" : $"已停用「{updated.Name}」。");
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"切换租户状态失败：{ex.Message}");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void OpenAdminEdit(TenantDto tenant)
+    {
+        _adminEditing = tenant;
+        _adminName = tenant.Name;
+        _adminTitle = tenant.Title ?? string.Empty;
+        _adminDomain = tenant.Domain ?? string.Empty;
+        _adminActive = tenant.IsActive;
+        _adminEditOpen = true;
+    }
+
+    private async Task SaveAdminEditAsync()
+    {
+        if (_adminEditing is null) return;
+        if (string.IsNullOrWhiteSpace(_adminName))
+        {
+            Toast.Warning("租户名称不能为空。");
+            return;
+        }
+        try
+        {
+            var name = _adminName.Trim();
+            var title = string.IsNullOrWhiteSpace(_adminTitle) ? null : _adminTitle.Trim();
+            var domain = string.IsNullOrWhiteSpace(_adminDomain) ? null : _adminDomain.Trim();
+            var updated = await Api.UpdateTenantAsync(_adminEditing with
+            {
+                Name = name,
+                Title = title,
+                Domain = domain,
+                IsActive = _adminActive
+            });
+            var idx = _allTenants.FindIndex(t => t.Id == updated.Id);
+            if (idx >= 0) _allTenants[idx] = updated;
+            Toast.Success($"租户「{updated.Name}」已更新。");
+            _adminEditOpen = false;
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"保存租户失败：{ex.Message}");
+        }
+    }
+
+    private static bool Ok(JsonElement el) =>
+        el.ValueKind == JsonValueKind.Object &&
+        el.TryGetProperty("ok", out var v) && v.ValueKind == JsonValueKind.True;
+
+    private static string? Err(JsonElement el) =>
+        el.ValueKind == JsonValueKind.Object &&
+        el.TryGetProperty("error", out var v) && v.ValueKind == JsonValueKind.String
+            ? v.GetString() : null;
 }
