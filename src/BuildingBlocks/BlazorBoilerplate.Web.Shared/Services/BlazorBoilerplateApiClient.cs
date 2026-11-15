@@ -470,7 +470,10 @@ public sealed record IdentityMenuDto(
     int Sort,
     bool IsVisible,
     DateTimeOffset CreatedAtUtc,
-    DateTimeOffset? ModifiedAtUtc);
+    DateTimeOffset? ModifiedAtUtc,
+    string? ModuleId = null,
+    string? PermissionCode = null,
+    string? Kind = null);
 
 /// <summary>Identity 模块菜单树节点 DTO（/api/identity/menus/tree）。</summary>
 public sealed record IdentityMenuNodeDto(

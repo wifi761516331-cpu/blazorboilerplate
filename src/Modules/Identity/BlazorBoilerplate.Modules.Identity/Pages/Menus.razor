@@ -1,22 +1,177 @@
 @page "/identity/menus"
 @rendermode RenderMode.InteractiveServer
+@using System.Reflection
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@using BlazorBoilerplate.Shared.Features.Account
+@using BlazorBoilerplate.Shared.Features.Identity
 @inject BlazorBoilerplateApiClient Api
+@inject INavRefreshService NavRefresh
 @inject ILogger<Menus> Logger
 @inject ToastService Toast
 
+<style>
+    .menu-icon-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.5rem;
+        align-items: end;
+    }
+
+    .menu-icon-picker-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+    }
+
+    .menu-sort-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 0.5rem;
+        align-items: end;
+    }
+
+    .menu-tree-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 0.25rem 0.6rem;
+        margin-bottom: 0.4rem;
+        border-bottom: 1px solid var(--bb-brd-ter, rgba(127, 127, 127, 0.18));
+        font-size: 0.8rem;
+        color: var(--bb-fg-ter);
+    }
+
+    .menu-tree-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 0;
+        width: 100%;
+    }
+
+    .menu-tree-icon {
+        width: 1rem;
+        height: 1rem;
+        opacity: 0.85;
+        flex-shrink: 0;
+    }
+
+    .menu-tree-text {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .menu-tree-tag {
+        font-size: 0.7rem;
+        line-height: 1.4;
+        padding: 0 0.4rem;
+        border-radius: 999px;
+        background: rgba(127, 127, 127, 0.14);
+        color: var(--bb-fg-sec, #666);
+        flex-shrink: 0;
+    }
+
+    .icon-picker-body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        width: 100%;
+    }
+
+    .icon-picker-scroll {
+        max-height: 380px;
+        overflow-y: auto;
+        padding: 0.25rem;
+    }
+
+    .icon-picker-grid-row {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .icon-picker-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        min-width: 0;
+        padding: 0.6rem 0.4rem;
+        border-radius: 6px;
+        border: 1px solid var(--bb-brd-ter, rgba(127, 127, 127, 0.25));
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        transition: border-color 0.15s, background-color 0.15s;
+    }
+
+    .icon-picker-item:hover,
+    .icon-picker-item.active {
+        border-color: var(--bb-pri, #0078d4);
+        background: rgba(0, 120, 212, 0.08);
+    }
+
+    .icon-picker-glyph {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        width: 1.5rem;
+        height: 1.5rem;
+    }
+
+    .icon-picker-name {
+        font-size: 0.72rem;
+        line-height: 1.25;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        text-align: center;
+        opacity: 0.85;
+    }
+
+    .icon-picker-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+
+    @@media (max-width: 720px) {
+        .menu-icon-row {
+            grid-template-columns: 1fr;
+        }
+
+        .icon-picker-body {
+            min-width: 0;
+        }
+    }
+</style>
+
 <div class="page-callout">
     <BitText Element="h1" Class="page-title">菜单管理</BitText>
-    <BitText Class="muted">维护平台侧边栏菜单树（存于数据库）。隐藏的菜单不会渲染；角色授权见「角色管理」。</BitText>
+    <BitText Class="muted">维护平台侧边栏菜单树（存于数据库）。保存或删除后侧边栏将即时刷新；角色授权见「角色管理」。</BitText>
 </div>
 
 <div class="id-page">
     <div class="id-toolbar">
         <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="RefreshAsync" Disabled="@_loading">刷新</BitButton>
-        <BitButton IconName="@BitIconName.Add" OnClick="@(() => OpenCreateAsync(null))">新建顶级菜单</BitButton>
-        @if (_selected is not null)
+        <BitButton IconName="@BitIconName.Add" OnClick="@(() => OpenCreate(null))">新建顶级菜单</BitButton>
+        @if (_selected is not null && !_creating)
         {
-            <BitButton IconName="@BitIconName.AddTo" OnClick="@(() => OpenCreateAsync(_selected.Id))">新建子菜单</BitButton>
+            <BitButton IconName="@BitIconName.AddTo" OnClick="@(() => OpenCreate(_selected.Id))">新建子菜单</BitButton>
         }
+        <BitTextField @bind-Value="_searchText"
+                      @bind-Value:after="RebuildNavAndParents"
+                      Immediate
+                      Placeholder="搜索名称或路由…"
+                      Style="min-width: 200px;" />
         <BitCheckbox @bind-Value="_showHidden" @bind-Value:after="RebuildNavAndParents" Label="显示已隐藏菜单" />
     </div>
 
@@ -27,46 +182,126 @@
 
     <div class="id-columns">
         <BitCard Class="id-list-card">
+            <div class="menu-tree-header">
+                <span>菜单结构</span>
+                <span>共 @_menus.Count 项</span>
+            </div>
             @if (_loading)
             {
                 <BitText Class="muted">加载中…</BitText>
             }
             else if (_menuNavItems.Count == 0)
             {
-                <BitText Class="muted">暂无菜单</BitText>
+                <BitText Class="muted">暂无匹配的菜单</BitText>
             }
             else
             {
                 <BitNav Items="_menuNavItems"
                         Mode="BitNavMode.Manual"
                         Reselectable
-                        OnSelectItem="@((BitNavItem item) => SelectMenuAsync(item))" />
+                        OnSelectItem="@((BitNavItem item) => SelectMenuAsync(item))">
+                    <ItemTemplate Context="item">
+                        @{
+                            var menu = item.Data as IdentityMenuDto;
+                        }
+                        <span class="menu-tree-item" @onclick="@(() => SelectMenuAsync(item))">
+                            <AppIcon Name="@(string.IsNullOrWhiteSpace(menu?.Icon) ? "EditList" : menu!.Icon!)" Class="menu-tree-icon" />
+                            <span class="menu-tree-text">@item.Text</span>
+                            @if (menu is not null && !menu.IsVisible)
+                            {
+                                <span class="menu-tree-tag">已隐藏</span>
+                            }
+                            @if (menu is not null && menu.Kind == "group")
+                            {
+                                <span class="menu-tree-tag">分组</span>
+                            }
+                        </span>
+                    </ItemTemplate>
+                </BitNav>
             }
         </BitCard>
 
         <BitCard Class="id-detail-card">
-            @if (_selected is null)
+            @if (_selected is null && !_creating)
             {
-                <BitText Class="muted">请从左侧选择一个菜单，或新建菜单。</BitText>
+                <BitText Class="muted">请从左侧选择一个菜单，或点击上方「新建顶级菜单」。</BitText>
             }
             else
             {
                 <div class="id-form">
-                    <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.5rem">
-                        <BitText Typography="BitTypography.H6">Id:</BitText>
-                        <BitTag Color="BitColor.TertiaryBackground">@_selected.Id</BitTag>
-                        <BitBadge Color="@(_selected.IsVisible ? BitColor.Success : BitColor.Tertiary)">@(_selected.IsVisible ? "可见" : "已隐藏")</BitBadge>
+                    <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.5rem" Wrap>
+                        <BitText Typography="BitTypography.H6">
+                            @(_creating ? (EditParentId is null ? "新建顶级菜单" : "新建子菜单") : "编辑菜单")
+                        </BitText>
+                        @if (!_creating && _selected is not null)
+                        {
+                            <span title="@_selected.Id">
+                                <BitTag Color="BitColor.TertiaryBackground">@_selected.Id.ToString("N")[..8]</BitTag>
+                            </span>
+                        }
+                        <BitBadge Color="@(EditIsVisible ? BitColor.Success : BitColor.Tertiary)">
+                            @(EditIsVisible ? "可见" : "已隐藏")
+                        </BitBadge>
+                        <BitTag Color="@(string.IsNullOrWhiteSpace(EditModuleId) ? BitColor.SecondaryBackground : BitColor.PrimaryBackground)">
+                            @(string.IsNullOrWhiteSpace(EditModuleId) ? "系统内置" : $"模块：{EditModuleId}")
+                        </BitTag>
                     </BitStack>
-                    <BitTextField @bind-Value="EditName" Label="名称 *" />
-                    <BitTextField @bind-Value="EditPath" Label="路由 *" />
-                    <BitTextField @bind-Value="EditIcon" Label="图标" />
+
+                    <BitTextField @bind-Value="EditName" Label="名称 *" Placeholder="例如：系统设置" Required />
+                    <BitTextField @bind-Value="EditPath" Label="路由 *" Placeholder="例如：/system/settings" Required />
+
+                    <div class="menu-icon-row">
+                        <BitTextField @bind-Value="EditIcon" Label="图标名称" Placeholder="如 Home / People / Settings" />
+                        <BitButton Variant="BitVariant.Outline"
+                                   Title="点击选择图标"
+                                   OnClick="OpenIconPicker">
+                            <span class="menu-icon-picker-btn">
+                                <AppIcon Name="@(string.IsNullOrWhiteSpace(EditIcon) ? "EditList" : EditIcon.Trim())" />
+                                <span>选择图标</span>
+                            </span>
+                        </BitButton>
+                    </div>
+
                     <BitDropdown Label="父菜单" @bind-Value="EditParentId" Items="_parentItems" />
-                    <BitNumberField @bind-Value="EditSort" Label="排序" />
+                    <BitDropdown Label="关联权限码" @bind-Value="EditPermissionCode" Items="_permissionItems" />
+                    <BitDropdown Label="菜单类型" @bind-Value="EditKind" Items="_kindItems" />
+
+                    <div class="menu-sort-row">
+                        <BitNumberField @bind-Value="EditSort" Label="排序" />
+                        @if (!_creating && _selected is not null)
+                        {
+                            <BitButton Variant="BitVariant.Outline"
+                                       IconName="@BitIconName.Up"
+                                       Disabled="@(_busy || !CanMoveSibling(-1))"
+                                       OnClick="@(() => MoveSiblingAsync(-1))">
+                                上移
+                            </BitButton>
+                            <BitButton Variant="BitVariant.Outline"
+                                       IconName="@BitIconName.Down"
+                                       Disabled="@(_busy || !CanMoveSibling(1))"
+                                       OnClick="@(() => MoveSiblingAsync(1))">
+                                下移
+                            </BitButton>
+                        }
+                    </div>
+
                     <BitCheckbox @bind-Value="EditIsVisible" Label="在侧边栏可见" />
+
                     <div class="row">
-                        <BitButton OnClick="SaveAsync" Disabled="@_busy">保存修改</BitButton>
-                        <BitSpacer />
-                        <BitButton Color="BitColor.Error" OnClick="@(() => _deleteDialogOpen = true)">删除</BitButton>
+                        <BitButton Color="BitColor.Primary" IsLoading="_busy" OnClick="SaveAsync">
+                            @(_creating ? "创建菜单" : "保存修改")
+                        </BitButton>
+                        @if (_creating)
+                        {
+                            <BitButton Variant="BitVariant.Outline" Disabled="@_busy" OnClick="CancelCreate">取消</BitButton>
+                        }
+                        else if (_selected is not null)
+                        {
+                            <BitSpacer />
+                            <BitButton Color="BitColor.Error" Variant="BitVariant.Outline" Disabled="@_busy" OnClick="@(() => _deleteDialogOpen = true)">
+                                删除
+                            </BitButton>
+                        }
                     </div>
                 </div>
             }
@@ -79,16 +314,108 @@
             Message="@($"确定要删除菜单 {_selected?.Name ?? ""} 吗？其角色授权关联将一并清除。")"
             OnOk="DeleteAsync" />
 
+<BlazorBoilerplateModal @bind-IsOpen="_iconPickerOpen"
+            Title="@($"选择图标（BitIconName 共 {AllIcons.Count} 个）")"
+            ModalClass="wide"
+            ShowCancel="false"
+            OkText="关闭">
+    <div class="icon-picker-body">
+        <BitSearchBox @bind-Value="_iconSearch"
+                      Placeholder="搜索图标名称，如 Home / User / Settings / Chart..."
+                      Immediate
+                      OnChange="OnIconSearchChanged"
+                      OnClear="@(() => OnIconSearchChanged(string.Empty))" />
+
+        @{
+            var filtered = GetFilteredIcons();
+            var rows = filtered.Chunk(5).ToList();
+        }
+
+        @if (filtered.Count == 0)
+        {
+            <BitText Class="muted">未找到匹配的图标。</BitText>
+        }
+        else
+        {
+            <div class="icon-picker-scroll">
+                <Virtualize Items="@rows" Context="row" ItemSize="74" OverscanCount="4">
+                    <div class="icon-picker-grid-row">
+                        @foreach (var icon in row)
+                        {
+                            var isActive = string.Equals(EditIcon?.Trim(), icon.Value, StringComparison.OrdinalIgnoreCase);
+                            <button type="button"
+                                    class="icon-picker-item @(isActive ? "active" : "")"
+                                    title="@icon.Value"
+                                    @onclick="@(() => SelectIcon(icon.Value))">
+                                <span class="icon-picker-glyph">
+                                    <AppIcon Name="@icon.Value" />
+                                </span>
+                                <span class="icon-picker-name">@icon.Name</span>
+                            </button>
+                        }
+                    </div>
+                </Virtualize>
+            </div>
+        }
+
+        <div class="icon-picker-footer">
+            <BitText Class="muted">共 @filtered.Count 个匹配图标（滚动自动加载）</BitText>
+        </div>
+    </div>
+</BlazorBoilerplateModal>
+
 @code {
+    private sealed record IconEntry(string Name, string Value);
+
+    private static readonly HashSet<string> PreferredIconNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Home", "ViewDashboard", "People", "SecurityGroup", "EditList", "Puzzle",
+        "Shop", "Attach", "Settings", "Ringer", "Org", "BarChartVerticalFill"
+    };
+
+    private static readonly List<IconEntry> AllIcons = BuildAllIcons();
+
+    private static List<IconEntry> BuildAllIcons()
+    {
+        var fields = typeof(BitIconName).GetFields(BindingFlags.Public | BindingFlags.Static);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var items = new List<IconEntry>(fields.Length);
+
+        foreach (var field in fields)
+        {
+            if (field.FieldType != typeof(string)) continue;
+            var value = field.GetValue(null) as string;
+            if (string.IsNullOrWhiteSpace(value) || !seen.Add(value)) continue;
+            items.Add(new IconEntry(field.Name, value));
+        }
+
+        // 常见图标排在最前，其余按字母序排列
+        return items
+            .OrderByDescending(x => PreferredIconNames.Contains(x.Name) || PreferredIconNames.Contains(x.Value))
+            .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private readonly List<BitDropdownItem<string>> _kindItems =
+    [
+        new() { Text = "导航菜单 (menu)", Value = "menu" },
+        new() { Text = "分组节点 (group)", Value = "group" }
+    ];
+
     private List<IdentityMenuDto> _menus = [];
     private List<BitNavItem> _menuNavItems = [];
     private List<BitDropdownItem<Guid?>> _parentItems = [];
+    private List<BitDropdownItem<string>> _permissionItems = [new() { Text = "（无权限限制）", Value = string.Empty }];
     private IdentityMenuDto? _selected;
     private bool _loading = true;
     private bool _busy;
     private bool _showHidden;
+    private bool _creating;
+    private string _searchText = string.Empty;
     private string? _error;
     private bool _deleteDialogOpen;
+    private bool _iconPickerOpen;
+    private string _iconSearch = string.Empty;
 
     private string EditName = string.Empty;
     private string EditPath = string.Empty;
@@ -96,6 +423,9 @@
     private Guid? EditParentId;
     private int EditSort;
     private bool EditIsVisible = true;
+    private string? EditModuleId;
+    private string EditPermissionCode = string.Empty;
+    private string EditKind = "menu";
 
     protected override async Task OnInitializedAsync() => await RefreshAsync();
 
@@ -105,10 +435,15 @@
         _loading = true;
         try
         {
-            _menus = [.. await Api.GetListAsync<IdentityMenuDto>("api/identity/menus")];
-            RebuildNavAndParents();
+            var menusTask = Api.GetListAsync<IdentityMenuDto>("api/identity/menus");
+            var permsTask = LoadPermissionsSafeAsync();
+            await Task.WhenAll(menusTask, permsTask);
+
+            _menus = [.. await menusTask];
             if (_selected is not null)
                 _selected = _menus.FirstOrDefault(m => m.Id == _selected.Id);
+
+            RebuildNavAndParents();
         }
         catch (Exception ex)
         {
@@ -121,36 +456,121 @@
         }
     }
 
+    private async Task LoadPermissionsSafeAsync()
+    {
+        try
+        {
+            var perms = await Api.GetPermissionCatalogAsync();
+            _permissionItems =
+            [
+                new() { Text = "（无权限限制）", Value = string.Empty },
+                .. perms.OrderBy(p => p.Code).Select(p => new BitDropdownItem<string>
+                {
+                    Text = $"{p.Name} ({p.Code})",
+                    Value = p.Code
+                })
+            ];
+        }
+        catch
+        {
+            // 权限目录读取失败时保留默认项，不阻断菜单管理
+        }
+    }
+
     private void RebuildNavAndParents()
     {
-        var visibleMenus = _showHidden ? _menus : _menus.Where(m => m.IsVisible).ToList();
-        if (_selected is not null && !visibleMenus.Any(m => m.Id == _selected.Id))
-            _selected = null;
+        var query = _searchText.Trim();
+        var hasQuery = !string.IsNullOrWhiteSpace(query);
 
-        _menuNavItems = [.. BuildNavItems(parentId: null)];
+        // 先按可见性过滤；若开启搜索，匹配节点及其祖先一并保留
+        var baseList = _menus.Where(m => _showHidden || m.IsVisible).ToList();
+        HashSet<Guid> includedIds;
+        if (!hasQuery)
+        {
+            includedIds = [.. baseList.Select(m => m.Id)];
+        }
+        else
+        {
+            includedIds = [];
+            var byId = baseList.ToDictionary(m => m.Id);
+            foreach (var m in baseList)
+            {
+                if (m.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    m.Path.Contains(query, StringComparison.OrdinalIgnoreCase))
+                {
+                    var cur = m;
+                    while (cur is not null && includedIds.Add(cur.Id))
+                    {
+                        cur = cur.ParentId is { } pid && byId.TryGetValue(pid, out var p) ? p : null;
+                    }
+                }
+            }
+        }
+
+        // 找出当前集合中所有顶层或父级不在当前集合中的“孤儿可见子节点”，避免父级隐藏时子节点彻底消失
+        var rootNodes = baseList
+            .Where(m => includedIds.Contains(m.Id) && (m.ParentId is null || !includedIds.Contains(m.ParentId.Value)))
+            .OrderBy(m => m.Sort).ThenBy(m => m.CreatedAtUtc)
+            .ToList();
+
+        _menuNavItems = [.. rootNodes.Select(m => BuildNavItem(m, baseList, includedIds))];
+
+        // 父菜单下拉：基于全量菜单，编辑时排除自己及其所有子孙节点，防止成环
+        var excluded = (!_creating && _selected is not null) ? GetSubtreeIds(_selected.Id) : [];
         _parentItems =
         [
             new() { Text = "（顶级菜单）", Value = null },
-            .. visibleMenus.Select(m => new BitDropdownItem<Guid?> { Text = m.Name, Value = m.Id })
+            .. _menus
+                .Where(m => !excluded.Contains(m.Id))
+                .OrderBy(m => m.Sort).ThenBy(m => m.Name)
+                .Select(m => new BitDropdownItem<Guid?>
+                {
+                    Text = m.IsVisible ? m.Name : $"{m.Name} (已隐藏)",
+                    Value = m.Id
+                })
         ];
     }
 
-    private IEnumerable<BitNavItem> BuildNavItems(Guid? parentId) =>
-        _menus.Where(m => m.ParentId == parentId && (_showHidden || m.IsVisible))
-              .OrderBy(m => m.Sort).ThenBy(m => m.CreatedAtUtc)
-              .Select(m => new BitNavItem
-              {
-                  Key = m.Id.ToString(),
-                  Text = m.Name,
-                  Description = m.Path,
-                  Data = m,
-                  ChildItems = [.. BuildNavItems(m.Id)]
-              });
+    private BitNavItem BuildNavItem(IdentityMenuDto m, List<IdentityMenuDto> pool, HashSet<Guid> includedIds)
+    {
+        var children = pool
+            .Where(c => c.ParentId == m.Id && includedIds.Contains(c.Id))
+            .OrderBy(c => c.Sort).ThenBy(c => c.CreatedAtUtc)
+            .Select(c => BuildNavItem(c, pool, includedIds))
+            .ToList();
+
+        return new BitNavItem
+        {
+            Key = m.Id.ToString(),
+            Text = m.Name,
+            Data = m,
+            ChildItems = children
+        };
+    }
+
+    private HashSet<Guid> GetSubtreeIds(Guid rootId)
+    {
+        var result = new HashSet<Guid> { rootId };
+        var queue = new Queue<Guid>();
+        queue.Enqueue(rootId);
+        while (queue.Count > 0)
+        {
+            var cur = queue.Dequeue();
+            foreach (var child in _menus.Where(m => m.ParentId == cur))
+            {
+                if (result.Add(child.Id))
+                    queue.Enqueue(child.Id);
+            }
+        }
+        return result;
+    }
 
     private Task SelectMenuAsync(BitNavItem item)
     {
         if (item?.Data is not IdentityMenuDto menu)
             return Task.CompletedTask;
+
+        _creating = false;
         _selected = menu;
         EditName = menu.Name;
         EditPath = menu.Path;
@@ -158,51 +578,205 @@
         EditParentId = menu.ParentId;
         EditSort = menu.Sort;
         EditIsVisible = menu.IsVisible;
+        EditModuleId = menu.ModuleId;
+        EditPermissionCode = menu.PermissionCode ?? string.Empty;
+        EditKind = string.IsNullOrWhiteSpace(menu.Kind) ? "menu" : menu.Kind;
+        EnsurePermissionOptionExists(EditPermissionCode);
+        RebuildNavAndParents();
         _error = null;
         return Task.CompletedTask;
     }
 
-    private void OpenCreateAsync(Guid? parentId)
+    private void EnsurePermissionOptionExists(string code)
     {
+        if (!string.IsNullOrWhiteSpace(code) && _permissionItems.All(x => x.Value != code))
+            _permissionItems.Add(new BitDropdownItem<string> { Text = code, Value = code });
+    }
+
+    private void OpenCreate(Guid? parentId)
+    {
+        _creating = true;
         _selected = null;
         EditName = string.Empty;
         EditPath = string.Empty;
         EditIcon = null;
         EditParentId = parentId;
-        EditSort = 0;
+        var siblingMax = _menus.Where(m => m.ParentId == parentId).Select(m => m.Sort).DefaultIfEmpty(0).Max();
+        EditSort = siblingMax + 10;
         EditIsVisible = true;
-        _creating = true;
+        EditModuleId = null;
+        EditPermissionCode = string.Empty;
+        EditKind = "menu";
+        RebuildNavAndParents();
+        _error = null;
     }
 
-    private bool _creating;
+    private void CancelCreate()
+    {
+        _creating = false;
+        _error = null;
+    }
+
+    private void OpenIconPicker()
+    {
+        _iconSearch = string.Empty;
+        _iconPickerOpen = true;
+    }
+
+    private void OnIconSearchChanged(string? value)
+    {
+        _iconSearch = value ?? string.Empty;
+    }
+
+    private List<IconEntry> GetFilteredIcons()
+    {
+        if (string.IsNullOrWhiteSpace(_iconSearch))
+            return AllIcons;
+
+        var keyword = _iconSearch.Trim();
+        return AllIcons
+            .Where(x => x.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                     || x.Value.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private void SelectIcon(string value)
+    {
+        EditIcon = value;
+        _iconPickerOpen = false;
+    }
+
+    private List<IdentityMenuDto> GetSiblings(Guid? parentId) =>
+        _menus.Where(m => m.ParentId == parentId)
+              .OrderBy(m => m.Sort).ThenBy(m => m.CreatedAtUtc)
+              .ToList();
+
+    private bool CanMoveSibling(int delta)
+    {
+        if (_selected is null) return false;
+        var siblings = GetSiblings(_selected.ParentId);
+        var idx = siblings.FindIndex(m => m.Id == _selected.Id);
+        return idx >= 0 && idx + delta >= 0 && idx + delta < siblings.Count;
+    }
+
+    private async Task MoveSiblingAsync(int delta)
+    {
+        if (_selected is null) return;
+        var siblings = GetSiblings(_selected.ParentId);
+        var idx = siblings.FindIndex(m => m.Id == _selected.Id);
+        var targetIdx = idx + delta;
+        if (idx < 0 || targetIdx < 0 || targetIdx >= siblings.Count) return;
+
+        var current = siblings[idx];
+        var neighbor = siblings[targetIdx];
+        var newCurrentSort = neighbor.Sort;
+        var newNeighborSort = current.Sort;
+        if (newCurrentSort == newNeighborSort)
+        {
+            newCurrentSort = delta < 0 ? neighbor.Sort - 1 : neighbor.Sort + 1;
+        }
+
+        _busy = true;
+        try
+        {
+            await UpdateMenuRawAsync(current with { Sort = newCurrentSort });
+            await UpdateMenuRawAsync(neighbor with { Sort = newNeighborSort });
+            EditSort = newCurrentSort;
+            await RefreshAsync();
+            NavRefresh.Notify();
+            Toast.Success("菜单排序已更新。");
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"调整排序失败：{ex.Message}");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task UpdateMenuRawAsync(IdentityMenuDto m)
+    {
+        var response = await Api.PutAsync($"api/identity/menus/{m.Id}", new
+        {
+            m.Name,
+            m.Path,
+            m.Icon,
+            m.ParentId,
+            m.Sort,
+            m.IsVisible,
+            m.ModuleId,
+            m.PermissionCode,
+            m.Kind
+        });
+        await EnsureOkAsync(response);
+    }
 
     private async Task SaveAsync()
     {
+        var name = EditName.Trim();
+        var path = EditPath.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            Toast.Warning("菜单名称不能为空。");
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            Toast.Warning("菜单路由不能为空。");
+            return;
+        }
+        if (!path.StartsWith('/') && !path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !path.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            path = "/" + path;
+        EditPath = path;
+
+        var payload = new
+        {
+            Name = name,
+            Path = path,
+            Icon = string.IsNullOrWhiteSpace(EditIcon) ? null : EditIcon.Trim(),
+            ParentId = EditParentId,
+            Sort = EditSort,
+            IsVisible = EditIsVisible,
+            ModuleId = string.IsNullOrWhiteSpace(EditModuleId) ? null : EditModuleId,
+            PermissionCode = string.IsNullOrWhiteSpace(EditPermissionCode) ? null : EditPermissionCode,
+            Kind = string.IsNullOrWhiteSpace(EditKind) ? "menu" : EditKind
+        };
+
         _busy = true;
         _error = null;
         try
         {
             if (_creating)
             {
-                var response = await Api.PostAsync("api/identity/menus",
-                    new { Name = EditName, Path = EditPath, Icon = EditIcon, ParentId = EditParentId, Sort = EditSort, IsVisible = EditIsVisible });
-                EnsureOk(response);
-                Toast.Success($"菜单「{EditName}」已创建。");
+                var response = await Api.PostAsync("api/identity/menus", payload);
+                await EnsureOkAsync(response);
+                var created = await response.Content.ReadFromJsonAsync<IdentityMenuDto>();
+                _creating = false;
+                _selected = created;
+                Toast.Success($"菜单「{name}」已创建。");
             }
             else
             {
                 if (_selected is null) return;
-                var response = await Api.PutAsync($"api/identity/menus/{_selected.Id}",
-                    new { Name = EditName, Path = EditPath, Icon = EditIcon, ParentId = EditParentId, Sort = EditSort, IsVisible = EditIsVisible });
-                EnsureOk(response);
-                Toast.Success($"菜单「{EditName}」已保存。");
+                var response = await Api.PutAsync($"api/identity/menus/{_selected.Id}", payload);
+                await EnsureOkAsync(response);
+                Toast.Success($"菜单「{name}」已保存。");
             }
 
-            _creating = false;
             await RefreshAsync();
+            NavRefresh.Notify();
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error("保存菜单失败：" + ex.Message); }
-        finally { _busy = false; }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            Toast.Error("保存菜单失败：" + ex.Message);
+        }
+        finally
+        {
+            _busy = false;
+        }
     }
 
     private async Task DeleteAsync()
@@ -213,18 +787,23 @@
         try
         {
             var response = await Api.DeleteAsync($"api/identity/menus/{_selected.Id}");
-            EnsureOk(response);
+            await EnsureOkAsync(response);
             _deleteDialogOpen = false;
             Toast.Success($"菜单「{name}」已删除。");
             _selected = null;
             await RefreshAsync();
+            NavRefresh.Notify();
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error("删除菜单失败：" + ex.Message); }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            Toast.Error("删除菜单失败：" + ex.Message);
+        }
     }
 
-    private static void EnsureOk(HttpResponseMessage response)
+    private static async Task EnsureOkAsync(HttpResponseMessage response)
     {
         if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"{(int)response.StatusCode}: {response.Content.ReadAsStringAsync().GetAwaiter().GetResult()}");
+            throw new HttpRequestException($"{(int)response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
     }
 }

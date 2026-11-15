@@ -117,7 +117,7 @@ public sealed class IdentityEndpoints(IServiceProvider moduleServices)
             var req = await ReadJsonAsync<MenuUpsertRequest>(ctx);
             var menu = await s.ServiceProvider.GetRequiredService<MenuService>().CreateAsync(
                 req.Name, req.Path, req.Icon, req.ParentId, req.Sort, ctx.RequestAborted,
-                req.ModuleId, req.PermissionCode, req.Kind);
+                req.ModuleId, req.PermissionCode, req.Kind, req.IsVisible);
             await ctx.Response.WriteAsJsonAsync(menu, ctx.RequestAborted);
         }));
         builder.Map("/api/identity/menus/{id}", "PUT", "identity.menu.write", async ctx => await WithScope(ctx, async s =>

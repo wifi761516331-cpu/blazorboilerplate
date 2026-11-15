@@ -159,7 +159,7 @@ public sealed class Menu
     }
 
     private static string NormalizeKind(string kind) =>
-        kind is "menu" or "button" ? kind : "menu";
+        kind is "menu" or "button" or "group" ? kind : "menu";
 }
 
 /// <summary>用户-角色关联（无外键：UserId/RoleId 为标量列，完整性由服务层保证）。</summary>

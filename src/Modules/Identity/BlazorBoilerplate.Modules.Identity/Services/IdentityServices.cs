@@ -272,12 +272,15 @@ public sealed class MenuService(IdentityDbContext db)
     // 新增的 moduleId / permissionCode / kind 放在 ct 之后：既保持旧调用点（位置参数到 ct）
     // 编译通过，又能让端点用命名/位置参数把 MenuUpsertRequest 的新字段透传进来。
     public async Task<Menu> CreateAsync(string name, string path, string? icon, Guid? parentId, int sort,
-        CancellationToken ct = default, string? moduleId = null, string? permissionCode = null, string? kind = null)
+        CancellationToken ct = default, string? moduleId = null, string? permissionCode = null, string? kind = null,
+        bool isVisible = true)
     {
         if (parentId is { } pid && !await db.Menus.AnyAsync(m => m.Id == pid, ct))
             throw new KeyNotFoundException($"父菜单不存在：{pid}");
 
         var menu = Menu.Create(name, path, icon, parentId, sort, moduleId, permissionCode, kind ?? "menu");
+        if (!isVisible)
+            menu.Update(name, path, icon, parentId, sort, false, moduleId, permissionCode, kind ?? "menu");
         db.Menus.Add(menu);
         await db.SaveChangesAsync(ct);
         return menu;

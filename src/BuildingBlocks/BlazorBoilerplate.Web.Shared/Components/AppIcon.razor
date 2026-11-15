@@ -1,6 +1,18 @@
-@* 内联 SVG 图标集：对齐 Bluebird 的 Fabric MDL2 / Fluent2 图标语义。
-   不依赖 BitIcon 组件（Bit.BlazorUI 10.7.0 与 Bluebird 11.0.0-pre-19 组件 API 不同），
-   名称直接复用 DB 菜单表 IdentityMenuDto.Icon 的取值（Home / Shop / People / ...）。 *@
+@* 混合图标渲染器：
+   1. 内置常用图标保留高清晰度内联 SVG；
+   2. 其余名称直接透传给 Bit.BlazorUI 的 BitIcon（支持 BitIconName 全量图标库）。 *@
+@using Bit.BlazorUI
+
+@if (string.IsNullOrWhiteSpace(Name))
+{
+    <svg class="app-icon @Class" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="10" cy="10" r="7" />
+        <circle cx="10" cy="10" r="2" />
+    </svg>
+}
+else if (IsCustomSvg(Name))
+{
 <svg class="app-icon @Class" viewBox="0 0 20 20" fill="none" stroke="currentColor"
      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     @if (Name == "Home")
@@ -184,14 +196,29 @@
     {
         <path d="M13.5 6.5 7.8 12.2a2 2 0 0 0 2.8 2.8l6.4-6.4a4 4 0 0 0-5.7-5.7l-6.4 6.4a6 6 0 0 0 8.5 8.5l5.6-5.6" />
     }
-    else
-    {
-        <circle cx="10" cy="10" r="7" />
-        <circle cx="10" cy="10" r="2" />
-    }
 </svg>
+}
+else
+{
+    <BitIcon IconName="@Name" Class="@($"app-icon app-icon-bit {Class}")" />
+}
 
 @code {
     [Parameter] public string Name { get; set; } = string.Empty;
     [Parameter] public string? Class { get; set; }
+
+    private static readonly HashSet<string> CustomSvgIcons = new(StringComparer.Ordinal)
+    {
+        "Home", "Shop", "Product", "People", "User", "SecurityGroup", "Shield",
+        "EditList", "List", "Puzzle", "Module", "Grid", "Dashboard",
+        "Chart", "BarChartVerticalFill", "Pie", "Donut", "Settings",
+        "Bell", "Notification", "Sunny", "ClearNight", "CollapseMenu", "Menu",
+        "Back", "Refresh", "Add", "Org", "Tenant", "Info",
+        "ChevronDown", "ChevronRight", "ChevronLeft", "Contact", "Profile",
+        "Globe", "Language", "Clock", "WorldClock", "Upload", "CloudUpload",
+        "RingerOff", "SignOut", "AddFriend", "Mail", "Edit", "Check",
+        "Warning", "Error", "Close", "Attach"
+    };
+
+    private static bool IsCustomSvg(string name) => CustomSvgIcons.Contains(name);
 }

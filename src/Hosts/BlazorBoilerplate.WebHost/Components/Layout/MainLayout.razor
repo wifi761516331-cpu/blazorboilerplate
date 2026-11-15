@@ -22,16 +22,9 @@
                     <span class="nav-brand-name">@SysState.Public.SystemName</span>
                 </div>
                 <nav class="nav-scroll">
-                    @foreach (var group in _navGroups)
+                    @foreach (var node in _navTree)
                     {
-                        <div class="nav-group-title">@group.Group</div>
-                        @foreach (var item in group.Items)
-                        {
-                            <a href="@item.Path" class="nav-item @NavClass(item.Path)" title="@item.Text" @onclick="CloseNav">
-                                <AppIcon Name="@item.Icon" />
-                                <span class="nav-text">@item.Text</span>
-                            </a>
-                        }
+                        @RenderNavNode(node)
                     }
                 </nav>
                 <div class="nav-signin">
@@ -102,9 +95,9 @@
         <button type="button" class="nav-overlay" aria-label="关闭导航" @onclick="CloseNav"></button>
 
         <section class="nav-bar">
-            @foreach (var item in _navGroups.SelectMany(g => g.Items).Take(5))
+            @foreach (var item in FlattenLeafNodes(_navTree).Take(5))
             {
-                <a href="@item.Path" class="nav-item @NavClass(item.Path)">
+                <a href="@item.Path" class="nav-item @NavClass(item.Path)" @onclick="CloseNav">
                     <AppIcon Name="@item.Icon" />
                     <span>@item.Text</span>
                 </a>
@@ -122,8 +115,55 @@
 
     [Inject] private BlazorBoilerplate.WebHost.Services.NavRefreshService NavRefresh { get; set; } = null!;
 
-    private sealed record NavItem(string Text, string Path, string Icon);
-    private sealed record NavGroup(string Group, List<NavItem> Items);
+    private sealed record NavNode(Guid Id, string Text, string Path, string Icon, string Kind, List<NavNode> Children);
+
+    private RenderFragment<NavNode> RenderNavNode => node => __builder =>
+    {
+        var hasChildren = node.Children.Count > 0;
+        var isExpanded = _expandedIds.Contains(node.Id);
+        var isGroup = string.Equals(node.Kind, "group", StringComparison.OrdinalIgnoreCase);
+
+        <div class="nav-node">
+            <div class="nav-item-row">
+                @if (hasChildren)
+                {
+                    <button type="button"
+                            class="nav-chevron"
+                            title="@(isExpanded ? "收起" : "展开")"
+                            @onclick="() => ToggleExpand(node.Id)">
+                        <AppIcon Name="@(isExpanded ? "ChevronDown" : "ChevronRight")" />
+                    </button>
+                }
+                else
+                {
+                    <span class="nav-chevron-spacer" aria-hidden="true"></span>
+                }
+                @if (isGroup)
+                {
+                    <button type="button" class="nav-item nav-item-btn" title="@node.Text" @onclick="() => ToggleExpand(node.Id)">
+                        <AppIcon Name="@node.Icon" />
+                        <span class="nav-text">@node.Text</span>
+                    </button>
+                }
+                else
+                {
+                    <a href="@node.Path" class="nav-item @NavClass(node.Path)" title="@node.Text" @onclick="() => OnNavItemClick(node)">
+                        <AppIcon Name="@node.Icon" />
+                        <span class="nav-text">@node.Text</span>
+                    </a>
+                }
+            </div>
+            @if (hasChildren && isExpanded)
+            {
+                <div class="nav-children">
+                    @foreach (var child in node.Children)
+                    {
+                        @RenderNavNode(child)
+                    }
+                </div>
+            }
+        </div>
+    };
 
     /// <summary>页面标题交给顶栏（对应 Bluebird 的 AppPageData → Header）。</summary>
     private static readonly Dictionary<string, (string Title, string Subtitle)> Headers = new(StringComparer.OrdinalIgnoreCase)
@@ -142,9 +182,9 @@
         ["SystemSettings"] = ("系统设置", "站点信息、安全策略、邮件 SMTP、存储与模块运行时配置")
     };
 
-    private static readonly string[] GroupOrder = ["工作区", "管理", "系统"];
-
-    private List<NavGroup> _navGroups = [];
+    private List<NavNode> _navTree = [];
+    private readonly HashSet<Guid> _expandedIds = [];
+    private bool _expandedInitialized;
     private List<IdentityMenuDto> _dbMenus = [];
     private List<ModuleDescriptor> _moduleStates = [];
     private bool _navOpen;
@@ -171,6 +211,23 @@
     /// 模块卸载后其菜单随之消失，重新加载即恢复（数据库行保留，不丢角色授权）。
     /// 模块状态不可知（ApiHost 不可达）时不过滤。
     /// </summary>
+    private bool IsMenuVisible(IdentityMenuDto menu)
+    {
+        if (string.Equals(menu.Kind, "group", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (menu.Path is "/" or "/modules")
+            return true;
+        if (Account.IsAuthenticated && Account.MenuPaths.Count > 0 && !Account.HasMenu(menu.Path))
+            return false;
+        // 仅归属于动态模块的菜单才按模块运行状态过滤；平台内置页（如 /system/settings）与自定义菜单不受 RunningRoutes 限制。
+        if (!string.IsNullOrWhiteSpace(menu.ModuleId) && _moduleStates.Count > 0)
+        {
+            var mod = _moduleStates.FirstOrDefault(x => string.Equals(x.Id, menu.ModuleId, StringComparison.OrdinalIgnoreCase));
+            return mod is null || mod.State == ModuleState.Running;
+        }
+        return true;
+    }
+
     private bool IsMenuVisible(string path)
     {
         if (path is "/" or "/modules")
@@ -307,35 +364,104 @@
 
     private void BuildNavGroups()
     {
-        List<NavItem> items;
         if (_dbMenus.Count > 0)
         {
-            items = [.. _dbMenus.Where(m => m.IsVisible && IsMenuVisible(m.Path))
-                                .OrderBy(m => m.Sort)
-                                .Select(m => new NavItem(m.Name, m.Path,
-                                    string.IsNullOrWhiteSpace(m.Icon) ? IconOf(m.Path) : m.Icon!))];
-        }
-        else
-        {
-            // ApiHost 不可达 / 未安装时的静态回退：模块自注册菜单（仅运行中的模块）+ 平台页面。
-            items = [new NavItem("概览", "/", "Home")];
-            items.AddRange(ModuleFrontendRegistry.All
-                .Where(m => IsMenuVisible(m.Route))
-                .Select(m => new NavItem(m.Text, m.Route, IconOf(m.Route))));
-            if (IsMenuVisible("/identity/users"))
+            var eligible = _dbMenus.Where(m => m.IsVisible && IsMenuVisible(m)).ToList();
+            var eligibleIds = eligible.Select(m => m.Id).ToHashSet();
+
+            var roots = eligible
+                .Where(m => m.ParentId is null || !eligibleIds.Contains(m.ParentId.Value))
+                .OrderBy(m => m.Sort)
+                .ThenBy(m => m.CreatedAtUtc)
+                .ToList();
+
+            var visited = new HashSet<Guid>();
+            _navTree = [.. roots
+                .Select(r => BuildNavNode(r, eligible, visited))
+                .Where(n => !string.Equals(n.Kind, "group", StringComparison.OrdinalIgnoreCase) || n.Children.Count > 0)];
+
+            if (!_expandedInitialized)
             {
-                items.Add(new NavItem("用户管理", "/identity/users", "People"));
-                items.Add(new NavItem("角色管理", "/identity/roles", "SecurityGroup"));
-                items.Add(new NavItem("菜单管理", "/identity/menus", "EditList"));
+                _expandedInitialized = true;
+                foreach (var n in _navTree.Where(n => string.Equals(n.Kind, "group", StringComparison.OrdinalIgnoreCase)))
+                    _expandedIds.Add(n.Id);
             }
-            items.Add(new NavItem("模块管理", "/modules", "Puzzle"));
-            items.Add(new NavItem("系统设置", "/system/settings", "Settings"));
-            items = [.. items.GroupBy(i => i.Path, StringComparer.OrdinalIgnoreCase).Select(g => g.First())];
+            ExpandActiveAncestors(_navTree);
+            return;
         }
 
-        _navGroups = [.. GroupOrder
-            .Select(name => new NavGroup(name, [.. items.Where(i => GroupOf(i.Path) == name)]))
-            .Where(g => g.Items.Count > 0)];
+        // ApiHost 不可达 / 未安装时的静态回退：模块自注册菜单（仅运行中的模块）+ 平台页面。
+        var fallback = new List<NavNode> { new(Guid.NewGuid(), "概览", "/", "Home", "menu", []) };
+        fallback.AddRange(ModuleFrontendRegistry.All
+            .Where(m => IsMenuVisible(m.Route))
+            .Select(m => new NavNode(Guid.NewGuid(), m.Text, m.Route, IconOf(m.Route), "menu", [])));
+        if (IsMenuVisible("/identity/users"))
+        {
+            fallback.Add(new NavNode(Guid.NewGuid(), "用户管理", "/identity/users", "People", "menu", []));
+            fallback.Add(new NavNode(Guid.NewGuid(), "角色管理", "/identity/roles", "SecurityGroup", "menu", []));
+            fallback.Add(new NavNode(Guid.NewGuid(), "菜单管理", "/identity/menus", "EditList", "menu", []));
+        }
+        fallback.Add(new NavNode(Guid.NewGuid(), "模块管理", "/modules", "Puzzle", "menu", []));
+        fallback.Add(new NavNode(Guid.NewGuid(), "系统设置", "/system/settings", "Settings", "menu", []));
+
+        _navTree = [.. fallback.GroupBy(i => i.Path, StringComparer.OrdinalIgnoreCase).Select(g => g.First())];
+    }
+
+    private static NavNode BuildNavNode(IdentityMenuDto m, List<IdentityMenuDto> pool, HashSet<Guid> visited)
+    {
+        visited.Add(m.Id);
+        var children = pool
+            .Where(c => c.ParentId == m.Id && !visited.Contains(c.Id))
+            .OrderBy(c => c.Sort)
+            .ThenBy(c => c.CreatedAtUtc)
+            .Select(c => BuildNavNode(c, pool, visited))
+            .Where(n => !string.Equals(n.Kind, "group", StringComparison.OrdinalIgnoreCase) || n.Children.Count > 0)
+            .ToList();
+
+        var icon = string.IsNullOrWhiteSpace(m.Icon) ? IconOf(m.Path) : m.Icon!;
+        var kind = string.IsNullOrWhiteSpace(m.Kind) ? "menu" : m.Kind;
+        return new NavNode(m.Id, m.Name, m.Path, icon, kind, children);
+    }
+
+    private bool ExpandActiveAncestors(IEnumerable<NavNode> nodes)
+    {
+        var current = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/');
+        var anyActive = false;
+        foreach (var n in nodes)
+        {
+            var selfActive = !string.Equals(n.Kind, "group", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(current, n.Path.TrimEnd('/'), StringComparison.OrdinalIgnoreCase);
+            var childActive = ExpandActiveAncestors(n.Children);
+            if (childActive)
+                _expandedIds.Add(n.Id);
+            if (selfActive || childActive)
+                anyActive = true;
+        }
+        return anyActive;
+    }
+
+    private void ToggleExpand(Guid id)
+    {
+        if (!_expandedIds.Add(id))
+            _expandedIds.Remove(id);
+    }
+
+    private void OnNavItemClick(NavNode node)
+    {
+        if (node.Children.Count > 0)
+            _expandedIds.Add(node.Id);
+        CloseNav();
+    }
+
+    private static IEnumerable<NavNode> FlattenLeafNodes(IEnumerable<NavNode> nodes)
+    {
+        foreach (var n in nodes)
+        {
+            if (!string.Equals(n.Kind, "group", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(n.Path))
+                yield return n;
+            foreach (var child in FlattenLeafNodes(n.Children))
+                yield return child;
+        }
     }
 
     private string NavClass(string href)
@@ -351,11 +477,6 @@
     }
 
     private void CloseNav() => _navOpen = false;
-
-    private static string GroupOf(string path) =>
-        path.StartsWith("/identity/", StringComparison.OrdinalIgnoreCase) ? "管理" :
-        path.StartsWith("/modules", StringComparison.OrdinalIgnoreCase) ||
-        path.StartsWith("/system/", StringComparison.OrdinalIgnoreCase) ? "系统" : "工作区";
 
     private static string IconOf(string path) => path switch
     {

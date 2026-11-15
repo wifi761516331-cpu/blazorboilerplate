@@ -51,6 +51,8 @@ builder.Services.AddScoped<UserPreferences>();
 
 // ---- 导航刷新事件：模块加载/卸载后通知 MainLayout 重建侧边栏菜单 ----
 builder.Services.AddScoped<BlazorBoilerplate.WebHost.Services.NavRefreshService>();
+builder.Services.AddScoped<BlazorBoilerplate.Web.Shared.Services.INavRefreshService>(sp =>
+    sp.GetRequiredService<BlazorBoilerplate.WebHost.Services.NavRefreshService>());
 
 // ---- 动态模块前端程序集目录（运行时注入：上传/切版本后刷新页面即生效，无需重启）----
 builder.Services.AddHttpClient();
