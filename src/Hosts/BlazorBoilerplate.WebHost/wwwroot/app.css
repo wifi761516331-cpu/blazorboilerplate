@@ -833,7 +833,18 @@ a { color: var(--bb-pri); }
 .module-card-meta { display: flex; align-items: center; gap: .5rem; font-size: .8125rem; color: var(--bb-fg-sec); }
 .dot-sep { width: .25rem; height: .25rem; border-radius: 50%; background: var(--bb-fg-dis); }
 
-.module-card-tags { display: flex; flex-wrap: wrap; gap: .375rem; }
+.module-card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: .375rem;
+    max-height: 7.5rem;
+    overflow-y: auto;
+    padding-right: .25rem;
+    scrollbar-width: thin;
+}
+.module-card-tags::-webkit-scrollbar { width: 4px; }
+.module-card-tags::-webkit-scrollbar-thumb { background: var(--bb-brd-sec); border-radius: 999px; }
 .module-chip {
     padding: .1875rem .5rem;
     border: 1px solid var(--bb-brd-ter);
