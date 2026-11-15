@@ -120,3 +120,63 @@ public sealed class RequirePermissionAttribute(string permission) : Attribute, I
         await next();
     }
 }
+
+/// <summary>ApiHost 认证与端点权限中间件扩展。</summary>
+public static class AppAuthPipelineExtensions
+{
+    /// <summary>
+    /// 注册自签 JWT Bearer 认证与授权服务：
+    /// 不用 FallbackPolicy，平台自身的 setup / health / openapi / modules 端点保持原有访问规则，
+    /// 需要登录的 MVC Controller 各自标 [Authorize]。
+    /// </summary>
+    public static IServiceCollection AddAppAuthentication(this IServiceCollection services)
+    {
+        services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = AppAuthSchemes.Bearer;
+                options.DefaultChallengeScheme = AppAuthSchemes.Bearer;
+            })
+            .AddScheme<AuthenticationSchemeOptions, AppBearerHandler>(AppAuthSchemes.Bearer, null);
+        services.AddAuthorization();
+        services.AddSingleton<JwtTokenService>();
+        services.AddScoped<CurrentUserFactory>();
+        return services;
+    }
+
+    /// <summary>统一校验动态模块端点（ModuleEndpointMetadata）与平台 Minimal API（PermissionMetadata）的登录态与权限码。</summary>
+    public static IApplicationBuilder UseEndpointPermissionGuard(this IApplicationBuilder app) =>
+        app.Use(async (context, next) =>
+        {
+            var endpoint = context.GetEndpoint();
+            if (endpoint is not null)
+            {
+                var moduleMeta = endpoint.Metadata.GetMetadata<BlazorBoilerplate.ModuleRuntime.Endpoints.ModuleEndpointMetadata>();
+                var permMeta = endpoint.Metadata.GetMetadata<PermissionMetadata>();
+
+                if (moduleMeta is not null || permMeta is not null)
+                {
+                    if (context.User.Identity?.IsAuthenticated != true)
+                    {
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        return;
+                    }
+
+                    var requiredPermission = !string.IsNullOrWhiteSpace(permMeta?.Permission)
+                        ? permMeta.Permission
+                        : moduleMeta?.Permission;
+
+                    if (!string.IsNullOrWhiteSpace(requiredPermission) &&
+                        !context.User.HasPermission(requiredPermission))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        await context.Response.WriteAsJsonAsync(
+                            new { error = $"无权执行该操作（缺少权限：{requiredPermission}）。" },
+                            context.RequestAborted);
+                        return;
+                    }
+                }
+            }
+
+            await next();
+        });
+}

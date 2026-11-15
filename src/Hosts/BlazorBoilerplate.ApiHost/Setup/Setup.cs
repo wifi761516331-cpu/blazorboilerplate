@@ -132,4 +132,31 @@ public static class SetupEndpoints
             return Results.Ok(setup.GetStatus());
         });
     }
+
+    /// <summary>Setup 门槛：Bootstrap 模式下仅开放 /api/setup、/health 与 /openapi。</summary>
+    public static IApplicationBuilder UseSetupBootstrapGate(this IApplicationBuilder app)
+    {
+        var setup = app.ApplicationServices.GetRequiredService<SetupStateProvider>();
+        return app.Use(async (context, next) =>
+        {
+            if (setup.CurrentMode == SetupMode.Bootstrap)
+            {
+                var path = context.Request.Path;
+                var allowed = path.StartsWithSegments("/api/setup")
+                              || path.StartsWithSegments("/health")
+                              || path.StartsWithSegments("/openapi");
+                if (!allowed)
+                {
+                    context.Response.StatusCode = StatusCodes.Status423Locked;
+                    await context.Response.WriteAsJsonAsync(new
+                    {
+                        error = "Platform is not installed. Complete POST /api/setup/complete first."
+                    });
+                    return;
+                }
+            }
+
+            await next();
+        });
+    }
 }
