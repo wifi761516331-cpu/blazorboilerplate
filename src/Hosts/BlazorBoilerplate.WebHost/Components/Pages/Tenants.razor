@@ -13,10 +13,9 @@
    离开/拒绝经由 Api.LeaveTenantAsync；创建/编辑调用 Api.CreateTenantAsync / UpdateTenantAsync。
    Accepted=false 表示待接受邀请，Accepted=true 表示已是成员；Current=true 表示 claims 中当前选中的租户。 *@
 
-<div class="page-callout">
-    <h1 class="page-title">我的租户</h1>
-    <p class="muted">管理你所在的租户：切换、接受邀请、新建或离开租户。</p>
-</div>
+<section class="mytenants-page">
+<div class="mytenants-root">
+<BitText Typography="BitTypography.H4">我的租户</BitText>
 
 @if (_loadError is not null)
 {
@@ -88,10 +87,6 @@ else
                         </button>
                     </div>
                 }
-                else if (_currentTenant is null)
-                {
-                    <div class="mt-section-body muted">请先切换到某个租户后再邀请成员。</div>
-                }
             </div>
         </PermissionView>
 
@@ -126,10 +121,6 @@ else
                         </button>
                     </div>
                 }
-                else if (_currentTenant is null)
-                {
-                    <div class="mt-section-body muted">请先切换到某个租户后再编辑。</div>
-                }
             </div>
         </PermissionView>
     </div>
@@ -160,26 +151,28 @@ else
                                 <span class="tenant-card-domain">@tenant.Domain</span>
                             }
                         </div>
-                        <span class="tenant-tag @(tenant.IsActive ? "active" : "inactive")">@(tenant.IsActive ? "启用" : "停用")</span>
+                        <BitTag Variant="BitVariant.Outline"
+                                Style="flex-shrink:0"
+                                Color="@(tenant.IsActive ? BitColor.Success : BitColor.Error)"
+                                Text="@(tenant.IsActive ? "启用" : "停用")" />
                     </div>
                     <div class="tenant-card-actions">
                         @if (!IsCurrent(tenant))
                         {
-                            <button type="button" class="blazorboilerplate-btn ghost" disabled="@_busy"
-                                    @onclick="() => SwitchOrAcceptAsync(tenant)">
+                            <BitButton Variant="BitVariant.Outline"
+                                       IconName="@(tenant.Accepted ? BitIconName.Switch : BitIconName.Accept)"
+                                       IsLoading="_busy"
+                                       OnClick="() => SwitchOrAcceptAsync(tenant)">
                                 @(tenant.Accepted ? "切换" : "接受邀请")
-                            </button>
+                            </BitButton>
                         }
-                        @if (tenant.Accepted)
-                        {
-                            <button type="button" class="blazorboilerplate-btn danger" disabled="@_busy"
-                                    @onclick="() => AskLeave(tenant)">离开</button>
-                        }
-                        else
-                        {
-                            <button type="button" class="blazorboilerplate-btn danger" disabled="@_busy"
-                                    @onclick="() => AskLeave(tenant)">拒绝邀请</button>
-                        }
+                        <BitButton Color="BitColor.Error"
+                                   Variant="BitVariant.Text"
+                                   IconName="@BitIconName.Leave"
+                                   IsLoading="_busy"
+                                   OnClick="() => AskLeave(tenant)">
+                            @(tenant.Accepted ? "离开" : "拒绝邀请")
+                        </BitButton>
                     </div>
                 </div>
             }
@@ -208,57 +201,61 @@ else
 <PermissionView Code="tenant.create">
     @if (_isAdmin)
     {
-        <div class="page-callout admin-section">
-            <h2 class="page-subtitle">管理所有租户</h2>
-            <p class="muted">查看平台全部租户，启用或停用，并编辑其信息。</p>
-        </div>
+        <div class="admin-tenants-section">
+            <div class="admin-section-head">
+                <BitText Typography="BitTypography.H5">管理所有租户</BitText>
+                <BitButton IconPlacement="BitPlacement.End" IconName="@BitIconName.Add" OnClick="OpenAdminCreate">添加租户</BitButton>
+            </div>
 
-        <div class="grid-container">
-            <table class="data-grid">
-                <thead>
-                    <tr>
-                        <th>名称</th>
-                        <th>标题</th>
-                        <th>域名</th>
-                        <th>状态</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if (_allTenants.Count == 0)
-                    {
-                        <tr><td colspan="5" class="muted">暂无租户。</td></tr>
-                    }
-                    @foreach (var t in _allTenants)
-                    {
+            <div class="grid-container">
+                <table class="data-grid">
+                    <thead>
                         <tr>
-                            <td><strong>@t.Name</strong></td>
-                            <td>@(string.IsNullOrWhiteSpace(t.Title) ? "—" : t.Title)</td>
-                            <td class="mono">@(string.IsNullOrWhiteSpace(t.Domain) ? "—" : t.Domain)</td>
-                            <td>
-                                <button type="button" class="tenant-toggle @(t.IsActive ? "on" : "off")"
-                                        disabled="@_busy" @onclick="() => ToggleActiveAsync(t)">
-                                    @(t.IsActive ? "启用" : "停用")
-                                </button>
-                            </td>
-                            <td>
-                                <div class="bb-row-actions">
-                                    <PermissionView Code="tenant.update">
-                                        <button type="button" class="bb-link-btn" @onclick="() => OpenAdminEdit(t)">编辑</button>
-                                    </PermissionView>
-                                </div>
-                            </td>
+                            <th>名称</th>
+                            <th>标题</th>
+                            <th>域名</th>
+                            <th style="text-align:center; width:150px;">启用</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @if (_allTenants.Count == 0)
+                        {
+                            <tr><td colspan="4" class="muted">暂无租户。</td></tr>
+                        }
+                        @foreach (var t in _allTenants)
+                        {
+                            <tr>
+                                <td><strong>@t.Name</strong></td>
+                                <td>@(string.IsNullOrWhiteSpace(t.Title) ? "—" : t.Title)</td>
+                                <td class="mono">@(string.IsNullOrWhiteSpace(t.Domain) ? "—" : t.Domain)</td>
+                                <td>
+                                    <div class="admin-tenant-actions">
+                                        <BitToggle Value="t.IsActive"
+                                                   AriaLabel="启用"
+                                                   OnChange="@(async (bool _) => await ToggleActiveAsync(t))" />
+                                        <PermissionView Code="tenant.update">
+                                            <BitButton Variant="BitVariant.Text"
+                                                       IconName="@BitIconName.Edit"
+                                                       Title="编辑"
+                                                       AriaLabel="编辑"
+                                                       OnClick="() => OpenAdminEdit(t)" />
+                                        </PermissionView>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         </div>
     }
 </PermissionView>
+</div>
+</section>
 
-@* 管理员编辑租户 *@
+@* 管理员新增 / 编辑租户 *@
 <BlazorBoilerplateModal @bind-IsOpen="_adminEditOpen"
-                        Title="编辑租户" OkText="保存" OnOk="SaveAdminEditAsync">
+                        Title="@(_adminEditing is null ? "添加租户" : "编辑租户")" OkText="保存" OnOk="SaveAdminEditAsync">
     <div class="id-form">
         <div class="auth-field">
             <label class="auth-label" for="tn-adm-name">名称 *</label>
@@ -564,6 +561,16 @@ else
         }
     }
 
+    private void OpenAdminCreate()
+    {
+        _adminEditing = null;
+        _adminName = string.Empty;
+        _adminTitle = string.Empty;
+        _adminDomain = string.Empty;
+        _adminActive = true;
+        _adminEditOpen = true;
+    }
+
     private void OpenAdminEdit(TenantDto tenant)
     {
         _adminEditing = tenant;
@@ -576,7 +583,6 @@ else
 
     private async Task SaveAdminEditAsync()
     {
-        if (_adminEditing is null) return;
         if (string.IsNullOrWhiteSpace(_adminName))
         {
             Toast.Warning("租户名称不能为空。");
@@ -587,17 +593,25 @@ else
             var name = _adminName.Trim();
             var title = string.IsNullOrWhiteSpace(_adminTitle) ? null : _adminTitle.Trim();
             var domain = string.IsNullOrWhiteSpace(_adminDomain) ? null : _adminDomain.Trim();
-            var updated = await Api.UpdateTenantAsync(_adminEditing with
+            if (_adminEditing is null)
             {
-                Name = name,
-                Title = title,
-                Domain = domain,
-                IsActive = _adminActive
-            });
-            var idx = _allTenants.FindIndex(t => t.Id == updated.Id);
-            if (idx >= 0) _allTenants[idx] = updated;
-            Toast.Success($"租户「{updated.Name}」已更新。");
+                var created = await Api.CreateTenantAsync(new TenantDto(Guid.Empty, name, title, domain, _adminActive, true, false));
+                Toast.Success($"已创建租户「{created.Name}」。");
+            }
+            else
+            {
+                var updated = await Api.UpdateTenantAsync(_adminEditing with
+                {
+                    Name = name,
+                    Title = title,
+                    Domain = domain,
+                    IsActive = _adminActive
+                });
+                Toast.Success($"租户「{updated.Name}」已更新。");
+            }
             _adminEditOpen = false;
+            await LoadAsync();
+            await LoadAllAsync();
         }
         catch (Exception ex)
         {

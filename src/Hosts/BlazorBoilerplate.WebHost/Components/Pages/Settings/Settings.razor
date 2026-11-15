@@ -5,9 +5,15 @@
 
 <style>
     .settings-shell {
+        width: 100%;
         max-width: 720px;
         margin: 0 auto;
         padding: 0.5rem 0 2rem;
+    }
+
+    .settings-shell .bit-stk,
+    .settings-shell .bit-acl {
+        width: 100%;
     }
 
     .settings-header {
@@ -70,6 +76,7 @@
                           @bind-ExpandedKey="_expandedSection"
                           LazyContent
                           ScrollIntoViewOnExpand
+                          Style="width: 100%;"
                           Background="BitColorKind.Secondary"
                           Border="BitColorKind.Transparent">
 
