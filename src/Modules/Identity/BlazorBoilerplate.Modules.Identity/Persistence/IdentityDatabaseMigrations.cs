@@ -24,7 +24,8 @@ public sealed class IdentityDatabaseMigrations : IModuleDatabaseMigrations
         new ModuleMigrationStep(1, "CreateIdentityExtensionTables", BuildStep1(Sqlite), BuildStep1(Postgres)),
         new ModuleMigrationStep(2, "AddMenuPermissionColumns", BuildStep2(Sqlite), BuildStep2(Postgres)),
         new ModuleMigrationStep(3, "SeedButtonPermissions", BuildSeedPermissions(Sqlite, ButtonPermissions), BuildSeedPermissions(Postgres, ButtonPermissions)),
-        new ModuleMigrationStep(4, "SeedPlatformMenusAndPermissions", BuildStep4(Sqlite), BuildStep4(Postgres))
+        new ModuleMigrationStep(4, "SeedPlatformMenusAndPermissions", BuildStep4(Sqlite), BuildStep4(Postgres)),
+        new ModuleMigrationStep(5, "AddEntityAuditAndSoftDeleteColumns", BuildStep5(Sqlite), BuildStep5(Postgres))
     ];
 
     private const string Sqlite = "sqlite";
@@ -256,6 +257,41 @@ public sealed class IdentityDatabaseMigrations : IModuleDatabaseMigrations
             $"WHERE r.{Q("IsSystem")} = {systemTrue} AND r.{Q("Name")} = '管理员' " +
             $"AND NOT EXISTS (SELECT 1 FROM {Q("RolePermissions")} rp " +
             $"WHERE rp.{Q("RoleId")} = r.{Q("Id")} AND rp.{Q("Code")} = p.{Q("Code")})");
+    }
+
+    /// <summary>
+    /// Sequence 5：为所有 Identity 实体表幂等补齐审计与软删除基础列。
+    /// 已有同名列在 SQLite 下由 runner 捕获 duplicate column 忽略，PG 下由 IF NOT EXISTS 跳过。
+    /// </summary>
+    private static string BuildStep5(string provider)
+    {
+        string[] allTables =
+        [
+            "Users", "Roles", "Menus", "UserRoles", "RoleMenus",
+            "Tenants", "TenantUsers", "UserSessions", "UserPreferences",
+            "Notifications", "PushNotificationSubscriptions", "PermissionDefinitions", "RolePermissions"
+        ];
+
+        var ifNotExists = provider == Postgres ? "IF NOT EXISTS " : string.Empty;
+        var guidType = SqlType(ColKind.Guid, provider);
+        var timeType = SqlType(ColKind.Time, provider);
+        var boolType = SqlType(ColKind.Bool, provider);
+        var createdDefault = provider == Postgres ? "NOW()" : "'1970-01-01T00:00:00+00:00'";
+        var boolFalse = provider == Postgres ? "FALSE" : "0";
+
+        var statements = new List<string>(allTables.Length * 7);
+        foreach (var table in allTables)
+        {
+            var qTable = Q(table);
+            statements.Add($"ALTER TABLE {qTable} ADD COLUMN {ifNotExists}{Q("CreatedAtUtc")} {timeType} NOT NULL DEFAULT {createdDefault}");
+            statements.Add($"ALTER TABLE {qTable} ADD COLUMN {ifNotExists}{Q("CreatedBy")} {guidType} NULL");
+            statements.Add($"ALTER TABLE {qTable} ADD COLUMN {ifNotExists}{Q("ModifiedAtUtc")} {timeType} NULL");
+            statements.Add($"ALTER TABLE {qTable} ADD COLUMN {ifNotExists}{Q("ModifiedBy")} {guidType} NULL");
+            statements.Add($"ALTER TABLE {qTable} ADD COLUMN {ifNotExists}{Q("IsDeleted")} {boolType} NOT NULL DEFAULT {boolFalse}");
+            statements.Add($"ALTER TABLE {qTable} ADD COLUMN {ifNotExists}{Q("DeletedAtUtc")} {timeType} NULL");
+            statements.Add($"ALTER TABLE {qTable} ADD COLUMN {ifNotExists}{Q("DeletedBy")} {guidType} NULL");
+        }
+        return Join(statements);
     }
 
     /// <summary>runner 按 ";" 逐条执行，故每条语句都自带分号并用换行分隔。</summary>

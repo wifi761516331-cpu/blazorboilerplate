@@ -3,7 +3,7 @@ using BlazorBoilerplate.Domain;
 namespace BlazorBoilerplate.Modules.Catalog.Domain;
 
 /// <summary>模块私有聚合根，不跨模块暴露。</summary>
-public sealed class Product : Entity<Guid>, IAggregateRoot
+public sealed class Product : AuditableEntity<Guid>, IAggregateRoot
 {
     private Product() { }
 
@@ -16,6 +16,7 @@ public sealed class Product : Entity<Guid>, IAggregateRoot
         Name = name;
         Price = price;
         Category = category;
+        MarkCreated(DateTimeOffset.UtcNow, null);
     }
 
     public string Name { get; private set; } = string.Empty;

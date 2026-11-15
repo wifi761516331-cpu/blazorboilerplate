@@ -1,10 +1,12 @@
+using BlazorBoilerplate.Domain;
+
 namespace BlazorBoilerplate.Modules.Identity.Domain;
 
 /// <summary>
 /// 平台用户。唯一性（UserName/Email）由 UserService 在代码层校验，
 /// 数据库只建非唯一索引 —— 与 Nova 一致：不依赖数据库级约束。
 /// </summary>
-public sealed class User
+public sealed class User : AuditableEntity<Guid>
 {
     private User() { }
 
@@ -19,14 +21,11 @@ public sealed class User
         CreatedAtUtc = DateTimeOffset.UtcNow;
     }
 
-    public Guid Id { get; private set; }
     public string UserName { get; private set; } = default!;
     public string Email { get; private set; } = default!;
     public string DisplayName { get; private set; } = default!;
     public string PasswordHash { get; private set; } = default!;
     public bool IsActive { get; private set; }
-    public DateTimeOffset CreatedAtUtc { get; private set; }
-    public DateTimeOffset? ModifiedAtUtc { get; private set; }
 
     public static User Create(string userName, string email, string displayName, string passwordHash)
     {
@@ -55,7 +54,7 @@ public sealed class User
 }
 
 /// <summary>角色。IsSystem 的内置角色不允许删除/改名，由 RoleService 保护。</summary>
-public sealed class Role
+public sealed class Role : AuditableEntity<Guid>
 {
     private Role() { }
 
@@ -68,12 +67,9 @@ public sealed class Role
         CreatedAtUtc = DateTimeOffset.UtcNow;
     }
 
-    public Guid Id { get; private set; }
     public string Name { get; private set; } = default!;
     public string? Description { get; private set; }
     public bool IsSystem { get; private set; }
-    public DateTimeOffset CreatedAtUtc { get; private set; }
-    public DateTimeOffset? ModifiedAtUtc { get; private set; }
 
     public static Role Create(string name, string? description = null, bool isSystem = false)
     {
@@ -94,7 +90,7 @@ public sealed class Role
 /// 菜单（自引用树：ParentId 为标量列，不配置 EF 关系 → 不生成数据库外键）。
 /// 树形结构由 MenuService 在代码层构建与校验（循环引用/父节点存在性）。
 /// </summary>
-public sealed class Menu
+public sealed class Menu : AuditableEntity<Guid>
 {
     private Menu() { }
 
@@ -114,7 +110,6 @@ public sealed class Menu
         CreatedAtUtc = DateTimeOffset.UtcNow;
     }
 
-    public Guid Id { get; private set; }
     public Guid? ParentId { get; private set; }
     public string Name { get; private set; } = default!;
     public string Path { get; private set; } = default!;
@@ -127,8 +122,6 @@ public sealed class Menu
     public string? PermissionCode { get; private set; }
     /// <summary>菜单类型："menu"（默认）/ "button"。</summary>
     public string Kind { get; private set; } = "menu";
-    public DateTimeOffset CreatedAtUtc { get; private set; }
-    public DateTimeOffset? ModifiedAtUtc { get; private set; }
 
     // moduleId / permissionCode / kind 均为可选参数：旧调用点（安装向导种子、旧前端）
     // 不传时仍等价于「平台菜单」，保持源码兼容。
@@ -163,7 +156,7 @@ public sealed class Menu
 }
 
 /// <summary>用户-角色关联（无外键：UserId/RoleId 为标量列，完整性由服务层保证）。</summary>
-public sealed class UserRole
+public sealed class UserRole : AuditableEntity<Guid>
 {
     private UserRole() { }
 
@@ -175,14 +168,13 @@ public sealed class UserRole
         AssignedAtUtc = DateTimeOffset.UtcNow;
     }
 
-    public Guid Id { get; private set; }
     public Guid UserId { get; private set; }
     public Guid RoleId { get; private set; }
     public DateTimeOffset AssignedAtUtc { get; private set; }
 }
 
 /// <summary>角色-菜单关联（角色可访问的菜单授权）。</summary>
-public sealed class RoleMenu
+public sealed class RoleMenu : AuditableEntity<Guid>
 {
     private RoleMenu() { }
 
@@ -193,7 +185,6 @@ public sealed class RoleMenu
         MenuId = menuId;
     }
 
-    public Guid Id { get; private set; }
     public Guid RoleId { get; private set; }
     public Guid MenuId { get; private set; }
 }
@@ -203,7 +194,7 @@ public sealed class RoleMenu
 // 所有跨实体引用均为标量 Guid 列（无导航、无外键），完整性由 Services 层在代码层校验。
 
 /// <summary>租户。成员关系（TenantUser）与存在性由 TenantService 校验。</summary>
-public sealed class Tenant
+public sealed class Tenant : AuditableEntity<Guid>
 {
     private Tenant() { }
 
@@ -217,12 +208,10 @@ public sealed class Tenant
         CreatedAtUtc = DateTimeOffset.UtcNow;
     }
 
-    public Guid Id { get; private set; }
     public string Name { get; private set; } = default!;
     public string? Title { get; private set; }
     public string? Domain { get; private set; }
     public bool IsActive { get; private set; }
-    public DateTimeOffset CreatedAtUtc { get; private set; }
 
     public static Tenant Create(string name, string? title = null, string? domain = null)
     {
@@ -241,7 +230,7 @@ public sealed class Tenant
 }
 
 /// <summary>租户成员。邀请（Accepted=false）与接受由 TenantService 维护。</summary>
-public sealed class TenantUser
+public sealed class TenantUser : AuditableEntity<Guid>
 {
     private TenantUser() { }
 
@@ -256,7 +245,6 @@ public sealed class TenantUser
         AcceptedAtUtc = accepted ? InvitedAtUtc : null;
     }
 
-    public Guid Id { get; private set; }
     public Guid TenantId { get; private set; }
     public Guid UserId { get; private set; }
     public bool Accepted { get; private set; }
@@ -276,7 +264,7 @@ public sealed class TenantUser
 }
 
 /// <summary>用户会话（登录会话 / 刷新令牌载体）。撤销为软删除：只置 RevokedAtUtc。</summary>
-public sealed class UserSession
+public sealed class UserSession : AuditableEntity<Guid>
 {
     private UserSession() { }
 
@@ -296,7 +284,6 @@ public sealed class UserSession
         RenewedOnUtc = StartedOnUtc;
     }
 
-    public Guid Id { get; private set; }
     public Guid UserId { get; private set; }
     public Guid? TenantId { get; private set; }
     public string? IP { get; private set; }
@@ -350,7 +337,7 @@ public sealed class UserSession
 }
 
 /// <summary>用户偏好（跨设备同步）。默认值与共享 UserPreferenceDto 保持一致。</summary>
-public sealed class UserPreference
+public sealed class UserPreference : AuditableEntity<Guid>
 {
     private UserPreference() { }
 
@@ -367,14 +354,12 @@ public sealed class UserPreference
         ModifiedAtUtc = DateTimeOffset.UtcNow;
     }
 
-    public Guid Id { get; private set; }
     public Guid UserId { get; private set; }
     public string Culture { get; private set; } = default!;
     public string TimeZone { get; private set; } = default!;
     public string Theme { get; private set; } = default!;
     public string? AccentColor { get; private set; }
     public bool NotificationsEnabled { get; private set; }
-    public DateTimeOffset ModifiedAtUtc { get; private set; }
 
     public static UserPreference Create(Guid userId, string culture = "zh-CN", string timeZone = "Asia/Shanghai",
         string theme = "light", string? accentColor = null, bool notificationsEnabled = false) =>
@@ -395,7 +380,7 @@ public sealed class UserPreference
 }
 
 /// <summary>站内通知。已读为软状态，由 NotificationService 保证只能操作自己的通知。</summary>
-public sealed class Notification
+public sealed class Notification : AuditableEntity<Guid>
 {
     private Notification() { }
 
@@ -410,13 +395,11 @@ public sealed class Notification
         CreatedAtUtc = DateTimeOffset.UtcNow;
     }
 
-    public Guid Id { get; private set; }
     public Guid UserId { get; private set; }
     public string Title { get; private set; } = default!;
     public string Message { get; private set; } = default!;
     public bool IsRead { get; private set; }
     public string? PageUrl { get; private set; }
-    public DateTimeOffset CreatedAtUtc { get; private set; }
     public DateTimeOffset? ReadAtUtc { get; private set; }
 
     public static Notification Create(Guid userId, string title, string message, string? pageUrl = null)
@@ -434,7 +417,7 @@ public sealed class Notification
 }
 
 /// <summary>推送订阅记录。匿名也可订阅，故 UserId 可空；不接外部推送网关。</summary>
-public sealed class PushNotificationSubscription
+public sealed class PushNotificationSubscription : AuditableEntity<Guid>
 {
     private PushNotificationSubscription() { }
 
@@ -452,7 +435,6 @@ public sealed class PushNotificationSubscription
         CreatedAtUtc = DateTimeOffset.UtcNow;
     }
 
-    public Guid Id { get; private set; }
     public string DeviceId { get; private set; } = default!;
     public string Platform { get; private set; } = default!;
     public string PushChannel { get; private set; } = default!;
@@ -460,7 +442,6 @@ public sealed class PushNotificationSubscription
     public string? P256dh { get; private set; }
     public string? Auth { get; private set; }
     public Guid? UserId { get; private set; }
-    public DateTimeOffset CreatedAtUtc { get; private set; }
 
     public static PushNotificationSubscription Create(string deviceId, string platform, string pushChannel,
         string? endpoint = null, string? p256dh = null, string? auth = null, Guid? userId = null)
@@ -486,7 +467,7 @@ public sealed class PushNotificationSubscription
 }
 
 /// <summary>权限定义目录。Kind = "menu"（菜单级）/ "button"（按钮级）；Code 唯一性由服务层保证。</summary>
-public sealed class PermissionDefinition
+public sealed class PermissionDefinition : AuditableEntity<Guid>
 {
     private PermissionDefinition() { }
 
@@ -500,7 +481,6 @@ public sealed class PermissionDefinition
         Kind = kind;
     }
 
-    public Guid Id { get; private set; }
     public string Code { get; private set; } = default!;
     public string Name { get; private set; } = default!;
     public string? ModuleId { get; private set; }
@@ -529,7 +509,7 @@ public sealed class PermissionDefinition
 }
 
 /// <summary>角色-权限码关联（无外键）。差量更新由 RoleService.AssignPermissionCodesAsync 保证。</summary>
-public sealed class RolePermission
+public sealed class RolePermission : AuditableEntity<Guid>
 {
     private RolePermission() { }
 
@@ -540,7 +520,6 @@ public sealed class RolePermission
         Code = code;
     }
 
-    public Guid Id { get; private set; }
     public Guid RoleId { get; private set; }
     public string Code { get; private set; } = default!;
 }

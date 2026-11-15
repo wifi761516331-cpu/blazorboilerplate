@@ -18,7 +18,7 @@ public sealed class IdentityModule : IModule
 
     public void ConfigureServices(IServiceCollection services, IModuleContext context)
     {
-        services.AddDbContext<IdentityDbContext>(o => o.UseIdentityProvider());
+        services.AddDbContext<IdentityDbContext>((sp, o) => o.UseIdentityProvider(sp));
         // 增量迁移：宿主在模块加载时按 Sequence 递增执行（幂等、只增不减、绝不回滚）。
         services.AddSingleton<IModuleDatabaseMigrations, IdentityDatabaseMigrations>();
 

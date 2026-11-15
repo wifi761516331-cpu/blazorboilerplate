@@ -34,21 +34,28 @@ public sealed class ModuleMigrationRunner(
     {
         var moduleServices = manager.GetModuleServices(moduleId);
 
-        // 优先用模块自己 DI 里声明的迁移；必要模块（identity）由宿主兜底：
-        // 磁盘上已安装的旧版本包可能还没注册 IModuleDatabaseMigrations，
-        // 但平台的新模型/Controller 已经需要新表新列 —— 宿主必须保证结构向前演进，
-        // 否则旧库一登录就报 "no such column"（与「只增不减」的约定一致）。
-        var migrations = moduleServices?.GetService<IModuleDatabaseMigrations>()
-                         ?? hostMigrations.FirstOrDefault(h =>
-                             string.Equals(h.ModuleId, moduleId, StringComparison.OrdinalIgnoreCase))?.Migrations;
-        if (migrations is null) return 0; // 纯内存模块：无数据库
+        // 合并模块自身声明与宿主兜底声明：
+        // 已安装的旧版本包可能只包含旧 Sequence（例如 1..4），而宿主新模型已经需要 Sequence 5+；
+        // 按 Sequence 合并（同一 Sequence 以模块自身优先），既尊重模块包又能自动补齐宿主新列。
+        var moduleMigrations = moduleServices?.GetService<IModuleDatabaseMigrations>();
+        var hostMigration = hostMigrations.FirstOrDefault(h =>
+            string.Equals(h.ModuleId, moduleId, StringComparison.OrdinalIgnoreCase))?.Migrations;
+        if (moduleMigrations is null && hostMigration is null) return 0; // 纯内存模块：无数据库
+
+        var mergedSteps = new Dictionary<int, ModuleMigrationStep>();
+        if (hostMigration is not null)
+            foreach (var step in hostMigration.Steps)
+                mergedSteps[step.Sequence] = step;
+        if (moduleMigrations is not null)
+            foreach (var step in moduleMigrations.Steps)
+                mergedSteps[step.Sequence] = step;
 
         await EnsureHistoryAsync(ct);
         var applied = await ReadMaxSequenceAsync(moduleId, ct);
         var isPg = db.Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) == true;
         var count = 0;
 
-        foreach (var step in migrations.Steps.OrderBy(s => s.Sequence))
+        foreach (var step in mergedSteps.Values.OrderBy(s => s.Sequence))
         {
             if (step.Sequence <= applied) continue; // 降级/旧版本：绝不动数据库
             var sql = isPg && !string.IsNullOrWhiteSpace(step.PostgreSql) ? step.PostgreSql! : step.Sql;

@@ -26,7 +26,7 @@ public sealed class InMemoryProductRepository : IProductRepository
     {
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
-            return Task.FromResult<IReadOnlyList<Product>>(_products.ToArray());
+            return Task.FromResult<IReadOnlyList<Product>>(_products.Where(p => !p.IsDeleted).ToArray());
     }
 
     public Task AddAsync(Product product, CancellationToken cancellationToken)

@@ -1,3 +1,5 @@
+using System.Linq.Expressions;
+using BlazorBoilerplate.Domain;
 using BlazorBoilerplate.Modules.Identity.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -48,6 +50,22 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
         modelBuilder.Entity<PushNotificationSubscription>(ConfigurePushNotificationSubscription);
         modelBuilder.Entity<PermissionDefinition>(ConfigurePermissionDefinition);
         modelBuilder.Entity<RolePermission>(ConfigureRolePermission);
+
+        ApplySoftDeleteQueryFilters(modelBuilder);
+    }
+
+    private static void ApplySoftDeleteQueryFilters(ModelBuilder modelBuilder)
+    {
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (!typeof(ISoftDeletable).IsAssignableFrom(entityType.ClrType))
+                continue;
+
+            var param = Expression.Parameter(entityType.ClrType, "e");
+            var prop = Expression.Property(param, nameof(ISoftDeletable.IsDeleted));
+            var filter = Expression.Lambda(Expression.Not(prop), param);
+            entityType.SetQueryFilter(filter);
+        }
     }
 
     private static void ConfigureUser(EntityTypeBuilder<User> b)

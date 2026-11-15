@@ -23,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\BlazorBoilerplate.Application\BlazorBoilerplate.Application.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\BlazorBoilerplate.ModuleAbstractions\BlazorBoilerplate.ModuleAbstractions.csproj" />
     <!-- 前端共享层：页面用的 BlazorBoilerplateApiClient / DTO / IdentityLayout 都在这里，
          模块只依赖共享契约，不反向引用 WebHost。 -->

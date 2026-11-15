@@ -35,7 +35,7 @@ public sealed class JsonAttachmentMetadataStore : IAttachmentMetadataStore
         try
         {
             var items = await ReadAllUnsafeAsync(cancellationToken).ConfigureAwait(false);
-            IEnumerable<Attachment> query = items;
+            IEnumerable<Attachment> query = items.Where(a => !a.IsDeleted);
             if (kind.HasValue)
                 query = query.Where(a => a.Kind == kind.Value);
             if (ownerId.HasValue)
@@ -58,7 +58,7 @@ public sealed class JsonAttachmentMetadataStore : IAttachmentMetadataStore
         try
         {
             var items = await ReadAllUnsafeAsync(cancellationToken).ConfigureAwait(false);
-            return items.FirstOrDefault(a => a.Id == id && a.Kind == kind);
+            return items.FirstOrDefault(a => !a.IsDeleted && a.Id == id && a.Kind == kind);
         }
         finally
         {
@@ -89,8 +89,12 @@ public sealed class JsonAttachmentMetadataStore : IAttachmentMetadataStore
         try
         {
             var items = await ReadAllUnsafeAsync(cancellationToken).ConfigureAwait(false);
-            if (items.RemoveAll(a => a.Id == id && a.Kind == kind) > 0)
+            var target = items.FirstOrDefault(a => !a.IsDeleted && a.Id == id && a.Kind == kind);
+            if (target is not null)
+            {
+                target.MarkDeleted(DateTimeOffset.UtcNow, null);
                 await WriteAllUnsafeAsync(items, cancellationToken).ConfigureAwait(false);
+            }
         }
         finally
         {

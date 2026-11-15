@@ -37,6 +37,77 @@ public abstract class Entity<TId> where TId : notnull
     public override int GetHashCode() => EqualityComparer<TId>.Default.GetHashCode(Id);
 }
 
+/// <summary>实体审计契约（UTC 时间 + 操作人 Id）。</summary>
+public interface IAuditableEntity
+{
+    DateTimeOffset CreatedAtUtc { get; }
+    Guid? CreatedBy { get; }
+    DateTimeOffset? ModifiedAtUtc { get; }
+    Guid? ModifiedBy { get; }
+
+    void MarkCreated(DateTimeOffset utcNow, Guid? userId);
+    void MarkModified(DateTimeOffset utcNow, Guid? userId);
+}
+
+/// <summary>软删除契约（逻辑删除标记 + 删除时间/操作人）。</summary>
+public interface ISoftDeletable
+{
+    bool IsDeleted { get; }
+    DateTimeOffset? DeletedAtUtc { get; }
+    Guid? DeletedBy { get; }
+
+    void MarkDeleted(DateTimeOffset utcNow, Guid? userId);
+    void Restore(DateTimeOffset utcNow, Guid? userId);
+}
+
+/// <summary>带审计与软删除基础属性的实体基类。</summary>
+public abstract class AuditableEntity<TId> : Entity<TId>, IAuditableEntity, ISoftDeletable where TId : notnull
+{
+    public DateTimeOffset CreatedAtUtc { get; protected set; } = DateTimeOffset.UtcNow;
+    public Guid? CreatedBy { get; protected set; }
+    public DateTimeOffset? ModifiedAtUtc { get; protected set; }
+    public Guid? ModifiedBy { get; protected set; }
+
+    public bool IsDeleted { get; protected set; }
+    public DateTimeOffset? DeletedAtUtc { get; protected set; }
+    public Guid? DeletedBy { get; protected set; }
+
+    public virtual void MarkCreated(DateTimeOffset utcNow, Guid? userId)
+    {
+        if (CreatedAtUtc == default)
+            CreatedAtUtc = utcNow;
+        CreatedBy ??= userId;
+    }
+
+    public virtual void MarkModified(DateTimeOffset utcNow, Guid? userId)
+    {
+        ModifiedAtUtc = utcNow;
+        if (userId.HasValue)
+            ModifiedBy = userId;
+    }
+
+    public virtual void MarkDeleted(DateTimeOffset utcNow, Guid? userId)
+    {
+        IsDeleted = true;
+        DeletedAtUtc = utcNow;
+        if (userId.HasValue)
+            DeletedBy = userId;
+        ModifiedAtUtc = utcNow;
+        if (userId.HasValue)
+            ModifiedBy = userId;
+    }
+
+    public virtual void Restore(DateTimeOffset utcNow, Guid? userId)
+    {
+        IsDeleted = false;
+        DeletedAtUtc = null;
+        DeletedBy = null;
+        ModifiedAtUtc = utcNow;
+        if (userId.HasValue)
+            ModifiedBy = userId;
+    }
+}
+
 public abstract class ValueObject
 {
     protected abstract IEnumerable<object?> GetEqualityComponents();

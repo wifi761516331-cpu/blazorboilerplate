@@ -1,6 +1,8 @@
 using System.Text.Json;
+using BlazorBoilerplate.ApiHost.Auth;
 using BlazorBoilerplate.ApiHost.Services;
 using BlazorBoilerplate.ApiHost.Setup;
+using BlazorBoilerplate.Application.Abstractions;
 using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.ModuleRuntime;
 using BlazorBoilerplate.ModuleRuntime.Runtime;
@@ -21,7 +23,9 @@ public static class ModuleStartupExtensions
     {
         // 宿主 DI 也注册一份 IdentityDbContext：Controller 是宿主编译期类型，无法解析模块私有 ALC 容器里的注册。
         // 与模块容器共用 PlatformConnectionState 的同一连接串，两侧互不影响。
-        services.AddDbContext<IdentityDbContext>(o => o.UseIdentityProvider());
+        services.AddHttpContextAccessor();
+        services.AddSingleton<ICurrentUserContext, HttpCurrentUserContext>();
+        services.AddDbContext<IdentityDbContext>((sp, o) => o.UseIdentityProvider(sp));
         services.AddScoped<ModuleMigrationRunner>();
         services.AddScoped<ModuleMenuSyncService>();
 

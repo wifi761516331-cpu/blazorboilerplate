@@ -294,6 +294,11 @@ public sealed class ModuleLifecycleManager(
 
             var services = new ServiceCollection();
             services.AddSingleton(loggerFactory);
+            if (handle.HostServices.GetService(typeof(BlazorBoilerplate.Application.Abstractions.ICurrentUserContext))
+                is BlazorBoilerplate.Application.Abstractions.ICurrentUserContext currentUser)
+            {
+                services.AddSingleton(currentUser);
+            }
             module.ConfigureServices(services, handle);
             var provider = services.BuildServiceProvider(new ServiceProviderOptions
             {

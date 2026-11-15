@@ -13,6 +13,13 @@ public interface IClock
     DateTimeOffset UtcNow { get; }
 }
 
+/// <summary>当前请求用户上下文（供审计拦截器/应用服务获取操作人，后台任务或匿名上下文可返回 null）。</summary>
+public interface ICurrentUserContext
+{
+    Guid? UserId { get; }
+    Guid? TenantId { get; }
+}
+
 public interface IFileStorage
 {
     Task<Stream?> GetAsync(string key, CancellationToken cancellationToken);

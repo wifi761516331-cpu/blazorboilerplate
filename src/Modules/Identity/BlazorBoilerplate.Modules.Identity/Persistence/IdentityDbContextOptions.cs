@@ -12,10 +12,16 @@ namespace BlazorBoilerplate.Modules.Identity.Persistence;
 /// </summary>
 public static class IdentityDbContextOptions
 {
-    public static void UseIdentityProvider(this DbContextOptionsBuilder builder, string? provider = null, string? connectionString = null)
+    public static void UseIdentityProvider(
+        this DbContextOptionsBuilder builder,
+        IServiceProvider? services = null,
+        string? provider = null,
+        string? connectionString = null)
     {
         var resolved = PlatformConnectionState.Normalize(provider ?? PlatformConnectionState.DatabaseProvider);
         var conn = connectionString ?? PlatformConnectionState.ResolveConnectionString();
+
+        builder.AddInterceptors(new AuditingSaveChangesInterceptor(services));
 
         if (resolved == PlatformConnectionState.SqliteProvider)
         {
