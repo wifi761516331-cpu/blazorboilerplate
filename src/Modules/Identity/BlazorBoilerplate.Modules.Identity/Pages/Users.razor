@@ -12,7 +12,9 @@
 <div class="id-page">
     <div class="id-toolbar">
         <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="RefreshAsync" Disabled="@_loading">刷新</BitButton>
-        <BitButton IconName="@BitIconName.Add" OnClick="@(() => ResetCreateForm())" Disabled="@_loading">新建用户</BitButton>
+        <PermissionGate Code="identity.user.create">
+            <BitButton IconName="@BitIconName.Add" OnClick="@(() => ResetCreateForm())" Disabled="@_loading">新建用户</BitButton>
+        </PermissionGate>
     </div>
 
     @if (_error is not null)
@@ -63,14 +65,18 @@
                                     @(_selected.IsActive ? "已启用" : "已停用")
                                 </BitBadge>
                                 <BitSpacer />
-                                <BitButton Variant="BitVariant.Outline" OnClick="@(() => OpenEditDialogAsync())">编辑资料</BitButton>
-                                <BitButton Variant="BitVariant.Outline" OnClick="@(() => { ResetPw = string.Empty; _resetPwDialogOpen = true; })">重置密码</BitButton>
-                                <BitButton Variant="BitVariant.Outline"
-                                           OnClick="ToggleActiveAsync"
-                                           Disabled="_busy.Contains(_selected.Id.ToString())">
-                                    @(_selected.IsActive ? "停用" : "启用")
-                                </BitButton>
-                                <BitButton Color="BitColor.Error" OnClick="@(() => _deleteDialogOpen = true)">删除</BitButton>
+                                <PermissionGate Code="identity.user.update">
+                                    <BitButton Variant="BitVariant.Outline" OnClick="@(() => OpenEditDialogAsync())">编辑资料</BitButton>
+                                    <BitButton Variant="BitVariant.Outline" OnClick="@(() => { ResetPw = string.Empty; _resetPwDialogOpen = true; })">重置密码</BitButton>
+                                    <BitButton Variant="BitVariant.Outline"
+                                               OnClick="ToggleActiveAsync"
+                                               Disabled="_busy.Contains(_selected.Id.ToString())">
+                                        @(_selected.IsActive ? "停用" : "启用")
+                                    </BitButton>
+                                </PermissionGate>
+                                <PermissionGate Code="identity.user.delete">
+                                    <BitButton Color="BitColor.Error" OnClick="@(() => _deleteDialogOpen = true)">删除</BitButton>
+                                </PermissionGate>
                             </BitStack>
                         </div>
                     }
@@ -91,7 +97,9 @@
                             }
                         </div>
                         <div class="row">
-                            <BitButton OnClick="SaveRolesAsync" Disabled="@(!_roleDirty || _busy.Contains(_selected.Id.ToString()))">保存角色分配</BitButton>
+                            <PermissionGate Code="identity.user.update">
+                                <BitButton OnClick="SaveRolesAsync" Disabled="@(!_roleDirty || _busy.Contains(_selected.Id.ToString()))">保存角色分配</BitButton>
+                            </PermissionGate>
                             <BitText Class="muted id-tree-hint">保存后立即生效。</BitText>
                         </div>
                     }
@@ -186,6 +194,8 @@
         {
             _users = [.. await Api.GetListAsync<IdentityUserDto>("api/identity/users")];
             _roles = [.. await Api.GetListAsync<IdentityRoleDto>("api/identity/roles")];
+            if (_selected is not null)
+                _selected = _users.FirstOrDefault(u => u.Id == _selected.Id);
             RebuildNav();
         }
         catch (Exception ex)

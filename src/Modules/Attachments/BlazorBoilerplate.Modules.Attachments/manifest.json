@@ -11,7 +11,12 @@
   "hostCompatibility": ">=1.0.0 <2.0.0",
   "displayOrder": 120,
   "dependencies": [],
-  "permissions": [],
+  "permissions": [ "attachments.read", "attachments.upload", "attachments.delete" ],
+  "permissionItems": [
+    { "code": "attachments.read", "name": "查看附件" },
+    { "code": "attachments.upload", "name": "上传附件" },
+    { "code": "attachments.delete", "name": "删除附件" }
+  ],
   "frontend": {
     "routes": [ "/attachments" ],
     "menus": [ "Attachments" ],

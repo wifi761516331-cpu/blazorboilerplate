@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text.Json;
+using BlazorBoilerplate.ApiHost.Auth;
 using BlazorBoilerplate.Application.Abstractions;
 using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.ModuleRuntime.Runtime;
@@ -45,7 +46,8 @@ public static class ModuleManagementEndpoints
                     return Results.Conflict(new { error = ex.Message });
                 }
             })
-            .WithSummary("Load every module in resolved order; dependents are skipped if their dependencies fail");
+            .WithSummary("Load every module in resolved order; dependents are skipped if their dependencies fail")
+            .RequirePermission("module.load");
 
         group.MapGet("/audit", (IModuleAudit audit) => Results.Ok(audit.Recent(100)))
             .WithSummary("Recent module lifecycle audit entries");
@@ -71,7 +73,8 @@ public static class ModuleManagementEndpoints
                     return Results.BadRequest(new { error = ex.Message });
                 }
             })
-            .WithSummary("Install a module package from a directory under the controlled modules root");
+            .WithSummary("Install a module package from a directory under the controlled modules root")
+            .RequirePermission("module.upload");
 
         group.MapGet("/{id}/versions", (string id, ModuleLifecycleManager manager) =>
             {
@@ -215,7 +218,8 @@ public static class ModuleManagementEndpoints
                     }
                 })
             .WithSummary("上传模块包（.zip）至 S3/MinIO 并解压安装为新版本")
-            .DisableAntiforgery();
+            .DisableAntiforgery()
+            .RequirePermission("module.upload");
 
         group.MapGet("/{id}/download", async (string id, string? version, ModuleLifecycleManager manager,
                     IFileStorage storage, CancellationToken cancellationToken) =>
@@ -246,7 +250,8 @@ public static class ModuleManagementEndpoints
                     ms.Position = 0;
                     return Results.Stream(ms, "application/zip", fileDownloadName: fileName);
                 })
-            .WithSummary("下载模块包（.zip）：优先 S3 归档，内置模块现场打包安装目录；?version= 指定历史版本");
+            .WithSummary("下载模块包（.zip）：优先 S3 归档，内置模块现场打包安装目录；?version= 指定历史版本")
+            .RequirePermission("module.download");
 
         // ---- 开发打包（仅 Development + 配置 ModuleRuntime:SourceRoot 时启用）----
 
@@ -272,7 +277,8 @@ public static class ModuleManagementEndpoints
                     }
                 })
             .WithSummary("按源码工程打包模块（dotnet build Release → 组包 → .zip 流），打包后可直接上传安装")
-            .DisableAntiforgery();
+            .DisableAntiforgery()
+            .RequirePermission("module.pack");
 
         group.MapPost("/{id}/load", async (string id, string? version, ModuleLifecycleManager manager,
                     HttpContext context, CancellationToken cancellationToken) =>
@@ -293,7 +299,8 @@ public static class ModuleManagementEndpoints
                     return Results.Conflict(new { error = ex.Message });
                 }
             })
-            .WithSummary("Load and run a module (collectible ALC + dynamic endpoints); optional ?version=");
+            .WithSummary("Load and run a module (collectible ALC + dynamic endpoints); optional ?version=")
+            .RequirePermission("module.load");
 
         group.MapPost("/{id}/unload", async (string id, ModuleLifecycleManager manager,
                     HttpContext context, CancellationToken cancellationToken) =>
@@ -311,7 +318,8 @@ public static class ModuleManagementEndpoints
                     return Results.Conflict(new { error = ex.Message });
                 }
             })
-            .WithSummary("Drain, stop and unload a module without restarting the host");
+            .WithSummary("Drain, stop and unload a module without restarting the host")
+            .RequirePermission("module.unload");
     }
 
     private static bool TryGetDescriptor(string id, ModuleLifecycleManager manager, out ModuleDescriptor descriptor)

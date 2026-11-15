@@ -227,12 +227,14 @@
                                               Label="测试收件人邮箱"
                                               Placeholder="输入邮箱后先保存或直接测试" />
                             </div>
-                            <BitButton Variant="BitVariant.Outline"
-                                       IconName="@BitIconName.Send"
-                                       IsLoading="_sendingTest"
-                                       OnClick="SendTestEmailAsync">
-                                发送测试邮件
-                            </BitButton>
+                            <PermissionGate Code="system.settings.update">
+                                <BitButton Variant="BitVariant.Outline"
+                                           IconName="@BitIconName.Send"
+                                           IsLoading="_sendingTest"
+                                           OnClick="SendTestEmailAsync">
+                                    发送测试邮件
+                                </BitButton>
+                            </PermissionGate>
                         </div>
                     </div>
                 </div>
@@ -326,12 +328,14 @@
                        OnClick="LoadAsync">
                 重置 / 刷新
             </BitButton>
-            <BitButton Color="BitColor.Primary"
-                       IconName="@BitIconName.Save"
-                       IsLoading="_saving"
-                       OnClick="SaveAsync">
-                保存设置
-            </BitButton>
+            <PermissionGate Code="system.settings.update">
+                <BitButton Color="BitColor.Primary"
+                           IconName="@BitIconName.Save"
+                           IsLoading="_saving"
+                           OnClick="SaveAsync">
+                    保存设置
+                </BitButton>
+            </PermissionGate>
         </div>
     }
 </div>

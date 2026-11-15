@@ -87,7 +87,22 @@
                             <BitText Typography="BitTypography.Body2">@SysState.Public.Notice</BitText>
                         </BitCallout>
                     }
-                    @Body
+                    @if (!IsCurrentRouteAuthorized())
+                    {
+                        <BitCallout Class="page-callout error" Style="max-width: 36rem;">
+                            <BitStack Gap="0.75rem">
+                                <BitText Typography="BitTypography.H6">无权访问</BitText>
+                                <BitText>当前账号未获授权访问此菜单或页面，请联系管理员在「角色管理」中分配对应菜单与按钮权限。</BitText>
+                                <div>
+                                    <BitButton Href="/">返回首页</BitButton>
+                                </div>
+                            </BitStack>
+                        </BitCallout>
+                    }
+                    else
+                    {
+                        @Body
+                    }
                 </div>
             </div>
         </div>
@@ -215,10 +230,15 @@
     {
         if (string.Equals(menu.Kind, "group", StringComparison.OrdinalIgnoreCase))
             return true;
-        if (menu.Path is "/" or "/modules")
+        if (menu.Path == "/")
             return true;
-        if (Account.IsAuthenticated && Account.MenuPaths.Count > 0 && !Account.HasMenu(menu.Path))
-            return false;
+        if (Account.IsAuthenticated && !Account.IsAdmin)
+        {
+            if (!Account.HasMenu(menu.Path))
+                return false;
+            if (!string.IsNullOrWhiteSpace(menu.PermissionCode) && !Account.HasPermission(menu.PermissionCode))
+                return false;
+        }
         // 仅归属于动态模块的菜单才按模块运行状态过滤；平台内置页（如 /system/settings）与自定义菜单不受 RunningRoutes 限制。
         if (!string.IsNullOrWhiteSpace(menu.ModuleId) && _moduleStates.Count > 0)
         {
@@ -228,34 +248,66 @@
         return true;
     }
 
-    private bool IsMenuVisible(string path)
+    private bool IsCurrentRouteAuthorized()
     {
-        if (path is "/" or "/modules")
+        if (!Account.IsAuthenticated || Account.IsAdmin || IsPublicRoute())
             return true;
-        // 未认证不额外过滤（避免 setup 流程被挡）；管理员 "*" / 全量 MenuPaths 由 HasMenu 放行。
-        if (Account.IsAuthenticated && Account.MenuPaths.Count > 0 && !Account.HasMenu(path))
+
+        var current = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/');
+        if (string.IsNullOrEmpty(current)
+            || string.Equals(current, "/profile", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(current, "/notifications", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (!Account.HasMenu(current))
             return false;
-        if (_moduleStates.Count == 0)
-            return true;
-        return RunningRoutes.Contains(path);
+
+        var matched = _dbMenus.FirstOrDefault(m =>
+            !string.Equals(m.Kind, "group", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(m.Path.TrimEnd('/'), current, StringComparison.OrdinalIgnoreCase))
+            ?? _dbMenus
+                .Where(m =>
+                {
+                    if (string.Equals(m.Kind, "group", StringComparison.OrdinalIgnoreCase))
+                        return false;
+                    var p = m.Path.TrimEnd('/');
+                    return !string.IsNullOrEmpty(p) && current.StartsWith(p + "/", StringComparison.OrdinalIgnoreCase);
+                })
+                .OrderByDescending(m => m.Path.Length)
+                .FirstOrDefault();
+        if (matched is not null && !string.IsNullOrWhiteSpace(matched.PermissionCode) && !Account.HasPermission(matched.PermissionCode))
+            return false;
+
+        return true;
     }
 
     protected override void OnInitialized()
     {
         NavRefresh.OnChanged += HandleNavRefresh;
         Account.Changed += HandleAccountChanged;
-        SysState.Changed += HandleAccountChanged;
+        SysState.Changed += HandleSysChanged;
     }
 
     private void HandleNavRefresh() => _ = InvokeAsync(RefreshNavAsync);
 
-    private void HandleAccountChanged() => _ = InvokeAsync(StateHasChanged);
+    private void HandleAccountChanged() => _ = InvokeAsync(async () =>
+    {
+        if (Account.IsAuthenticated && _dbMenus.Count == 0)
+            await RefreshNavAsync();
+        else
+        {
+            BuildNavGroups();
+            StateHasChanged();
+        }
+    });
+
+    private void HandleSysChanged() => _ = InvokeAsync(StateHasChanged);
 
     public void Dispose()
     {
         NavRefresh.OnChanged -= HandleNavRefresh;
         Account.Changed -= HandleAccountChanged;
-        SysState.Changed -= HandleAccountChanged;
+        SysState.Changed -= HandleSysChanged;
     }
 
     /// <summary>公共（匿名）路由：登录页与安装向导使用独立的 IdentityLayout，绝不能被本布局的登录守卫重复跳转。</summary>
@@ -390,21 +442,8 @@
             return;
         }
 
-        // ApiHost 不可达 / 未安装时的静态回退：模块自注册菜单（仅运行中的模块）+ 平台页面。
-        var fallback = new List<NavNode> { new(Guid.NewGuid(), "概览", "/", "Home", "menu", []) };
-        fallback.AddRange(ModuleFrontendRegistry.All
-            .Where(m => IsMenuVisible(m.Route))
-            .Select(m => new NavNode(Guid.NewGuid(), m.Text, m.Route, IconOf(m.Route), "menu", [])));
-        if (IsMenuVisible("/identity/users"))
-        {
-            fallback.Add(new NavNode(Guid.NewGuid(), "用户管理", "/identity/users", "People", "menu", []));
-            fallback.Add(new NavNode(Guid.NewGuid(), "角色管理", "/identity/roles", "SecurityGroup", "menu", []));
-            fallback.Add(new NavNode(Guid.NewGuid(), "菜单管理", "/identity/menus", "EditList", "menu", []));
-        }
-        fallback.Add(new NavNode(Guid.NewGuid(), "模块管理", "/modules", "Puzzle", "menu", []));
-        fallback.Add(new NavNode(Guid.NewGuid(), "系统设置", "/system/settings", "Settings", "menu", []));
-
-        _navTree = [.. fallback.GroupBy(i => i.Path, StringComparer.OrdinalIgnoreCase).Select(g => g.First())];
+        // 未获取到数据库菜单（如未登录或 ApiHost 不可达）时，仅保留概览入口，不硬编码业务菜单
+        _navTree = [new(Guid.NewGuid(), "概览", "/", "Home", "menu", [])];
     }
 
     private static NavNode BuildNavNode(IdentityMenuDto m, List<IdentityMenuDto> pool, HashSet<Guid> visited)

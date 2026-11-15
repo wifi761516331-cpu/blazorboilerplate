@@ -17,6 +17,7 @@ namespace BlazorBoilerplate.ApiHost.Controllers;
 /// 存储路径完全由服务端按 {Id}_{Kind}{Ext} 生成，不信任客户端路径。
 /// </summary>
 [ApiController]
+[Authorize]
 [Route("api/v1/[controller]/[action]")]
 public sealed class AttachmentController(
     IdentityDbContext db,
@@ -56,6 +57,7 @@ public sealed class AttachmentController(
     };
 
     [HttpGet]
+    [RequirePermission("attachments.read")]
     public async Task<AttachmentDto[]> GetList(
         [FromQuery] AttachmentKind? kind = null,
         [FromQuery] Guid? ownerId = null,
@@ -77,6 +79,10 @@ public sealed class AttachmentController(
         [FromForm] Guid? ownerId = null,
         CancellationToken cancellationToken = default)
     {
+        // 上传个人头像为自助操作，其余附件上传需校验 attachments.upload 权限
+        if (kind != AttachmentKind.UserProfileImage && !User.HasPermission("attachments.upload"))
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "无权执行该操作（缺少权限：attachments.upload）。" });
+
         var attachmentId = kind == AttachmentKind.UserProfileImage
             ? UserId
             : (kind == AttachmentKind.ProductPrimaryImage && ownerId.HasValue ? ownerId.Value : Guid.CreateVersion7());
@@ -117,6 +123,7 @@ public sealed class AttachmentController(
     }
 
     [HttpDelete("{attachmentId}/{kind}")]
+    [RequirePermission("attachments.delete")]
     public async Task Delete(Guid attachmentId, AttachmentKind kind, CancellationToken cancellationToken)
     {
         await DeleteAttachmentInternalAsync(attachmentId, kind, cancellationToken);

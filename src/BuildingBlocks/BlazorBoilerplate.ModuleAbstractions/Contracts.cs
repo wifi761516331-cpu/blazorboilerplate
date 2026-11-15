@@ -62,6 +62,10 @@ public sealed class ModuleManifest
     public bool IsEssential { get; set; }
 
     public string[] Permissions { get; set; } = [];
+
+    /// <summary>结构化权限声明（含中文展示名称与类型）；与 Permissions 兼容，模块加载时同步到 PermissionDefinitions。</summary>
+    public ModulePermissionManifest[] PermissionItems { get; set; } = [];
+
     public ModuleFrontendManifest Frontend { get; set; } = new();
 
     /// <summary>模块数据库声明：启用后宿主在模块加载时执行只增不减的增量迁移。</summary>
@@ -81,6 +85,13 @@ public sealed class ModuleFrontendManifest
     /// 之后由管理员在 /identity/menus 维护，无需改代码。
     /// </summary>
     public ModuleMenuManifest[] MenuItems { get; set; } = [];
+}
+
+public sealed class ModulePermissionManifest
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Kind { get; set; } = "button";
 }
 
 /// <summary>模块在 manifest.json 中声明的菜单项。</summary>

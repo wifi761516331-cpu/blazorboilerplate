@@ -2,7 +2,7 @@
   "id": "catalog",
   "name": "Catalog",
   "displayName": "商品目录",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "publisher": "BlazorBoilerplate",
   "entryAssembly": "BlazorBoilerplate.Modules.Catalog.dll",
   "entryType": "BlazorBoilerplate.Modules.Catalog.CatalogModule",
@@ -12,6 +12,12 @@
   "displayOrder": 100,
   "dependencies": [],
   "permissions": [ "catalog.product.read" ],
+  "permissionItems": [
+    { "code": "catalog.product.read", "name": "查看商品" },
+    { "code": "catalog.product.create", "name": "创建商品" },
+    { "code": "catalog.product.update", "name": "编辑商品" },
+    { "code": "catalog.product.delete", "name": "删除商品" }
+  ],
   "frontend": {
     "routes": [ "/catalog" ],
     "menus": [ "Catalog" ],

@@ -162,11 +162,13 @@
 <div class="id-page">
     <div class="id-toolbar">
         <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="RefreshAsync" Disabled="@_loading">刷新</BitButton>
-        <BitButton IconName="@BitIconName.Add" OnClick="@(() => OpenCreate(null))">新建顶级菜单</BitButton>
-        @if (_selected is not null && !_creating)
-        {
-            <BitButton IconName="@BitIconName.AddTo" OnClick="@(() => OpenCreate(_selected.Id))">新建子菜单</BitButton>
-        }
+        <PermissionGate Code="identity.menu.create">
+            <BitButton IconName="@BitIconName.Add" OnClick="@(() => OpenCreate(null))">新建顶级菜单</BitButton>
+            @if (_selected is not null && !_creating)
+            {
+                <BitButton IconName="@BitIconName.AddTo" OnClick="@(() => OpenCreate(_selected.Id))">新建子菜单</BitButton>
+            }
+        </PermissionGate>
         <BitTextField @bind-Value="_searchText"
                       @bind-Value:after="RebuildNavAndParents"
                       Immediate
@@ -270,27 +272,31 @@
                         <BitNumberField @bind-Value="EditSort" Label="排序" />
                         @if (!_creating && _selected is not null)
                         {
-                            <BitButton Variant="BitVariant.Outline"
-                                       IconName="@BitIconName.Up"
-                                       Disabled="@(_busy || !CanMoveSibling(-1))"
-                                       OnClick="@(() => MoveSiblingAsync(-1))">
-                                上移
-                            </BitButton>
-                            <BitButton Variant="BitVariant.Outline"
-                                       IconName="@BitIconName.Down"
-                                       Disabled="@(_busy || !CanMoveSibling(1))"
-                                       OnClick="@(() => MoveSiblingAsync(1))">
-                                下移
-                            </BitButton>
+                            <PermissionGate Code="identity.menu.update">
+                                <BitButton Variant="BitVariant.Outline"
+                                           IconName="@BitIconName.Up"
+                                           Disabled="@(_busy || !CanMoveSibling(-1))"
+                                           OnClick="@(() => MoveSiblingAsync(-1))">
+                                    上移
+                                </BitButton>
+                                <BitButton Variant="BitVariant.Outline"
+                                           IconName="@BitIconName.Down"
+                                           Disabled="@(_busy || !CanMoveSibling(1))"
+                                           OnClick="@(() => MoveSiblingAsync(1))">
+                                    下移
+                                </BitButton>
+                            </PermissionGate>
                         }
                     </div>
 
                     <BitCheckbox @bind-Value="EditIsVisible" Label="在侧边栏可见" />
 
                     <div class="row">
-                        <BitButton Color="BitColor.Primary" IsLoading="_busy" OnClick="SaveAsync">
-                            @(_creating ? "创建菜单" : "保存修改")
-                        </BitButton>
+                        <PermissionGate Code="@(_creating ? "identity.menu.create" : "identity.menu.update")">
+                            <BitButton Color="BitColor.Primary" IsLoading="_busy" OnClick="SaveAsync">
+                                @(_creating ? "创建菜单" : "保存修改")
+                            </BitButton>
+                        </PermissionGate>
                         @if (_creating)
                         {
                             <BitButton Variant="BitVariant.Outline" Disabled="@_busy" OnClick="CancelCreate">取消</BitButton>
@@ -298,9 +304,11 @@
                         else if (_selected is not null)
                         {
                             <BitSpacer />
-                            <BitButton Color="BitColor.Error" Variant="BitVariant.Outline" Disabled="@_busy" OnClick="@(() => _deleteDialogOpen = true)">
-                                删除
-                            </BitButton>
+                            <PermissionGate Code="identity.menu.delete">
+                                <BitButton Color="BitColor.Error" Variant="BitVariant.Outline" Disabled="@_busy" OnClick="@(() => _deleteDialogOpen = true)">
+                                    删除
+                                </BitButton>
+                            </PermissionGate>
                         }
                     </div>
                 </div>

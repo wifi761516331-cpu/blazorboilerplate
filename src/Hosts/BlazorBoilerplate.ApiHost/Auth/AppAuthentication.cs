@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Options;
 
 namespace BlazorBoilerplate.ApiHost.Auth;
@@ -61,6 +63,60 @@ public static class AppUserExtensions
     public static Guid? GetTenantId(this ClaimsPrincipal user) =>
         Guid.TryParse(user.FindFirstValue("tid"), out var id) ? id : null;
 
-    public static bool HasPermission(this ClaimsPrincipal user, string code) =>
-        user.FindAll("perm").Any(c => c.Value == "*" || string.Equals(c.Value, code, StringComparison.OrdinalIgnoreCase));
+    public static bool HasPermission(this ClaimsPrincipal user, string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            return true;
+
+        var perms = user.FindAll("perm").Select(c => c.Value).ToList();
+        if (perms.Any(p => p == "*" || string.Equals(p, code, StringComparison.OrdinalIgnoreCase)))
+            return true;
+
+        // 兼容历史 .write 权限码与细粒度 .create/.update/.delete 权限码
+        if (code.EndsWith(".create", StringComparison.OrdinalIgnoreCase) ||
+            code.EndsWith(".update", StringComparison.OrdinalIgnoreCase) ||
+            code.EndsWith(".delete", StringComparison.OrdinalIgnoreCase))
+        {
+            var lastDot = code.LastIndexOf('.');
+            var writeCode = string.Concat(code.AsSpan(0, lastDot), ".write");
+            return perms.Any(p => string.Equals(p, writeCode, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return false;
+    }
+}
+
+/// <summary>Minimal API 端点所需的权限码元数据（由 Program.cs 权限中间件统一校验）。</summary>
+public sealed record PermissionMetadata(string Permission);
+
+public static class EndpointPermissionExtensions
+{
+    public static RouteHandlerBuilder RequirePermission(this RouteHandlerBuilder builder, string permission) =>
+        builder.RequireAuthorization().WithMetadata(new PermissionMetadata(permission));
+}
+
+/// <summary>MVC Controller / Action 权限码校验特性（未登录返回 401，缺权限返回 403）。</summary>
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
+public sealed class RequirePermissionAttribute(string permission) : Attribute, IAsyncActionFilter
+{
+    public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+    {
+        var user = context.HttpContext.User;
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            context.Result = new UnauthorizedResult();
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(permission) && !user.HasPermission(permission))
+        {
+            context.Result = new ObjectResult(new { error = $"无权执行该操作（缺少权限：{permission}）。" })
+            {
+                StatusCode = StatusCodes.Status403Forbidden
+            };
+            return;
+        }
+
+        await next();
+    }
 }

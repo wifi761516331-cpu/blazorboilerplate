@@ -14,11 +14,8 @@
   "isEssential": true,
   "permissions": [
     "identity.user.read",
-    "identity.user.write",
     "identity.role.read",
-    "identity.role.write",
     "identity.menu.read",
-    "identity.menu.write",
     "identity.user.create",
     "identity.user.update",
     "identity.user.delete",
@@ -37,18 +34,130 @@
     "catalog.product.update",
     "catalog.product.delete",
     "identity.permission.read",
-    "identity.permission.write"
+    "identity.permission.write",
+    "system.settings.read",
+    "system.settings.update"
+  ],
+  "permissionItems": [
+    {
+      "code": "identity.user.read",
+      "name": "查看用户"
+    },
+    {
+      "code": "identity.user.create",
+      "name": "创建用户"
+    },
+    {
+      "code": "identity.user.update",
+      "name": "编辑用户"
+    },
+    {
+      "code": "identity.user.delete",
+      "name": "删除用户"
+    },
+    {
+      "code": "identity.role.read",
+      "name": "查看角色"
+    },
+    {
+      "code": "identity.role.create",
+      "name": "创建角色"
+    },
+    {
+      "code": "identity.role.update",
+      "name": "编辑角色"
+    },
+    {
+      "code": "identity.role.delete",
+      "name": "删除角色"
+    },
+    {
+      "code": "identity.menu.read",
+      "name": "查看菜单"
+    },
+    {
+      "code": "identity.menu.create",
+      "name": "创建菜单"
+    },
+    {
+      "code": "identity.menu.update",
+      "name": "编辑菜单"
+    },
+    {
+      "code": "identity.menu.delete",
+      "name": "删除菜单"
+    },
+    {
+      "code": "identity.permission.read",
+      "name": "查看权限"
+    },
+    {
+      "code": "identity.permission.write",
+      "name": "分配权限"
+    },
+    {
+      "code": "module.upload",
+      "name": "上传模块"
+    },
+    {
+      "code": "module.pack",
+      "name": "打包模块"
+    },
+    {
+      "code": "module.download",
+      "name": "下载模块"
+    },
+    {
+      "code": "module.load",
+      "name": "加载模块"
+    },
+    {
+      "code": "module.unload",
+      "name": "卸载模块"
+    },
+    {
+      "code": "system.settings.read",
+      "name": "查看系统设置"
+    },
+    {
+      "code": "system.settings.update",
+      "name": "修改系统设置"
+    }
   ],
   "database": {
     "enabled": true
   },
   "frontend": {
-    "routes": [ "/sign-in", "/identity/users", "/identity/roles", "/identity/menus" ],
-    "menus": [ "Users", "Roles", "Menus" ],
+    "routes": [
+      "/sign-in",
+      "/identity/users",
+      "/identity/roles",
+      "/identity/menus"
+    ],
+    "menus": [
+      "Users",
+      "Roles",
+      "Menus"
+    ],
     "menuItems": [
-      { "text": "用户管理", "route": "/identity/users", "icon": "People", "sort": 10 },
-      { "text": "角色管理", "route": "/identity/roles", "icon": "SecurityGroup", "sort": 20 },
-      { "text": "菜单管理", "route": "/identity/menus", "icon": "EditList", "sort": 30 }
+      {
+        "text": "用户管理",
+        "route": "/identity/users",
+        "icon": "People",
+        "sort": 10
+      },
+      {
+        "text": "角色管理",
+        "route": "/identity/roles",
+        "icon": "SecurityGroup",
+        "sort": 20
+      },
+      {
+        "text": "菜单管理",
+        "route": "/identity/menus",
+        "icon": "EditList",
+        "sort": 30
+      }
     ],
     "localization": [],
     "assets": []

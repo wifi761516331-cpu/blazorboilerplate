@@ -267,9 +267,11 @@
         <option value="@AttachmentKind.UserProfileImage">用户头像</option>
         <option value="@AttachmentKind.ProductPrimaryImage">商品主图</option>
     </select>
-    <BitButton Color="BitColor.Primary" IconName="CloudUpload" OnClick="OpenUploadModal">
-        上传附件
-    </BitButton>
+    <PermissionGate Code="attachments.upload">
+        <BitButton Color="BitColor.Primary" IconName="CloudUpload" OnClick="OpenUploadModal">
+            上传附件
+        </BitButton>
+    </PermissionGate>
     <BitButton Variant="BitVariant.Outline" IconName="Refresh" OnClick="LoadAsync" IsEnabled="!_loading">
         @(_loading ? "加载中…" : "刷新")
     </BitButton>
@@ -371,7 +373,9 @@ else
                     }
                     <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick="() => CopyUrlAsync(previewUrl)">复制链接</BitButton>
                     <a class="bb-link-btn" href="@downloadUrl" download="@item.FileName">下载</a>
-                    <BitButton Size="BitSize.Small" Variant="BitVariant.Text" Color="BitColor.Error" OnClick="() => ConfirmDelete(item)">删除</BitButton>
+                    <PermissionGate Code="attachments.delete">
+                        <BitButton Size="BitSize.Small" Variant="BitVariant.Text" Color="BitColor.Error" OnClick="() => ConfirmDelete(item)">删除</BitButton>
+                    </PermissionGate>
                 </div>
             </BitCard>
         }

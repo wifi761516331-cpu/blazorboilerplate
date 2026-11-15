@@ -196,10 +196,47 @@ public sealed class ModuleMenuSyncService(
             }
         }
 
-        foreach (var code in manifest.Permissions.Where(c => !string.IsNullOrWhiteSpace(c)).Distinct())
+        // 优先同步 manifest.PermissionItems（带模块自声明的中文名称）；若库中已有同名且 Name 仍为 Code 的旧行则补全中文名
+        var existingPerms = await db.PermissionDefinitions.ToDictionaryAsync(p => p.Code, StringComparer.OrdinalIgnoreCase, ct);
+
+        // 清理已拆分为 create/update/delete 的历史粗粒度 *.write 权限定义（仅针对当前模块不再声明的项）
+        string[] deprecatedWriteCodes = ["identity.user.write", "identity.role.write", "identity.menu.write"];
+        if (string.Equals(moduleId, "identity", StringComparison.OrdinalIgnoreCase))
         {
-            if (await db.PermissionDefinitions.AnyAsync(p => p.Code == code, ct)) continue;
-            db.PermissionDefinitions.Add(PermissionDefinition.Create(code.Trim(), code.Trim(), moduleId, null, "button"));
+            foreach (var oldCode in deprecatedWriteCodes)
+            {
+                if (existingPerms.TryGetValue(oldCode, out var oldEntity))
+                {
+                    db.PermissionDefinitions.Remove(oldEntity);
+                    existingPerms.Remove(oldCode);
+                }
+            }
+        }
+        foreach (var item in manifest.PermissionItems.Where(p => !string.IsNullOrWhiteSpace(p.Code)))
+        {
+            var code = item.Code.Trim();
+            var name = string.IsNullOrWhiteSpace(item.Name) ? code : item.Name.Trim();
+            var kind = string.IsNullOrWhiteSpace(item.Kind) ? "button" : item.Kind.Trim();
+            if (existingPerms.TryGetValue(code, out var existing))
+            {
+                if (string.IsNullOrWhiteSpace(existing.Name) || string.Equals(existing.Name, existing.Code, StringComparison.OrdinalIgnoreCase))
+                    existing.Update(name, existing.ModuleId ?? moduleId, existing.MenuPath, existing.Kind);
+            }
+            else
+            {
+                var created = PermissionDefinition.Create(code, name, moduleId, null, kind);
+                db.PermissionDefinitions.Add(created);
+                existingPerms[code] = created;
+            }
+        }
+
+        foreach (var rawCode in manifest.Permissions.Where(c => !string.IsNullOrWhiteSpace(c)).Distinct())
+        {
+            var code = rawCode.Trim();
+            if (existingPerms.ContainsKey(code)) continue;
+            var created = PermissionDefinition.Create(code, code, moduleId, null, "button");
+            db.PermissionDefinitions.Add(created);
+            existingPerms[code] = created;
         }
 
         await db.SaveChangesAsync(ct);

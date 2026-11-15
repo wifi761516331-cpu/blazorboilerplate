@@ -139,6 +139,43 @@ app.Use(async (context, next) =>
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// 统一校验动态模块端点（ModuleEndpointMetadata）与平台 Minimal API（PermissionMetadata）的登录态与权限码
+app.Use(async (context, next) =>
+{
+    var endpoint = context.GetEndpoint();
+    if (endpoint is not null)
+    {
+        var moduleMeta = endpoint.Metadata.GetMetadata<BlazorBoilerplate.ModuleRuntime.Endpoints.ModuleEndpointMetadata>();
+        var permMeta = endpoint.Metadata.GetMetadata<BlazorBoilerplate.ApiHost.Auth.PermissionMetadata>();
+
+        if (moduleMeta is not null || permMeta is not null)
+        {
+            if (context.User.Identity?.IsAuthenticated != true)
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return;
+            }
+
+            var requiredPermission = !string.IsNullOrWhiteSpace(permMeta?.Permission)
+                ? permMeta.Permission
+                : moduleMeta?.Permission;
+
+            if (!string.IsNullOrWhiteSpace(requiredPermission) &&
+                !context.User.HasPermission(requiredPermission))
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                await context.Response.WriteAsJsonAsync(
+                    new { error = $"无权执行该操作（缺少权限：{requiredPermission}）。" },
+                    context.RequestAborted);
+                return;
+            }
+        }
+    }
+
+    await next();
+});
+
 app.UseModuleEndpointDataSource();
 
 app.MapHealthChecks("/health");
@@ -182,26 +219,6 @@ await using (var scope = app.Services.CreateAsyncScope())
             else
                 await ModuleDataHooks.OnUnloadedAsync(
                     scope.ServiceProvider, descriptor.Id, CancellationToken.None);
-        }
-    }
-
-    if (setup.CurrentMode == SetupMode.Normal)
-    {
-        try
-        {
-            var identityDb = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
-            if (!await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AnyAsync(
-                    identityDb.Menus, m => m.Path == "/system/settings"))
-            {
-                identityDb.Menus.Add(BlazorBoilerplate.Modules.Identity.Domain.Menu.Create(
-                    "系统设置", "/system/settings", "Settings", parentId: null, sort: 950,
-                    moduleId: null, permissionCode: null, kind: "menu"));
-                await identityDb.SaveChangesAsync();
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "Failed to ensure /system/settings menu entry.");
         }
     }
 }

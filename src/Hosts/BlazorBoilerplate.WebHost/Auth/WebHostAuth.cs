@@ -95,7 +95,7 @@ public static class WebAuth
             client.Timeout = TimeSpan.FromSeconds(30);
         });
 
-        services.AddScoped<BlazorBoilerplateApiClient>(sp =>
+        services.AddScoped(sp =>
         {
             var handlerFactory = sp.GetRequiredService<IHttpMessageHandlerFactory>();
             var session = sp.GetRequiredService<IAuthSession>();
@@ -103,13 +103,14 @@ public static class WebAuth
             {
                 InnerHandler = handlerFactory.CreateHandler(ApiClient)
             };
-            var httpClient = new HttpClient(handler, disposeHandler: true)
+            return new HttpClient(handler, disposeHandler: true)
             {
                 BaseAddress = new Uri(apiBaseUrl),
                 Timeout = TimeSpan.FromSeconds(30)
             };
-            return new BlazorBoilerplateApiClient(httpClient);
         });
+
+        services.AddScoped(sp => new BlazorBoilerplateApiClient(sp.GetRequiredService<HttpClient>()));
 
         return services;
     }

@@ -18,7 +18,17 @@ public sealed class CurrentUserFactory(IdentityDbContext db)
                                where ur.UserId == user.Id
                                select r.Name).Distinct().ToArrayAsync(ct);
 
-        var isAdmin = await (from ur in db.UserRoles
+        // 初始化时的第一个用户（按 CreatedAtUtc / Id 最早）拥有全量权限，免校验（无论其角色是否被改动）
+        var firstUserId = (await db.Users.AsNoTracking()
+            .Select(u => new { u.Id, u.CreatedAtUtc })
+            .ToListAsync(ct))
+            .OrderBy(u => u.CreatedAtUtc)
+            .ThenBy(u => u.Id)
+            .Select(u => u.Id)
+            .FirstOrDefault();
+
+        var isAdmin = firstUserId == user.Id ||
+                      await (from ur in db.UserRoles
                              join r in db.Roles on ur.RoleId equals r.Id
                              where ur.UserId == user.Id && r.IsSystem && r.Name == "管理员"
                              select r.Id).AnyAsync(ct);

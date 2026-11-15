@@ -46,6 +46,7 @@ builder.Services.AddScoped<ToastService>();
 
 // ---- 登录态 / 设备偏好：scoped，随每条 Blazor 线路 ----
 builder.Services.AddScoped<AccountState>();
+builder.Services.AddScoped<ICurrentUserPermissionService>(sp => sp.GetRequiredService<AccountState>());
 builder.Services.AddScoped<SystemSettingsState>();
 builder.Services.AddScoped<UserPreferences>();
 
@@ -55,8 +56,11 @@ builder.Services.AddScoped<BlazorBoilerplate.Web.Shared.Services.INavRefreshServ
     sp.GetRequiredService<BlazorBoilerplate.WebHost.Services.NavRefreshService>());
 
 // ---- 动态模块前端程序集目录（运行时注入：上传/切版本后刷新页面即生效，无需重启）----
-builder.Services.AddHttpClient();
-builder.Services.AddSingleton<BlazorBoilerplate.WebHost.Services.ModuleAssemblyCatalog>();
+// 显式通过 IHttpClientFactory 创建匿名 HttpClient，避免注入到带用户会话的 Scoped HttpClient
+builder.Services.AddSingleton(sp => new BlazorBoilerplate.WebHost.Services.ModuleAssemblyCatalog(
+    sp.GetRequiredService<IHttpClientFactory>().CreateClient(),
+    sp.GetRequiredService<IConfiguration>(),
+    sp.GetRequiredService<ILogger<BlazorBoilerplate.WebHost.Services.ModuleAssemblyCatalog>>()));
 
 var app = builder.Build();
 

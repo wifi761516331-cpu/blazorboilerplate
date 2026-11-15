@@ -12,8 +12,10 @@
 
 <div class="id-page">
     <div class="id-toolbar">
-        <BitTextField @bind-Value="NewRoleName" Style="width:14rem" Immediate DebounceTime="200" Placeholder="新角色名称" />
-        <BitButton IconName="@BitIconName.AddTo" OnClick="CreateRoleAsync" Disabled="@string.IsNullOrWhiteSpace(NewRoleName)">添加角色</BitButton>
+        <PermissionGate Code="identity.role.create">
+            <BitTextField @bind-Value="NewRoleName" Style="width:14rem" Immediate DebounceTime="200" Placeholder="新角色名称" />
+            <BitButton IconName="@BitIconName.AddTo" OnClick="CreateRoleAsync" Disabled="@string.IsNullOrWhiteSpace(NewRoleName)">添加角色</BitButton>
+        </PermissionGate>
         <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="RefreshAsync" Disabled="@_loading">刷新</BitButton>
     </div>
 
@@ -64,14 +66,18 @@
                             <BitTextField @bind-Value="EditName" Label="角色名" Disabled="@_selected.IsSystem" />
                             <BitTextField @bind-Value="EditDescription" Label="描述" Disabled="@_selected.IsSystem" />
                             <div class="row">
-                                <BitButton OnClick="SaveRoleAsync" Disabled="@(_selected.IsSystem)">保存修改</BitButton>
+                                <PermissionGate Code="identity.role.update">
+                                    <BitButton OnClick="SaveRoleAsync" Disabled="@(_selected.IsSystem)">保存修改</BitButton>
+                                </PermissionGate>
                                 <BitSpacer />
-                                <BitButton Color="BitColor.Error" OnClick="@(() => _deleteDialogOpen = true)" Disabled="@_selected.IsSystem">删除角色</BitButton>
+                                <PermissionGate Code="identity.role.delete">
+                                    <BitButton Color="BitColor.Error" OnClick="@(() => _deleteDialogOpen = true)" Disabled="@_selected.IsSystem">删除角色</BitButton>
+                                </PermissionGate>
                             </div>
                         </div>
                     }
                 </BitPivotItem>
-                <BitPivotItem HeaderText="菜单权限" ItemCount="@(_selectedMenuIds.Count == 0 ? null : _selectedMenuIds.Count)">
+                <BitPivotItem HeaderText="菜单权限" ItemCount="@(_selectedMenuCount == 0 ? null : _selectedMenuCount)">
                     @if (_selected is null)
                     {
                         <BitText Class="muted">请从左侧选择一个角色。</BitText>
@@ -79,32 +85,53 @@
                     else
                     {
                         <div class="id-check-list">
-                            @foreach (var menu in _menus)
+                            @foreach (var row in GetMenuRows())
                             {
-                                <BitCheckbox Value="@_menuSelection.GetValueOrDefault(menu.Id)"
-                                             ValueChanged="@(v => OnMenuSelectionChanged(menu.Id, v))"
-                                             Label="@GetMenuLabel(menu)" />
+                                var menu = row.Menu;
+                                <div style="@($"padding-inline-start: {row.Depth * 1.25}rem;")">
+                                    <BitCheckbox Value="@_menuSelection.GetValueOrDefault(menu.Id)"
+                                                 ValueChanged="@(v => OnMenuSelectionChanged(menu.Id, v))"
+                                                 Label="@GetMenuLabel(menu)" />
+                                </div>
                             }
                         </div>
                         <div class="row">
-                            <BitButton OnClick="SaveMenusAsync" Disabled="@(!_menuDirty)">保存授权</BitButton>
-                            <BitText Class="muted id-tree-hint">勾选该角色可访问的菜单，保存后生效。</BitText>
+                            <PermissionGate Code="identity.role.update">
+                                <BitButton OnClick="SaveMenusAsync" Disabled="@(!_menuDirty)">保存授权</BitButton>
+                            </PermissionGate>
+                            <BitButton Variant="BitVariant.Outline" OnClick="@(() => SetAllMenus(true))">全选</BitButton>
+                            <BitButton Variant="BitVariant.Outline" OnClick="@(() => SetAllMenus(false))">清空</BitButton>
+                            <BitText Class="muted id-tree-hint">勾选该角色可访问的菜单（已选 @_selectedMenuCount / @_menus.Count），保存后重新登录或刷新生效。</BitText>
                         </div>
                     }
                 </BitPivotItem>
-                <BitPivotItem HeaderText="按钮权限">
+                <BitPivotItem HeaderText="操作权限" ItemCount="@(_selectedPermissionCount == 0 ? null : _selectedPermissionCount)">
                     @if (_selected is null)
                     {
                         <BitText Class="muted">请从左侧选择一个角色。</BitText>
                     }
                     else
                     {
-                        <div class="id-check-list">
-                            @foreach (var permission in _permissionCatalog)
+                        <div class="id-perm-groups">
+                            @foreach (var group in GetPermissionGroups())
                             {
-                                <BitCheckbox Value="@_permissionSelection.GetValueOrDefault(permission.Code)"
-                                             ValueChanged="@(v => OnPermissionSelectionChanged(permission.Code, v))"
-                                             Label="@GetPermissionLabel(permission)" />
+                                var groupSelected = group.Items.Count(p => _permissionSelection.GetValueOrDefault(p.Code));
+                                <div class="id-perm-group">
+                                    <div class="id-perm-group-header">
+                                        <BitCheckbox Value="@(groupSelected == group.Items.Count && group.Items.Count > 0)"
+                                                     ValueChanged="@(v => TogglePermissionGroup(group.Items, v))"
+                                                     Label="@group.Title" />
+                                        <BitText Class="muted id-perm-group-count">@groupSelected / @group.Items.Count</BitText>
+                                    </div>
+                                    <div class="id-perm-group-items">
+                                        @foreach (var permission in group.Items)
+                                        {
+                                            <BitCheckbox Value="@_permissionSelection.GetValueOrDefault(permission.Code)"
+                                                         ValueChanged="@(v => OnPermissionSelectionChanged(permission.Code, v))"
+                                                         Label="@GetPermissionLabel(permission)" />
+                                        }
+                                    </div>
+                                </div>
                             }
                             @if (_permissionCatalog.Count == 0)
                             {
@@ -112,8 +139,12 @@
                             }
                         </div>
                         <div class="row">
-                            <BitButton OnClick="SavePermissionsAsync" Disabled="@(!_permissionDirty)">保存按钮权限</BitButton>
-                            <BitText Class="muted id-tree-hint">勾选该角色可执行的按钮权限，保存后生效。</BitText>
+                            <PermissionGate Codes="@(["identity.permission.write"])">
+                                <BitButton OnClick="SavePermissionsAsync" Disabled="@(!_permissionDirty)">保存操作权限</BitButton>
+                            </PermissionGate>
+                            <BitButton Variant="BitVariant.Outline" OnClick="@(() => SetAllPermissions(true))">全选</BitButton>
+                            <BitButton Variant="BitVariant.Outline" OnClick="@(() => SetAllPermissions(false))">清空</BitButton>
+                            <BitText Class="muted id-tree-hint">勾选该角色可执行的操作权限（已选 @_selectedPermissionCount / @_permissionCatalog.Count），保存后生效。</BitText>
                         </div>
                     }
                 </BitPivotItem>
@@ -156,6 +187,8 @@
         {
             _roles = [.. await Api.GetListAsync<IdentityRoleDto>("api/identity/roles")];
             _menus = [.. await Api.GetListAsync<IdentityMenuDto>("api/identity/menus")];
+            if (_selected is not null)
+                _selected = _roles.FirstOrDefault(r => r.Id == _selected.Id);
             RebuildNav();
         }
         catch (Exception ex)
@@ -215,7 +248,8 @@
     }
 
     private static string GetPermissionLabel(PermissionDefinitionDto permission) =>
-        string.IsNullOrWhiteSpace(permission.Name)
+        string.IsNullOrWhiteSpace(permission.Name) ||
+        string.Equals(permission.Name, permission.Code, StringComparison.OrdinalIgnoreCase)
             ? permission.Code
             : $"{permission.Name}（{permission.Code}）";
 
@@ -242,16 +276,142 @@
             var codes = _permissionSelection.Where(kv => kv.Value).Select(kv => kv.Key).ToArray();
             await Api.SetRolePermissionsAsync(_selected.Id, codes);
             _permissionDirty = false;
-            Toast.Success($"角色「{_selected.Name}」的按钮权限已保存。");
+            Toast.Success($"角色「{_selected.Name}」的操作权限已保存。");
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error($"保存按钮权限失败：{ex.Message}"); }
+        catch (Exception ex) { _error = ex.Message; Toast.Error($"保存操作权限失败：{ex.Message}"); }
     }
 
-    private static string GetMenuLabel(IdentityMenuDto menu) => string.IsNullOrEmpty(menu.Path) ? menu.Name : $"{menu.Name}（{menu.Path}）";
+    private int _selectedMenuCount => _menuSelection.Count(kv => kv.Value);
+    private int _selectedPermissionCount => _permissionSelection.Count(kv => kv.Value);
+
+    private sealed record PermissionGroupRow(string Key, string Title, List<PermissionDefinitionDto> Items);
+
+    private List<PermissionGroupRow> GetPermissionGroups() =>
+        _permissionCatalog
+            .GroupBy(ResolvePermissionGroupKey, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new PermissionGroupRow(g.Key, ResolveGroupTitle(g.Key, g.First().ModuleId), g.OrderBy(p => p.Code).ToList()))
+            .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    private static string ResolvePermissionGroupKey(PermissionDefinitionDto permission)
+    {
+        var lastDot = permission.Code.LastIndexOf('.');
+        return lastDot > 0 ? permission.Code[..lastDot] : (permission.ModuleId ?? "other");
+    }
+
+    private string ResolveGroupTitle(string groupKey, string? moduleId)
+    {
+        // 从数据库已配置的菜单动态匹配分组显示名称，避免硬编码
+        var byCode = _menus.FirstOrDefault(m =>
+            !string.IsNullOrWhiteSpace(m.PermissionCode) &&
+            m.PermissionCode.StartsWith(groupKey + ".", StringComparison.OrdinalIgnoreCase));
+        if (byCode is not null) return $"{byCode.Name}（{groupKey}）";
+
+        var segment = groupKey.Split('.').LastOrDefault();
+        if (!string.IsNullOrWhiteSpace(segment))
+        {
+            var byPath = _menus.FirstOrDefault(m =>
+                !string.Equals(m.Kind, "group", StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(m.Path) &&
+                m.Path.Contains(segment, StringComparison.OrdinalIgnoreCase));
+            if (byPath is not null) return $"{byPath.Name}（{groupKey}）";
+        }
+
+        if (!string.IsNullOrWhiteSpace(moduleId))
+        {
+            var moduleMenus = _menus.Where(m =>
+                !string.Equals(m.Kind, "group", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(m.ModuleId, moduleId, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (moduleMenus.Count == 1) return $"{moduleMenus[0].Name}（{groupKey}）";
+        }
+
+        return groupKey;
+    }
+
+    private void TogglePermissionGroup(List<PermissionDefinitionDto> items, bool selected)
+    {
+        foreach (var item in items)
+            _permissionSelection[item.Code] = selected;
+        _permissionDirty = true;
+    }
+
+    private sealed record MenuTreeRow(IdentityMenuDto Menu, int Depth);
+
+    private List<MenuTreeRow> GetMenuRows()
+    {
+        var byId = _menus.ToDictionary(m => m.Id);
+        var result = new List<MenuTreeRow>(_menus.Count);
+        var visited = new HashSet<Guid>();
+
+        void Append(IdentityMenuDto node, int depth)
+        {
+            if (!visited.Add(node.Id)) return;
+            result.Add(new MenuTreeRow(node, depth));
+            foreach (var child in _menus.Where(c => c.ParentId == node.Id).OrderBy(c => c.Sort).ThenBy(c => c.CreatedAtUtc))
+                Append(child, depth + 1);
+        }
+
+        foreach (var root in _menus.Where(m => m.ParentId is null || !byId.ContainsKey(m.ParentId.Value)).OrderBy(m => m.Sort).ThenBy(m => m.CreatedAtUtc))
+            Append(root, 0);
+
+        return result;
+    }
+
+    private void SetAllPermissions(bool selected)
+    {
+        foreach (var p in _permissionCatalog)
+            _permissionSelection[p.Code] = selected;
+        _permissionDirty = true;
+    }
+
+    private void SetAllMenus(bool selected)
+    {
+        foreach (var m in _menus)
+            _menuSelection[m.Id] = selected;
+        _menuDirty = true;
+    }
+
+    private static string GetMenuLabel(IdentityMenuDto menu)
+    {
+        var suffix = string.Equals(menu.Kind, "group", StringComparison.OrdinalIgnoreCase)
+            ? "分组"
+            : (string.IsNullOrEmpty(menu.Path) ? null : menu.Path);
+        return string.IsNullOrEmpty(suffix) ? menu.Name : $"{menu.Name}（{suffix}）";
+    }
 
     private void OnMenuSelectionChanged(Guid menuId, bool selected)
     {
         _menuSelection[menuId] = selected;
+        var byId = _menus.ToDictionary(m => m.Id);
+
+        if (selected)
+        {
+            // 勾选子菜单时自动勾选父级，避免父级未授权
+            var cur = byId.GetValueOrDefault(menuId);
+            var guard = new HashSet<Guid>();
+            while (cur?.ParentId is { } pid && guard.Add(pid) && byId.TryGetValue(pid, out var parent))
+            {
+                _menuSelection[pid] = true;
+                cur = parent;
+            }
+        }
+        else
+        {
+            // 取消勾选父级时联动取消子孙节点
+            var queue = new Queue<Guid>();
+            queue.Enqueue(menuId);
+            var guard = new HashSet<Guid> { menuId };
+            while (queue.Count > 0)
+            {
+                var curId = queue.Dequeue();
+                foreach (var child in _menus.Where(m => m.ParentId == curId))
+                {
+                    _menuSelection[child.Id] = false;
+                    if (guard.Add(child.Id))
+                        queue.Enqueue(child.Id);
+                }
+            }
+        }
         _menuDirty = true;
     }
 
@@ -321,3 +481,36 @@
             throw new HttpRequestException($"{(int)response.StatusCode}: {response.Content.ReadAsStringAsync().GetAwaiter().GetResult()}");
     }
 }
+
+<style>
+    .id-perm-groups {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    .id-perm-group {
+        border: 1px solid var(--bit-clr-brd-sec, #e1e1e1);
+        border-radius: 6px;
+        padding: 0.75rem 1rem;
+    }
+    .id-perm-group-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 0.5rem;
+        margin-bottom: 0.5rem;
+        border-bottom: 1px dashed var(--bit-clr-brd-sec, #e1e1e1);
+        font-weight: 600;
+    }
+    .id-perm-group-count {
+        font-size: 0.8rem;
+        font-weight: 400;
+    }
+    .id-perm-group-items {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        align-items: center;
+        gap: 0.6rem 1.25rem;
+    }
+</style>

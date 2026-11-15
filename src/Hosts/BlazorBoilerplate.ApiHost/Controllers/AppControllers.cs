@@ -70,10 +70,12 @@ public sealed class IdentityController(
         var sys = settings.GetRaw();
         if (sys.MaxSessionsPerUser > 0)
         {
-            var activeSessions = await Db.UserSessions
+            // SQLite 不支持在 SQL ORDER BY 中对 DateTimeOffset 排序，先查出再在内存排序（保留 EF 跟踪以支持 Revoke）
+            var activeSessions = (await Db.UserSessions
                 .Where(s => s.UserId == user.Id && s.RevokedAtUtc == null)
+                .ToListAsync(cancellationToken))
                 .OrderBy(s => s.StartedOnUtc)
-                .ToListAsync(cancellationToken);
+                .ToList();
             var excess = activeSessions.Count - (sys.MaxSessionsPerUser - 1);
             for (var i = 0; i < excess; i++)
                 activeSessions[i].Revoke();
@@ -261,6 +263,7 @@ public sealed class UserController(IdentityDbContext db, JwtTokenService tokens,
     }
 
     [HttpGet]
+    [RequirePermission("identity.permission.read")]
     public async Task<IReadOnlyList<PermissionDefinitionDto>> GetPermissionCatalog(CancellationToken cancellationToken)
     {
         var rows = await Db.PermissionDefinitions.AsNoTracking().OrderBy(p => p.Code).ToListAsync(cancellationToken);
@@ -268,11 +271,13 @@ public sealed class UserController(IdentityDbContext db, JwtTokenService tokens,
     }
 
     [HttpGet("{roleId}")]
+    [RequirePermission("identity.permission.read")]
     public async Task<IReadOnlyList<string>> GetRolePermissions(Guid roleId, CancellationToken cancellationToken) =>
         await Db.RolePermissions.AsNoTracking().Where(p => p.RoleId == roleId)
             .Select(p => p.Code).Distinct().ToArrayAsync(cancellationToken);
 
     [HttpPost("{roleId}")]
+    [RequirePermission("identity.permission.write")]
     public async Task SetRolePermissions(Guid roleId, string[] codes, CancellationToken cancellationToken)
     {
         _ = await Db.Roles.FirstOrDefaultAsync(r => r.Id == roleId, cancellationToken)
@@ -315,6 +320,7 @@ public sealed class TenantController(
             .ToArrayAsync(cancellationToken);
 
     [HttpPost]
+    [RequirePermission("tenant.create")]
     public async Task<TenantDto> Create(TenantDto request, CancellationToken cancellationToken)
     {
         var name = (request.Name ?? string.Empty).Trim();
@@ -328,6 +334,7 @@ public sealed class TenantController(
     }
 
     [HttpPut]
+    [RequirePermission("tenant.update")]
     public async Task<TenantDto> Update(TenantDto request, CancellationToken cancellationToken)
     {
         var tenant = await Db.Tenants.FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken)
@@ -338,6 +345,7 @@ public sealed class TenantController(
     }
 
     [HttpPost]
+    [RequirePermission("tenant.invite")]
     public async Task InviteUser(InviteUserToTenantRequestDto request, CancellationToken cancellationToken)
     {
         var tenant = await Db.Tenants.AsNoTracking().FirstOrDefaultAsync(t => t.Id == request.TenantId, cancellationToken)

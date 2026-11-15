@@ -23,7 +23,8 @@ public sealed class IdentityDatabaseMigrations : IModuleDatabaseMigrations
     [
         new ModuleMigrationStep(1, "CreateIdentityExtensionTables", BuildStep1(Sqlite), BuildStep1(Postgres)),
         new ModuleMigrationStep(2, "AddMenuPermissionColumns", BuildStep2(Sqlite), BuildStep2(Postgres)),
-        new ModuleMigrationStep(3, "SeedButtonPermissions", BuildStep3(Sqlite), BuildStep3(Postgres))
+        new ModuleMigrationStep(3, "SeedButtonPermissions", BuildSeedPermissions(Sqlite, ButtonPermissions), BuildSeedPermissions(Postgres, ButtonPermissions)),
+        new ModuleMigrationStep(4, "SeedPlatformMenusAndPermissions", BuildStep4(Sqlite), BuildStep4(Postgres))
     ];
 
     private const string Sqlite = "sqlite";
@@ -126,10 +127,24 @@ public sealed class IdentityDatabaseMigrations : IModuleDatabaseMigrations
         ("module.pack", "打包模块", "module"),
         ("module.download", "下载模块", "module"),
         ("module.load", "加载模块", "module"),
-        ("module.unload", "卸载模块", "module"),
-        ("catalog.product.create", "创建商品", "catalog"),
-        ("catalog.product.update", "编辑商品", "catalog"),
-        ("catalog.product.delete", "删除商品", "catalog")
+        ("module.unload", "卸载模块", "module")
+    ];
+
+    /// <summary>
+    /// Sequence 4 补充的平台内置权限（系统设置、租户管理、模块管理），用于已有数据库增量幂等补齐。
+    /// </summary>
+    private static readonly (string Code, string Name, string ModuleId)[] PlatformPermissions =
+    [
+        ("system.settings.read", "查看系统设置", "system"),
+        ("system.settings.update", "修改系统设置", "system"),
+        ("tenant.create", "创建租户", "tenant"),
+        ("tenant.update", "编辑租户", "tenant"),
+        ("tenant.invite", "邀请租户成员", "tenant"),
+        ("module.upload", "上传模块", "module"),
+        ("module.pack", "打包模块", "module"),
+        ("module.download", "下载模块", "module"),
+        ("module.load", "加载模块", "module"),
+        ("module.unload", "卸载模块", "module")
     ];
 
     // SQLite 无内置 UUID 函数：用 randomblob 生成 32 位十六进制并拼成标准 8-4-4-4-12 形式，
@@ -184,16 +199,48 @@ public sealed class IdentityDatabaseMigrations : IModuleDatabaseMigrations
     }
 
     /// <summary>
-    /// Sequence 3：幂等种子按钮权限 + 把系统管理员角色授予全部权限码。
+    /// Sequence 4：幂等补齐平台菜单（/system/settings）与平台内置权限，并授予系统管理员角色。
+    /// </summary>
+    private static string BuildStep4(string provider)
+    {
+        var newId = provider == Postgres ? PgNewId : SqliteNewId;
+        var boolTrue = provider == Postgres ? "TRUE" : "1";
+        var statements = new List<string>
+        {
+            $"INSERT INTO {Q("Menus")} " +
+            $"({Q("Id")},{Q("Name")},{Q("Path")},{Q("Icon")},{Q("ParentId")},{Q("Sort")},{Q("IsVisible")},{Q("ModuleId")},{Q("PermissionCode")},{Q("Kind")}) " +
+            $"SELECT {newId}, '系统设置', '/system/settings', 'Settings', NULL, 950, {boolTrue}, NULL, NULL, 'menu' " +
+            $"WHERE NOT EXISTS (SELECT 1 FROM {Q("Menus")} WHERE {Q("Path")} = '/system/settings')",
+
+            $"INSERT INTO {Q("RoleMenus")} ({Q("Id")},{Q("RoleId")},{Q("MenuId")}) " +
+            $"SELECT {newId}, r.{Q("Id")}, m.{Q("Id")} " +
+            $"FROM {Q("Roles")} r CROSS JOIN {Q("Menus")} m " +
+            $"WHERE r.{Q("IsSystem")} = {boolTrue} AND r.{Q("Name")} = '管理员' AND m.{Q("Path")} = '/system/settings' " +
+            $"AND NOT EXISTS (SELECT 1 FROM {Q("RoleMenus")} rm " +
+            $"WHERE rm.{Q("RoleId")} = r.{Q("Id")} AND rm.{Q("MenuId")} = m.{Q("Id")})"
+        };
+
+        AppendSeedPermissions(statements, provider, PlatformPermissions);
+        return Join(statements);
+    }
+
+    /// <summary>
+    /// 幂等种子权限定义 + 把系统管理员角色授予全部权限码。
     /// 不写任何具体 Guid：主键用数据库函数生成，RoleId 用子查询按 Name='管理员' 查找。
     /// </summary>
-    private static string BuildStep3(string provider)
+    private static string BuildSeedPermissions(string provider, (string Code, string Name, string ModuleId)[] items)
+    {
+        var statements = new List<string>();
+        AppendSeedPermissions(statements, provider, items);
+        return Join(statements);
+    }
+
+    private static void AppendSeedPermissions(List<string> statements, string provider, (string Code, string Name, string ModuleId)[] items)
     {
         var newId = provider == Postgres ? PgNewId : SqliteNewId;
         var systemTrue = provider == Postgres ? "TRUE" : "1";
-        var statements = new List<string>();
 
-        foreach (var (code, name, moduleId) in ButtonPermissions)
+        foreach (var (code, name, moduleId) in items)
         {
             statements.Add(
                 $"INSERT INTO {Q("PermissionDefinitions")} " +
@@ -209,8 +256,6 @@ public sealed class IdentityDatabaseMigrations : IModuleDatabaseMigrations
             $"WHERE r.{Q("IsSystem")} = {systemTrue} AND r.{Q("Name")} = '管理员' " +
             $"AND NOT EXISTS (SELECT 1 FROM {Q("RolePermissions")} rp " +
             $"WHERE rp.{Q("RoleId")} = r.{Q("Id")} AND rp.{Q("Code")} = p.{Q("Code")})");
-
-        return Join(statements);
     }
 
     /// <summary>runner 按 ";" 逐条执行，故每条语句都自带分号并用换行分隔。</summary>

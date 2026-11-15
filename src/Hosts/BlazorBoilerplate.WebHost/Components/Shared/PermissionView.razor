@@ -2,6 +2,7 @@
    注入 AccountState → EnsureLoadedAsync 后 HasPermission(Code) 为真才渲染 ChildContent；
    支持 "*" 通配；可选 Fallback 在无权时渲染。 *@
 @inject AccountState Account
+@implements IDisposable
 
 @if (_allowed)
 {
@@ -19,9 +20,25 @@ else if (Fallback is not null)
 
     private bool _allowed;
 
+    protected override void OnInitialized()
+    {
+        Account.Changed += OnAccountChanged;
+    }
+
     protected override async Task OnParametersSetAsync()
     {
         await Account.EnsureLoadedAsync();
         _allowed = Account.HasPermission(Code);
+    }
+
+    private void OnAccountChanged()
+    {
+        _allowed = Account.HasPermission(Code);
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Account.Changed -= OnAccountChanged;
     }
 }

@@ -9,7 +9,7 @@ namespace BlazorBoilerplate.WebHost.Services;
 /// 通过 <see cref="BlazorBoilerplateApiClient.GetCurrentUserAsync"/> 读取；
 /// 401 / 异常一律视为未认证，不向调用方抛出。
 /// </summary>
-public sealed class AccountState(BlazorBoilerplateApiClient api)
+public sealed class AccountState(BlazorBoilerplateApiClient api) : ICurrentUserPermissionService
 {
     private static readonly IReadOnlySet<string> Empty =
         new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -21,6 +21,7 @@ public sealed class AccountState(BlazorBoilerplateApiClient api)
     public CurrentUserDto? CurrentUser { get; private set; }
     public string? AvatarUrl { get; private set; }
     public bool IsAuthenticated => CurrentUser is not null;
+    public bool IsAdmin => Permissions.Contains("*");
     public event Action? Changed;
     public IReadOnlySet<string> Permissions { get; private set; } = Empty;
     public IReadOnlySet<string> MenuPaths { get; private set; } = Empty;
@@ -33,7 +34,19 @@ public sealed class AccountState(BlazorBoilerplateApiClient api)
         !string.IsNullOrWhiteSpace(code) &&
         (Permissions.Contains("*") || Permissions.Contains(code));
 
-    /// <summary>菜单路径白名单；"*" 放行；忽略尾部斜杠与大小写。</summary>
+    /// <summary>满足任一权限码或管理员 "*" 通配即放行。</summary>
+    public bool HasAnyPermission(params string[] codes)
+    {
+        if (Permissions.Contains("*")) return true;
+        foreach (var code in codes)
+        {
+            if (!string.IsNullOrWhiteSpace(code) && Permissions.Contains(code))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>菜单路径白名单；"*" 放行；忽略尾部斜杠与大小写，支持子路由前缀匹配（如 /system/settings/smtp 匹配 /system/settings）。</summary>
     public bool HasMenu(string path)
     {
         if (MenuPaths.Contains("*")) return true;
@@ -42,7 +55,11 @@ public sealed class AccountState(BlazorBoilerplateApiClient api)
         var normalized = path.TrimEnd('/');
         foreach (var menu in MenuPaths)
         {
-            if (string.Equals(menu.TrimEnd('/'), normalized, StringComparison.OrdinalIgnoreCase))
+            var menuTrimmed = menu.TrimEnd('/');
+            if (string.Equals(menuTrimmed, normalized, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (!string.IsNullOrEmpty(menuTrimmed)
+                && normalized.StartsWith(menuTrimmed + "/", StringComparison.OrdinalIgnoreCase))
                 return true;
         }
         return false;

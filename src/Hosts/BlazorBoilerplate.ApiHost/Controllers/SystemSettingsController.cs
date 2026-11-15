@@ -1,3 +1,4 @@
+using BlazorBoilerplate.ApiHost.Auth;
 using BlazorBoilerplate.ApiHost.Services;
 using BlazorBoilerplate.Application.Abstractions;
 using BlazorBoilerplate.Infrastructure.Email;
@@ -25,11 +26,13 @@ public sealed class SystemSettingsController(
 
     [HttpGet]
     [Authorize]
+    [RequirePermission("system.settings.read")]
     public Task<SystemSettingsDto> Get(CancellationToken cancellationToken) =>
         Task.FromResult(store.GetMasked());
 
     [HttpPut]
     [Authorize]
+    [RequirePermission("system.settings.update")]
     public Task<SystemSettingsDto> Update([FromBody] SystemSettingsDto request, CancellationToken cancellationToken)
     {
         var updated = store.Update(request);
@@ -42,6 +45,7 @@ public sealed class SystemSettingsController(
 
     [HttpPost]
     [Authorize]
+    [RequirePermission("system.settings.update")]
     public async Task SendTestEmail([FromBody] SendTestSmtpRequestDto request, CancellationToken cancellationToken)
     {
         var to = (request.ToEmail ?? string.Empty).Trim();

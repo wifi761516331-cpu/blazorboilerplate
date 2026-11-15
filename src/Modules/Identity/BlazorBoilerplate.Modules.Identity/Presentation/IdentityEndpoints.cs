@@ -20,19 +20,19 @@ public sealed class IdentityEndpoints(IServiceProvider moduleServices)
             var users = await s.ServiceProvider.GetRequiredService<UserService>().ListAsync(ctx.RequestAborted);
             await ctx.Response.WriteAsJsonAsync(users.Select(ToUserDto), ctx.RequestAborted);
         }));
-        builder.Map("/api/identity/users", "POST", "identity.user.write", async ctx => await WithScope(ctx, async s =>
+        builder.Map("/api/identity/users", "POST", "identity.user.create", async ctx => await WithScope(ctx, async s =>
         {
             var req = await ReadJsonAsync<UserUpsertRequest>(ctx);
             var user = await s.ServiceProvider.GetRequiredService<UserService>().CreateAsync(req.UserName, req.Email, req.DisplayName, req.Password, ctx.RequestAborted);
             await ctx.Response.WriteAsJsonAsync(ToUserDto(user), ctx.RequestAborted);
         }));
-        builder.Map("/api/identity/users/{id}/active", "PUT", "identity.user.write", async ctx => await WithScope(ctx, async s =>
+        builder.Map("/api/identity/users/{id}/active", "PUT", "identity.user.update", async ctx => await WithScope(ctx, async s =>
         {
             var req = await ReadJsonAsync<SetActiveRequest>(ctx);
             await s.ServiceProvider.GetRequiredService<UserService>().SetActiveAsync(GetId(ctx), req.IsActive, ctx.RequestAborted);
             ctx.Response.StatusCode = StatusCodes.Status204NoContent;
         }));
-        builder.Map("/api/identity/users/{id}/password", "PUT", "identity.user.write", async ctx => await WithScope(ctx, async s =>
+        builder.Map("/api/identity/users/{id}/password", "PUT", "identity.user.update", async ctx => await WithScope(ctx, async s =>
         {
             var req = await ReadJsonAsync<ResetPasswordRequest>(ctx);
             await s.ServiceProvider.GetRequiredService<UserService>().ResetPasswordAsync(GetId(ctx), req.Password, ctx.RequestAborted);
@@ -43,19 +43,19 @@ public sealed class IdentityEndpoints(IServiceProvider moduleServices)
             var roleIds = await s.ServiceProvider.GetRequiredService<UserService>().GetRoleIdsAsync(GetId(ctx), ctx.RequestAborted);
             await ctx.Response.WriteAsJsonAsync(roleIds, ctx.RequestAborted);
         }));
-        builder.Map("/api/identity/users/{id}/roles", "PUT", "identity.user.write", async ctx => await WithScope(ctx, async s =>
+        builder.Map("/api/identity/users/{id}/roles", "PUT", "identity.user.update", async ctx => await WithScope(ctx, async s =>
         {
             var req = await ReadJsonAsync<AssignRequest>(ctx);
             await s.ServiceProvider.GetRequiredService<UserService>().AssignRolesAsync(GetId(ctx), req.Ids, ctx.RequestAborted);
             ctx.Response.StatusCode = StatusCodes.Status204NoContent;
         }));
-        builder.Map("/api/identity/users/{id}", "PUT", "identity.user.write", async ctx => await WithScope(ctx, async s =>
+        builder.Map("/api/identity/users/{id}", "PUT", "identity.user.update", async ctx => await WithScope(ctx, async s =>
         {
             var req = await ReadJsonAsync<UserUpsertRequest>(ctx);
             var user = await s.ServiceProvider.GetRequiredService<UserService>().UpdateAsync(GetId(ctx), req.Email, req.DisplayName, ctx.RequestAborted);
             await ctx.Response.WriteAsJsonAsync(ToUserDto(user), ctx.RequestAborted);
         }));
-        builder.Map("/api/identity/users/{id}", "DELETE", "identity.user.write", async ctx => await WithScope(ctx, async s =>
+        builder.Map("/api/identity/users/{id}", "DELETE", "identity.user.delete", async ctx => await WithScope(ctx, async s =>
         {
             await s.ServiceProvider.GetRequiredService<UserService>().DeleteAsync(GetId(ctx), ctx.RequestAborted);
             ctx.Response.StatusCode = StatusCodes.Status204NoContent;
@@ -67,7 +67,7 @@ public sealed class IdentityEndpoints(IServiceProvider moduleServices)
             var roles = await s.ServiceProvider.GetRequiredService<RoleService>().ListAsync(ctx.RequestAborted);
             await ctx.Response.WriteAsJsonAsync(roles, ctx.RequestAborted);
         }));
-        builder.Map("/api/identity/roles", "POST", "identity.role.write", async ctx => await WithScope(ctx, async s =>
+        builder.Map("/api/identity/roles", "POST", "identity.role.create", async ctx => await WithScope(ctx, async s =>
         {
             var req = await ReadJsonAsync<RoleUpsertRequest>(ctx);
             var role = await s.ServiceProvider.GetRequiredService<RoleService>().CreateAsync(req.Name, req.Description, ctx.RequestAborted);
@@ -78,19 +78,19 @@ public sealed class IdentityEndpoints(IServiceProvider moduleServices)
             var menuIds = await s.ServiceProvider.GetRequiredService<RoleService>().GetMenuIdsAsync(GetId(ctx), ctx.RequestAborted);
             await ctx.Response.WriteAsJsonAsync(menuIds, ctx.RequestAborted);
         }));
-        builder.Map("/api/identity/roles/{id}/menus", "PUT", "identity.role.write", async ctx => await WithScope(ctx, async s =>
+        builder.Map("/api/identity/roles/{id}/menus", "PUT", "identity.role.update", async ctx => await WithScope(ctx, async s =>
         {
             var req = await ReadJsonAsync<AssignRequest>(ctx);
             await s.ServiceProvider.GetRequiredService<RoleService>().AssignMenusAsync(GetId(ctx), req.Ids, ctx.RequestAborted);
             ctx.Response.StatusCode = StatusCodes.Status204NoContent;
         }));
-        builder.Map("/api/identity/roles/{id}", "PUT", "identity.role.write", async ctx => await WithScope(ctx, async s =>
+        builder.Map("/api/identity/roles/{id}", "PUT", "identity.role.update", async ctx => await WithScope(ctx, async s =>
         {
             var req = await ReadJsonAsync<RoleUpsertRequest>(ctx);
             await s.ServiceProvider.GetRequiredService<RoleService>().UpdateAsync(GetId(ctx), req.Name, req.Description, ctx.RequestAborted);
             ctx.Response.StatusCode = StatusCodes.Status204NoContent;
         }));
-        builder.Map("/api/identity/roles/{id}", "DELETE", "identity.role.write", async ctx => await WithScope(ctx, async s =>
+        builder.Map("/api/identity/roles/{id}", "DELETE", "identity.role.delete", async ctx => await WithScope(ctx, async s =>
         {
             await s.ServiceProvider.GetRequiredService<RoleService>().DeleteAsync(GetId(ctx), ctx.RequestAborted);
             ctx.Response.StatusCode = StatusCodes.Status204NoContent;
@@ -102,7 +102,8 @@ public sealed class IdentityEndpoints(IServiceProvider moduleServices)
             var menus = await s.ServiceProvider.GetRequiredService<MenuService>().ListAsync(ctx.RequestAborted);
             await ctx.Response.WriteAsJsonAsync(menus, ctx.RequestAborted);
         }));
-        builder.Map("/api/identity/menus/visible", "GET", "identity.menu.read", async ctx => await WithScope(ctx, async s =>
+        // 侧边栏可见菜单：所有已认证用户均可读取菜单结构，前端再按 AccountState.MenuPaths / PermissionCode 裁剪
+        builder.Map("/api/identity/menus/visible", "GET", "", async ctx => await WithScope(ctx, async s =>
         {
             var menus = await s.ServiceProvider.GetRequiredService<MenuService>().ListVisibleAsync(ctx.RequestAborted);
             await ctx.Response.WriteAsJsonAsync(menus, ctx.RequestAborted);
@@ -112,7 +113,7 @@ public sealed class IdentityEndpoints(IServiceProvider moduleServices)
             var tree = await s.ServiceProvider.GetRequiredService<MenuService>().GetTreeAsync(ctx.RequestAborted);
             await ctx.Response.WriteAsJsonAsync(tree, ctx.RequestAborted);
         }));
-        builder.Map("/api/identity/menus", "POST", "identity.menu.write", async ctx => await WithScope(ctx, async s =>
+        builder.Map("/api/identity/menus", "POST", "identity.menu.create", async ctx => await WithScope(ctx, async s =>
         {
             var req = await ReadJsonAsync<MenuUpsertRequest>(ctx);
             var menu = await s.ServiceProvider.GetRequiredService<MenuService>().CreateAsync(
@@ -120,7 +121,7 @@ public sealed class IdentityEndpoints(IServiceProvider moduleServices)
                 req.ModuleId, req.PermissionCode, req.Kind, req.IsVisible);
             await ctx.Response.WriteAsJsonAsync(menu, ctx.RequestAborted);
         }));
-        builder.Map("/api/identity/menus/{id}", "PUT", "identity.menu.write", async ctx => await WithScope(ctx, async s =>
+        builder.Map("/api/identity/menus/{id}", "PUT", "identity.menu.update", async ctx => await WithScope(ctx, async s =>
         {
             var req = await ReadJsonAsync<MenuUpsertRequest>(ctx);
             await s.ServiceProvider.GetRequiredService<MenuService>().UpdateAsync(
@@ -128,7 +129,7 @@ public sealed class IdentityEndpoints(IServiceProvider moduleServices)
                 req.ModuleId, req.PermissionCode, req.Kind);
             ctx.Response.StatusCode = StatusCodes.Status204NoContent;
         }));
-        builder.Map("/api/identity/menus/{id}", "DELETE", "identity.menu.write", async ctx => await WithScope(ctx, async s =>
+        builder.Map("/api/identity/menus/{id}", "DELETE", "identity.menu.delete", async ctx => await WithScope(ctx, async s =>
         {
             await s.ServiceProvider.GetRequiredService<MenuService>().DeleteAsync(GetId(ctx), ctx.RequestAborted);
             ctx.Response.StatusCode = StatusCodes.Status204NoContent;
