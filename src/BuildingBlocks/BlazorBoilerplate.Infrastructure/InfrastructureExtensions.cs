@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using BlazorBoilerplate.Application.Abstractions;
+using BlazorBoilerplate.Application.Attachments;
+using BlazorBoilerplate.Infrastructure.Attachments;
 using BlazorBoilerplate.Infrastructure.Email;
 using BlazorBoilerplate.Infrastructure.S3;
 using Microsoft.Extensions.Configuration;
@@ -163,6 +165,44 @@ public static class InfrastructureServiceCollectionExtensions
             services.Remove(placeholder);
 
         services.AddSingleton<IEmailSender, SmtpEmailSender>();
+        return services;
+    }
+
+    /// <summary>
+    /// 注册附件存储服务（参考 Bluebird Attachment 机制）：
+    /// 默认在未配置 MinIO 时使用本地磁盘（data/attachments），配置 MinIO 且 StorageMode=S3/Auto 时走 S3FileStorage。
+    /// </summary>
+    public static IServiceCollection AddBlazorBoilerplateAttachments(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        string contentRootPath)
+    {
+        var options = configuration.GetSection(AttachmentStorageOptions.SectionName).Get<AttachmentStorageOptions>()
+            ?? new AttachmentStorageOptions();
+        services.AddSingleton(options);
+
+        var minioConn = configuration["Infrastructure:MinIO"];
+        var s3Enabled = configuration.GetValue<bool?>("ModuleStorage:Enabled") ?? false;
+        var useS3 = string.Equals(options.StorageMode, "S3", StringComparison.OrdinalIgnoreCase)
+            || (string.Equals(options.StorageMode, "Auto", StringComparison.OrdinalIgnoreCase)
+                && s3Enabled
+                && !string.IsNullOrWhiteSpace(minioConn)
+                && !string.Equals(minioConn, "not-configured", StringComparison.OrdinalIgnoreCase));
+
+        var root = Path.IsPathRooted(options.LocalRootPath)
+            ? options.LocalRootPath
+            : Path.Combine(contentRootPath, options.LocalRootPath);
+        services.AddSingleton<IAttachmentMetadataStore>(_ => new JsonAttachmentMetadataStore(root));
+
+        if (useS3)
+        {
+            services.AddSingleton<IAttachmentStorage, S3AttachmentStorage>();
+        }
+        else
+        {
+            services.AddSingleton<IAttachmentStorage>(_ => new LocalAttachmentStorage(root));
+        }
+
         return services;
     }
 }

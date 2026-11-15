@@ -65,7 +65,10 @@ public sealed class ModuleAssemblyCatalog
                 JsonOptions).GetAwaiter().GetResult();
             if (modules is null) return;
             foreach (var m in modules)
-                LoadFromPackage(m.Id, m.PackagePath);
+            {
+                if (m.State == BlazorBoilerplate.ModuleAbstractions.ModuleState.Running)
+                    LoadFromPackage(m.Id, m.PackagePath);
+            }
         }
         catch (Exception ex)
         {
@@ -118,8 +121,8 @@ public sealed class ModuleAssemblyCatalog
     /// </param>
     private bool LoadFromPackage(string moduleId, string? packagePath, bool allowDowngrade = false)
     {
+        if (string.IsNullOrWhiteSpace(packagePath)) return false;
         var current = _active.GetValueOrDefault(moduleId) ?? (StaticByModule.TryGetValue(moduleId, out var s) ? new ModuleEntry(s) : null);
-        if (current is null || string.IsNullOrWhiteSpace(packagePath)) return false;
 
         // manifest.entryAssembly 与包内 backend/ 目录约定：BlazorBoilerplate.Modules.<Id>.dll
         var id = char.ToUpperInvariant(moduleId[0]) + moduleId[1..];
@@ -127,7 +130,7 @@ public sealed class ModuleAssemblyCatalog
         if (!File.Exists(dll)) return false;
 
         var packageVersion = AssemblyName.GetAssemblyName(dll).Version;
-        if (!allowDowngrade && packageVersion <= current.Assembly.GetName().Version)
+        if (!allowDowngrade && current is not null && packageVersion <= current.Assembly.GetName().Version)
         {
             _logger.LogInformation("模块 {ModuleId} 包版本 v{PackageVersion} 不高于当前 v{CurrentVersion}，保持现状",
                 moduleId, packageVersion, current.Assembly.GetName().Version);
@@ -152,7 +155,7 @@ public sealed class ModuleAssemblyCatalog
 
         // 卸载旧的可回收 ALC（静态引用无 ALC、不卸载）。旧组件实例仍被活跃线路引用时卸载请求挂起，
         // 等引用释放（线路关闭 + GC）后自动完成 —— 官方 unloadability 模式的标准行为。
-        if (current.Context is not null)
+        if (current?.Context is not null)
         {
             try
             {
@@ -234,5 +237,5 @@ public sealed class ModuleAssemblyCatalog
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    private sealed record ModuleDto(string Id, string? PackagePath);
+    private sealed record ModuleDto(string Id, string? PackagePath, BlazorBoilerplate.ModuleAbstractions.ModuleState State);
 }

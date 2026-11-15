@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>BlazorBoilerplate.Modules.Attachments</RootNamespace>
+    <AssemblyName>BlazorBoilerplate.Modules.Attachments</AssemblyName>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Bit.BlazorUI" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\BlazorBoilerplate.ModuleAbstractions\BlazorBoilerplate.ModuleAbstractions.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\BlazorBoilerplate.Web.Shared\BlazorBoilerplate.Web.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="manifest.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
+

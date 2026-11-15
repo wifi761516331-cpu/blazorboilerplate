@@ -1,0 +1,26 @@
+{
+  "id": "attachments",
+  "name": "Attachments",
+  "displayName": "附件管理",
+  "version": "1.0.6",
+  "publisher": "BlazorBoilerplate",
+  "entryAssembly": "BlazorBoilerplate.Modules.Attachments.dll",
+  "entryType": "BlazorBoilerplate.Modules.Attachments.AttachmentsModule",
+  "contractVersion": "1.0",
+  "moduleSdkVersion": "1.0",
+  "hostCompatibility": ">=1.0.0 <2.0.0",
+  "displayOrder": 120,
+  "dependencies": [],
+  "permissions": [],
+  "frontend": {
+    "routes": [ "/attachments" ],
+    "menus": [ "Attachments" ],
+    "menuItems": [
+      { "text": "附件管理", "route": "/attachments", "icon": "Attach", "sort": 120 }
+    ],
+    "localization": [],
+    "assets": []
+  },
+  "checksumSha256": null
+}
+

@@ -1,8 +1,10 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using BlazorBoilerplate.Application.OData;
 using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.Shared.Features.Account;
+using BlazorBoilerplate.Shared.Features.Attachments;
 using BlazorBoilerplate.Shared.Features.Identity;
 
 namespace BlazorBoilerplate.Web.Shared.Services;
@@ -273,6 +275,82 @@ public sealed class BlazorBoilerplateApiClient(HttpClient http)
         return list ?? [];
     }
 
+    // ---- 附件管理（api/v1/Attachment/*） ----
+
+    public string GetAttachmentUrl(Guid attachmentId, AttachmentKind kind, bool download = false, string? cacheBust = null)
+    {
+        var relative = $"/api/v1/attachments/{attachmentId:D}/{kind}";
+        var query = new List<string>();
+        if (download) query.Add("download=true");
+        if (!string.IsNullOrWhiteSpace(cacheBust)) query.Add("v=" + Uri.EscapeDataString(cacheBust));
+        var path = query.Count == 0 ? relative : $"{relative}?{string.Join("&", query)}";
+        return http.BaseAddress is null ? path : new Uri(http.BaseAddress, path).ToString();
+    }
+
+    public async Task<AttachmentDto[]> GetAttachmentsAsync(
+        AttachmentKind? kind = null,
+        Guid? ownerId = null,
+        CancellationToken ct = default)
+    {
+        var qs = new List<string>();
+        if (kind.HasValue) qs.Add($"kind={kind.Value}");
+        if (ownerId.HasValue) qs.Add($"ownerId={ownerId.Value:D}");
+        var url = qs.Count == 0
+            ? "api/v1/Attachment/GetList"
+            : $"api/v1/Attachment/GetList?{string.Join("&", qs)}";
+        var response = await http.GetAsync(url, ct);
+        return await ReadOrThrowAsync<AttachmentDto[]>(response, ct);
+    }
+
+    public async Task<AttachmentDto> UploadAttachmentAsync(
+        Stream content,
+        string fileName,
+        string? contentType,
+        AttachmentKind kind = AttachmentKind.General,
+        Guid? ownerId = null,
+        CancellationToken ct = default)
+    {
+        using var form = new MultipartFormDataContent();
+        using var streamContent = new StreamContent(content);
+        if (!string.IsNullOrWhiteSpace(contentType))
+            streamContent.Headers.ContentType = MediaTypeHeaderValue.Parse(contentType);
+        form.Add(streamContent, "file", fileName);
+        form.Add(new StringContent(kind.ToString()), "kind");
+        if (ownerId.HasValue)
+            form.Add(new StringContent(ownerId.Value.ToString("D")), "ownerId");
+
+        var response = await http.PostAsync("api/v1/Attachment/Upload", form, ct);
+        return await ReadOrThrowAsync<AttachmentDto>(response, ct);
+    }
+
+    public async Task<AttachmentDto> UploadUserProfilePictureAsync(
+        Stream content,
+        string fileName,
+        string? contentType,
+        CancellationToken ct = default)
+    {
+        using var form = new MultipartFormDataContent();
+        using var streamContent = new StreamContent(content);
+        if (!string.IsNullOrWhiteSpace(contentType))
+            streamContent.Headers.ContentType = MediaTypeHeaderValue.Parse(contentType);
+        form.Add(streamContent, "file", fileName);
+
+        var response = await http.PostAsync("api/v1/Attachment/UploadUserProfilePicture", form, ct);
+        return await ReadOrThrowAsync<AttachmentDto>(response, ct);
+    }
+
+    public async Task DeleteAttachmentAsync(Guid attachmentId, AttachmentKind kind, CancellationToken ct = default)
+    {
+        var response = await http.DeleteAsync($"api/v1/Attachment/Delete/{attachmentId:D}/{kind}", ct);
+        await EnsureSuccessAsync(response, ct);
+    }
+
+    public async Task DeleteUserProfilePictureAsync(CancellationToken ct = default)
+    {
+        var response = await http.DeleteAsync("api/v1/Attachment/DeleteUserProfilePicture", ct);
+        await EnsureSuccessAsync(response, ct);
+    }
+
     public async Task<ODataPage<T>> GetODataAsync<T>(string relativeUrl, ODataQuery query, CancellationToken cancellationToken = default)
     {
         var qs = BuildQueryString(query);
@@ -291,13 +369,18 @@ public sealed class BlazorBoilerplateApiClient(HttpClient http)
         return parts.Count == 0 ? string.Empty : "?" + string.Join("&", parts);
     }
 
-    private static async Task<T> ReadOrThrowAsync<T>(HttpResponseMessage response, CancellationToken cancellationToken)
+    private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         if (!response.IsSuccessStatusCode)
         {
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
             throw new HttpRequestException($"ApiHost 返回 {(int)response.StatusCode} {response.StatusCode}: {body}");
         }
+    }
+
+    private static async Task<T> ReadOrThrowAsync<T>(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        await EnsureSuccessAsync(response, cancellationToken);
         var result = await response.Content.ReadFromJsonAsync<T>(JsonOptions, cancellationToken);
         return result ?? throw new InvalidOperationException("ApiHost 返回了空响应体。");
     }

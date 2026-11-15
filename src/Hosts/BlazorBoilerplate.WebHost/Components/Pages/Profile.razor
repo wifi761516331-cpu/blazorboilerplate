@@ -1,5 +1,7 @@
 @page "/profile"
 @rendermode RenderMode.InteractiveServer
+@using BlazorBoilerplate.Shared.Features.Attachments
+@using Microsoft.AspNetCore.Components.Forms
 @inject BlazorBoilerplateApiClient Api
 @inject ToastService Toast
 @inject AccountState Account
@@ -15,6 +17,33 @@
 }
 
 <div class="account-page-grid">
+    <section class="bb-card">
+        <h2 class="section-title">个人头像</h2>
+        <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
+            @if (_avatarUrl is not null)
+            {
+                <img src="@_avatarUrl" alt="用户头像"
+                     style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:1px solid var(--bb-border);" />
+            }
+            else
+            {
+                <div style="width:72px;height:72px;border-radius:50%;display:grid;place-items:center;background:var(--bb-accent-soft, #e5eefc);font-weight:700;font-size:1.25rem;">
+                    @(string.IsNullOrWhiteSpace(_displayName) ? "?" : _displayName[..1].ToUpperInvariant())
+                </div>
+            }
+            <div style="display:flex;flex-direction:column;gap:.5rem;">
+                <InputFile OnChange="UploadAvatarAsync" accept=".jpg,.jpeg,.png,.webp,.gif,.bmp" disabled="@_uploadingAvatar" />
+                <div style="display:flex;gap:.5rem;align-items:center;">
+                    <span class="muted" style="font-size:.85rem;">支持 jpg/png/webp/gif/bmp，最大 11 MB</span>
+                    @if (_avatarUrl is not null)
+                    {
+                        <button type="button" class="bb-link-btn danger" @onclick="DeleteAvatarAsync" disabled="@_uploadingAvatar">移除头像</button>
+                    }
+                </div>
+            </div>
+        </div>
+    </section>
+
     <section class="bb-card">
         <h2 class="section-title">基本信息</h2>
         <div class="id-form">
@@ -119,6 +148,8 @@
     private string _newPassword = string.Empty;
     private bool _savingProfile;
     private bool _savingPassword;
+    private bool _uploadingAvatar;
+    private string? _avatarUrl;
     private List<UserSessionDto> _sessions = [];
     private readonly HashSet<Guid> _revoking = [];
     private string? _loadError;
@@ -130,12 +161,77 @@
         {
             _displayName = user.DisplayName;
             _email = user.Email;
+            await LoadAvatarAsync(user.Id);
         }
         else
         {
             _loadError = "无法读取当前用户信息，请确认已登录。";
         }
         await LoadSessionsAsync();
+    }
+
+    private async Task LoadAvatarAsync(Guid userId)
+    {
+        try
+        {
+            var list = await Api.GetAttachmentsAsync(AttachmentKind.UserProfileImage, userId);
+            var avatar = list.FirstOrDefault();
+            _avatarUrl = avatar is null
+                ? null
+                : Api.GetAttachmentUrl(avatar.Id, avatar.Kind, cacheBust: avatar.CreatedAtUtc.ToUnixTimeMilliseconds().ToString());
+        }
+        catch
+        {
+            _avatarUrl = null;
+        }
+    }
+
+    private async Task UploadAvatarAsync(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+        const long maxBytes = 11 * 1024 * 1024;
+        if (file.Size > maxBytes)
+        {
+            Toast.Warning("头像大小不能超过 11 MB。");
+            return;
+        }
+
+        _uploadingAvatar = true;
+        try
+        {
+            await using var stream = file.OpenReadStream(maxBytes);
+            var uploaded = await Api.UploadUserProfilePictureAsync(stream, file.Name, file.ContentType);
+            _avatarUrl = Api.GetAttachmentUrl(uploaded.Id, uploaded.Kind, cacheBust: uploaded.CreatedAtUtc.ToUnixTimeMilliseconds().ToString());
+            Toast.Success("头像已更新。");
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"上传头像失败：{ex.Message}");
+        }
+        finally
+        {
+            _uploadingAvatar = false;
+        }
+    }
+
+    private async Task DeleteAvatarAsync()
+    {
+        _uploadingAvatar = true;
+        try
+        {
+            await Api.DeleteUserProfilePictureAsync();
+            _avatarUrl = null;
+            Toast.Success("头像已移除。");
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"移除头像失败：{ex.Message}");
+        }
+        finally
+        {
+            _uploadingAvatar = false;
+        }
     }
 
     private async Task LoadSessionsAsync()

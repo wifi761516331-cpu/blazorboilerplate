@@ -589,7 +589,8 @@ else
 
     private static string ModuleIcon(string id) =>
         id.Contains("identity", StringComparison.OrdinalIgnoreCase) ? "Shield" :
-        id.Contains("catalog", StringComparison.OrdinalIgnoreCase) ? "Shop" : "Puzzle";
+        id.Contains("catalog", StringComparison.OrdinalIgnoreCase) ? "Shop" :
+        id.Contains("attachment", StringComparison.OrdinalIgnoreCase) ? "Attach" : "Puzzle";
 
     private static BitColor StateColor(ModuleState state) => state switch
     {

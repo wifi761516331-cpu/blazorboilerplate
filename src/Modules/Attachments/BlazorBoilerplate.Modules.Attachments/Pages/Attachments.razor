@@ -1,0 +1,685 @@
+@page "/attachments"
+@rendermode RenderMode.InteractiveServer
+@using Microsoft.JSInterop
+@inject BlazorBoilerplateApiClient Api
+@inject ToastService Toast
+@inject IJSRuntime JS
+
+<style>
+    .att-modal-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        width: 100%;
+    }
+
+    .att-modal-form .auth-field,
+    .att-modal-form .auth-input {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .att-dropzone {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        box-sizing: border-box;
+        min-height: 120px;
+        padding: 1.25rem 1rem;
+        border: 1.5px dashed var(--bit-clr-brd-pri, #c8c6c4);
+        border-radius: 8px;
+        background: var(--bit-clr-bg-sec, rgba(127, 127, 127, 0.04));
+        cursor: pointer;
+        text-align: center;
+        transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+
+    .att-pending-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        max-height: 180px;
+        overflow-y: auto;
+    }
+
+    .att-pending-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.45rem 0.75rem;
+        border: 1px solid var(--bit-clr-brd-sec, rgba(127, 127, 127, 0.18));
+        border-radius: 6px;
+        font-size: 0.85rem;
+    }
+
+    .att-pending-name {
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .att-dropzone:hover {
+        border-color: var(--bit-clr-pri, #0078d4);
+        background: rgba(0, 120, 212, 0.06);
+    }
+
+    .att-dropzone.is-uploading {
+        opacity: 0.72;
+        cursor: wait;
+    }
+
+    .att-dropzone input[type="file"] {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .att-dropzone-content {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        pointer-events: none;
+    }
+
+    .att-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .att-bit-card {
+        padding: 0 !important;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .att-bit-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.09);
+    }
+
+    .att-card-media {
+        position: relative;
+        width: 100%;
+        height: 156px;
+        background: var(--bit-clr-bg-sec, rgba(127, 127, 127, 0.06));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        border-bottom: 1px solid var(--bit-clr-brd-sec, rgba(127, 127, 127, 0.14));
+    }
+
+    .att-card-media.is-clickable {
+        cursor: zoom-in;
+    }
+
+    .att-card-media img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .att-file-badge {
+        width: 64px;
+        height: 64px;
+        border-radius: 12px;
+        background: rgba(0, 120, 212, 0.12);
+        color: var(--bit-clr-pri, #0078d4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.9rem;
+        letter-spacing: 0.04em;
+    }
+
+    .att-kind-tag {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+    }
+
+    .att-card-body {
+        padding: 0.85rem 1rem 0.6rem;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .att-card-name {
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-weight: 600;
+    }
+
+    .att-card-actions {
+        padding: 0.45rem 0.75rem 0.65rem;
+        border-top: 1px solid var(--bit-clr-brd-sec, rgba(127, 127, 127, 0.14));
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.25rem;
+        flex-wrap: wrap;
+    }
+
+    .att-preview-modal {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    .att-preview-modal img {
+        max-width: 100%;
+        max-height: 65vh;
+        border-radius: 8px;
+        object-fit: contain;
+    }
+
+    .att-kpi-item {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+    }
+
+    .att-kpi-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        min-width: 0;
+    }
+
+    .att-kpi-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        flex-shrink: 0;
+        font-size: 1.15rem;
+    }
+
+    .att-kpi-icon.is-total {
+        color: #0078d4;
+        background: rgba(0, 120, 212, 0.1);
+    }
+
+    .att-kpi-icon.is-image {
+        color: #107c10;
+        background: rgba(16, 124, 16, 0.1);
+    }
+
+    .att-kpi-icon.is-other {
+        color: #8a5100;
+        background: rgba(180, 110, 0, 0.1);
+    }
+
+    .att-kpi-icon.is-size {
+        color: #5c2d91;
+        background: rgba(92, 45, 145, 0.1);
+    }
+
+    @@media (max-width: 720px) {
+        .att-upload-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<BitCallout Class="page-callout">
+    <BitText Element="h1" Class="page-title">附件管理</BitText>
+    <BitText Class="muted">支持多文件拖拽上传、按文件名检索、页内大图预览、链接复制与安全删除（单文件上限 11 MB）。</BitText>
+</BitCallout>
+
+<div class="bb-toolbar">
+    <div class="bb-search">
+        <BitSearchBox @bind-Value="_searchText" Immediate DebounceTime="200" Placeholder="搜索文件名…" />
+    </div>
+    <div class="bb-spacer"></div>
+    <select class="auth-input" style="width:auto;" @bind="_filterKind" @bind:after="LoadAsync">
+        <option value="">全部类型</option>
+        <option value="@AttachmentKind.General">通用附件</option>
+        <option value="@AttachmentKind.UserProfileImage">用户头像</option>
+        <option value="@AttachmentKind.ProductPrimaryImage">商品主图</option>
+    </select>
+    <BitButton Color="BitColor.Primary" IconName="CloudUpload" OnClick="OpenUploadModal">
+        上传附件
+    </BitButton>
+    <BitButton Variant="BitVariant.Outline" IconName="Refresh" OnClick="LoadAsync" IsEnabled="!_loading">
+        @(_loading ? "加载中…" : "刷新")
+    </BitButton>
+</div>
+
+<div class="module-summary">
+    <div class="module-summary-item att-kpi-item">
+        <div class="att-kpi-meta">
+            <span class="module-summary-label">附件总数</span>
+            <strong>@FilteredItems.Count</strong>
+        </div>
+        <span class="att-kpi-icon is-total" aria-hidden="true">
+            <AppIcon Name="Attach" />
+        </span>
+    </div>
+    <div class="module-summary-item att-kpi-item">
+        <div class="att-kpi-meta">
+            <span class="module-summary-label">图片</span>
+            <strong class="ok">@FilteredItems.Count(IsImage)</strong>
+        </div>
+        <span class="att-kpi-icon is-image" aria-hidden="true">
+            <BitIcon IconName="Photo2" />
+        </span>
+    </div>
+    <div class="module-summary-item att-kpi-item">
+        <div class="att-kpi-meta">
+            <span class="module-summary-label">其他文件</span>
+            <strong>@FilteredItems.Count(x => !IsImage(x))</strong>
+        </div>
+        <span class="att-kpi-icon is-other" aria-hidden="true">
+            <BitIcon IconName="Page" />
+        </span>
+    </div>
+    <div class="module-summary-item att-kpi-item">
+        <div class="att-kpi-meta">
+            <span class="module-summary-label">总占用空间</span>
+            <strong>@FormatSize(FilteredItems.Sum(x => x.SizeBytes))</strong>
+        </div>
+        <span class="att-kpi-icon is-size" aria-hidden="true">
+            <BitIcon IconName="Database" />
+        </span>
+    </div>
+</div>
+
+@if (_loadError is not null)
+{
+    <BitCallout Class="page-callout error" Style="margin-top: 1rem;">@_loadError</BitCallout>
+}
+
+@if (FilteredItems.Count == 0)
+{
+    <div class="module-empty" style="margin-top: 1rem;">
+        <AppIcon Name="Attach" />
+        <span>@(_items.Count == 0 ? "暂无附件记录，请在上方选择或拖拽文件上传。" : "没有匹配当前筛选条件的附件。")</span>
+    </div>
+}
+else
+{
+    <div class="att-grid">
+        @foreach (var item in FilteredItems)
+        {
+            var isImage = IsImage(item);
+            var previewUrl = Api.GetAttachmentUrl(item.Id, item.Kind, download: false, cacheBust: item.CreatedAtUtc.ToUnixTimeMilliseconds().ToString());
+            var downloadUrl = Api.GetAttachmentUrl(item.Id, item.Kind, download: true);
+
+            <BitCard Outlined="true" Class="att-bit-card">
+                <div class="att-card-media @(isImage ? "is-clickable" : "")"
+                     @onclick="() => OpenPreviewIfImage(item, previewUrl)">
+                    @if (isImage)
+                    {
+                        <img src="@previewUrl" alt="@item.FileName" loading="lazy" />
+                    }
+                    else
+                    {
+                        <div class="att-file-badge">
+                            <span>@GetExtensionLabel(item.FileName)</span>
+                        </div>
+                    }
+                    <div class="att-kind-tag">
+                        <BitTag Size="BitSize.Small" Color="BitColor.Info">@GetKindLabel(item.Kind)</BitTag>
+                    </div>
+                </div>
+
+                <div class="att-card-body">
+                    <BitText Typography="BitTypography.Subtitle1" Class="att-card-name" Title="@item.FileName">@item.FileName</BitText>
+                    <BitText Typography="BitTypography.Caption1" Class="muted">
+                        @FormatSize(item.SizeBytes) · @item.CreatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                    </BitText>
+                </div>
+
+                <div class="att-card-actions">
+                    @if (isImage)
+                    {
+                        <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick="() => OpenPreview(item, previewUrl)">预览</BitButton>
+                    }
+                    else
+                    {
+                        <a class="bb-link-btn" href="@previewUrl" target="_blank" rel="noopener noreferrer">打开</a>
+                    }
+                    <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick="() => CopyUrlAsync(previewUrl)">复制链接</BitButton>
+                    <a class="bb-link-btn" href="@downloadUrl" download="@item.FileName">下载</a>
+                    <BitButton Size="BitSize.Small" Variant="BitVariant.Text" Color="BitColor.Error" OnClick="() => ConfirmDelete(item)">删除</BitButton>
+                </div>
+            </BitCard>
+        }
+    </div>
+}
+
+<BlazorBoilerplateModal @bind-IsOpen="_uploadOpen"
+                        Title="上传附件"
+                        OkText="@(_uploading ? $"上传中 ({_uploadDone}/{_uploadTotal})…" : "开始上传")"
+                        CancelText="取消"
+                        ShowCancel="true"
+                        Disabled="@(_pendingFiles.Count == 0 || _uploading)"
+                        OnOk="StartUploadAsync">
+    <div class="att-modal-form">
+        <div class="auth-field">
+            <label class="auth-label" for="att-kind">附件类型</label>
+            <select id="att-kind" class="auth-input" @bind="_uploadKind" disabled="@_uploading">
+                <option value="@AttachmentKind.General">通用附件</option>
+                <option value="@AttachmentKind.UserProfileImage">当前用户头像</option>
+                <option value="@AttachmentKind.ProductPrimaryImage">商品主图</option>
+            </select>
+        </div>
+        @if (_uploadKind == AttachmentKind.ProductPrimaryImage)
+        {
+            <div class="auth-field">
+                <label class="auth-label" for="att-owner">关联商品 ID（可选）</label>
+                <input id="att-owner" class="auth-input" @bind="_ownerIdText" placeholder="输入商品 Guid（留空自动生成）" disabled="@_uploading" />
+            </div>
+        }
+        <label class="att-dropzone @(_uploading ? "is-uploading" : "")" for="att-file-input">
+            <InputFile @key="_inputKey"
+                       id="att-file-input"
+                       OnChange="HandleFilesSelectedAsync"
+                       multiple
+                       disabled="@_uploading" />
+            <div class="att-dropzone-content">
+                <BitIcon IconName="CloudUpload" Size="BitSize.Large" Color="BitColor.Primary" />
+                <BitText Typography="BitTypography.Subtitle1">点击选择或拖拽文件到此处</BitText>
+                <BitText Typography="BitTypography.Caption1" Class="muted">支持多选（最多 10 个）· 图片 / PDF / 文档 / ZIP · 单文件最大 11 MB</BitText>
+            </div>
+        </label>
+
+        @if (_pendingFiles.Count > 0)
+        {
+            <div class="att-pending-list">
+                @foreach (var file in _pendingFiles)
+                {
+                    <div class="att-pending-item">
+                        <span class="att-pending-name" title="@file.Name">@file.Name</span>
+                        <span class="muted">@FormatSize(file.Size)</span>
+                        @if (file.TooLarge)
+                        {
+                            <BitTag Size="BitSize.Small" Color="BitColor.Error">超限</BitTag>
+                        }
+                        <button type="button" class="bb-link-btn danger" @onclick="() => RemovePendingFile(file)" disabled="@_uploading">移除</button>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</BlazorBoilerplateModal>
+
+<BlazorBoilerplateModal @bind-IsOpen="_previewOpen"
+                        Title="@(_previewItem?.FileName ?? "附件预览")"
+                        OkText="关闭"
+                        ShowCancel="false"
+                        OnOk="ClosePreviewAsync">
+    @if (_previewItem is not null && _previewUrl is not null)
+    {
+        <div class="att-preview-modal">
+            <img src="@_previewUrl" alt="@_previewItem.FileName" />
+            <BitText Typography="BitTypography.Caption1" Class="muted">
+                @GetKindLabel(_previewItem.Kind) · @FormatSize(_previewItem.SizeBytes) ·
+                <a class="bb-link-btn" href="@Api.GetAttachmentUrl(_previewItem.Id, _previewItem.Kind, download: true)" download="@_previewItem.FileName">下载原图</a>
+            </BitText>
+        </div>
+    }
+</BlazorBoilerplateModal>
+
+<BlazorBoilerplateModal @bind-IsOpen="_deleteOpen"
+                        Title="确认删除附件"
+                        Message="@($"确定要永久删除附件“{_deleteTarget?.FileName}”吗？此操作不可恢复。")"
+                        OkText="确认删除"
+                        ShowCancel="true"
+                        Danger="true"
+                        OnOk="ExecuteDeleteAsync" />
+
+@code {
+    private const long MaxUploadSizeBytes = 11 * 1024 * 1024;
+    private const int MaxFilesPerBatch = 10;
+
+    private sealed record PendingUploadFile(string Name, string ContentType, long Size, byte[]? Bytes, bool TooLarge);
+
+    private List<AttachmentDto> _items = [];
+    private readonly List<PendingUploadFile> _pendingFiles = [];
+    private AttachmentKind _uploadKind = AttachmentKind.General;
+    private string? _ownerIdText;
+    private string _filterKind = string.Empty;
+    private string _searchText = string.Empty;
+    private bool _loading;
+    private bool _uploading;
+    private int _uploadDone;
+    private int _uploadTotal;
+    private int _inputKey;
+    private string? _loadError;
+
+    private bool _uploadOpen;
+    private bool _previewOpen;
+    private AttachmentDto? _previewItem;
+    private string? _previewUrl;
+
+    private bool _deleteOpen;
+    private AttachmentDto? _deleteTarget;
+
+    private IReadOnlyList<AttachmentDto> FilteredItems => string.IsNullOrWhiteSpace(_searchText)
+        ? _items
+        : _items.Where(x => x.FileName.Contains(_searchText.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _loadError = null;
+        try
+        {
+            AttachmentKind? kind = Enum.TryParse<AttachmentKind>(_filterKind, out var parsed) ? parsed : null;
+            _items = [.. await Api.GetAttachmentsAsync(kind)];
+        }
+        catch (Exception ex)
+        {
+            _loadError = $"读取附件列表失败：{ex.Message}";
+            Toast.Error(_loadError);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task HandleFilesSelectedAsync(InputFileChangeEventArgs e)
+    {
+        foreach (var file in e.GetMultipleFiles(MaxFilesPerBatch))
+        {
+            if (_pendingFiles.Count >= MaxFilesPerBatch)
+            {
+                Toast.Warning($"单次最多选择 {MaxFilesPerBatch} 个文件。");
+                break;
+            }
+            if (_pendingFiles.Any(x => x.Name == file.Name && x.Size == file.Size))
+                continue;
+
+            if (file.Size > MaxUploadSizeBytes)
+            {
+                _pendingFiles.Add(new PendingUploadFile(file.Name, file.ContentType, file.Size, null, TooLarge: true));
+                continue;
+            }
+
+            try
+            {
+                await using var stream = file.OpenReadStream(MaxUploadSizeBytes);
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                _pendingFiles.Add(new PendingUploadFile(file.Name, file.ContentType, file.Size, ms.ToArray(), TooLarge: false));
+            }
+            catch (Exception ex)
+            {
+                Toast.Error($"读取“{file.Name}”失败：{ex.Message}");
+            }
+        }
+        _inputKey++;
+    }
+
+    private void RemovePendingFile(PendingUploadFile file) => _pendingFiles.Remove(file);
+
+    private async Task StartUploadAsync()
+    {
+        if (_pendingFiles.Count == 0)
+            return;
+
+        Guid? ownerId = null;
+        if (_uploadKind == AttachmentKind.ProductPrimaryImage && !string.IsNullOrWhiteSpace(_ownerIdText))
+        {
+            if (!Guid.TryParse(_ownerIdText.Trim(), out var parsedOwner))
+            {
+                Toast.Warning("关联商品 ID 必须是有效的 Guid 格式。");
+                return;
+            }
+            ownerId = parsedOwner;
+        }
+
+        _uploading = true;
+        _uploadDone = 0;
+        _uploadTotal = _pendingFiles.Count;
+        var successCount = 0;
+
+        try
+        {
+            foreach (var file in _pendingFiles.ToArray())
+            {
+                if (file.TooLarge || file.Bytes is null)
+                {
+                    Toast.Warning($"“{file.Name}”超过 11 MB 上限，已跳过。");
+                    _uploadDone++;
+                    continue;
+                }
+
+                try
+                {
+                    await using var stream = new MemoryStream(file.Bytes, writable: false);
+                    await Api.UploadAttachmentAsync(stream, file.Name, file.ContentType, _uploadKind, ownerId);
+                    successCount++;
+                    _pendingFiles.Remove(file);
+                }
+                catch (Exception ex)
+                {
+                    Toast.Error($"“{file.Name}”上传失败：{ex.Message}");
+                }
+                finally
+                {
+                    _uploadDone++;
+                    StateHasChanged();
+                }
+            }
+
+            if (successCount > 0)
+            {
+                Toast.Success($"成功上传 {successCount} 个附件。");
+                await LoadAsync();
+                if (_pendingFiles.Count == 0)
+                    _uploadOpen = false;
+            }
+        }
+        finally
+        {
+            _uploading = false;
+        }
+    }
+
+    private void OpenUploadModal()
+    {
+        _pendingFiles.Clear();
+        _inputKey++;
+        _uploadOpen = true;
+    }
+
+    private void OpenPreviewIfImage(AttachmentDto item, string previewUrl)
+    {
+        if (IsImage(item))
+            OpenPreview(item, previewUrl);
+    }
+
+    private void OpenPreview(AttachmentDto item, string previewUrl)
+    {
+        _previewItem = item;
+        _previewUrl = previewUrl;
+        _previewOpen = true;
+    }
+
+    private Task ClosePreviewAsync()
+    {
+        _previewOpen = false;
+        return Task.CompletedTask;
+    }
+
+    private async Task CopyUrlAsync(string url)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", url);
+            Toast.Success("已复制附件链接到剪贴板。");
+        }
+        catch
+        {
+            Toast.Info($"附件链接：{url}");
+        }
+    }
+
+    private void ConfirmDelete(AttachmentDto item)
+    {
+        _deleteTarget = item;
+        _deleteOpen = true;
+    }
+
+    private async Task ExecuteDeleteAsync()
+    {
+        if (_deleteTarget is null)
+            return;
+
+        await Api.DeleteAttachmentAsync(_deleteTarget.Id, _deleteTarget.Kind);
+        _items.RemoveAll(x => x.Id == _deleteTarget.Id && x.Kind == _deleteTarget.Kind);
+        Toast.Success($"已删除附件“{_deleteTarget.FileName}”。");
+        _deleteOpen = false;
+        _deleteTarget = null;
+    }
+
+    private static bool IsImage(AttachmentDto item) =>
+        item.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
+
+    private static string GetKindLabel(AttachmentKind kind) => kind switch
+    {
+        AttachmentKind.UserProfileImage => "用户头像",
+        AttachmentKind.ProductPrimaryImage => "商品主图",
+        _ => "通用附件"
+    };
+
+    private static string GetExtensionLabel(string fileName)
+    {
+        var ext = Path.GetExtension(fileName);
+        return string.IsNullOrWhiteSpace(ext) ? "FILE" : ext.TrimStart('.').ToUpperInvariant();
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F2} MB";
+    }
+}

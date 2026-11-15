@@ -72,6 +72,7 @@ builder.Services.AddSingleton<ModulePackService>();
 builder.Services.Configure<SetupOptions>(builder.Configuration.GetSection(SetupOptions.SectionName));
 builder.Services.AddBlazorBoilerplateInfrastructurePlaceholders();
 builder.Services.AddBlazorBoilerplateEmail(builder.Configuration);
+builder.Services.AddBlazorBoilerplateAttachments(builder.Configuration, builder.Environment.ContentRootPath);
 builder.Services.AddBlazorBoilerplateModuleStorage(builder.Configuration);
 builder.Services.AddBlazorBoilerplateModuleRuntime(builder.Configuration);
 builder.Services.AddSingleton<SetupStateProvider>();

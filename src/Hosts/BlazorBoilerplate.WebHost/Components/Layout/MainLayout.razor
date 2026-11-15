@@ -123,7 +123,8 @@
         ["Menus"] = ("菜单管理", "维护导航菜单树、排序与可见性"),
         ["Profile"] = ("个人资料", "账户信息、密码与登录会话"),
         ["Tenants"] = ("租户管理", "我的租户、成员邀请与切换"),
-        ["Notifications"] = ("通知中心", "查看站内通知并标记已读")
+        ["Notifications"] = ("通知中心", "查看站内通知并标记已读"),
+        ["Attachments"] = ("附件管理", "上传、预览、下载与管理平台附件")
     };
 
     private static readonly string[] GroupOrder = ["工作区", "管理", "系统"];
@@ -333,6 +334,7 @@
         "/identity/roles" => "SecurityGroup",
         "/identity/menus" => "EditList",
         "/modules" => "Puzzle",
+        "/attachments" => "Attach",
         _ => "Grid"
     };
 }
