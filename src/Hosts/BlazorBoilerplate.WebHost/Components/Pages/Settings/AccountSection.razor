@@ -1,5 +1,6 @@
 @inject BlazorBoilerplateApiClient Api
 @inject AccountState Account
+@inject SystemSettingsState SysState
 @inject ToastService Toast
 
 <section style="padding: 0.75rem 0 1.25rem;">
@@ -45,7 +46,7 @@
                                       Label="新密码"
                                       Type="BitInputType.Password"
                                       CanRevealPassword
-                                      Placeholder="至少 6 位字符" />
+                                      Placeholder="@($"至少 {_passwordMinLength} 位字符")" />
 
                         <BitTextField @bind-Value="_confirmPassword"
                                       Label="确认新密码"
@@ -76,10 +77,14 @@
     private string _confirmPassword = string.Empty;
     private bool _savingEmail;
     private bool _savingPassword;
+    private int _passwordMinLength = 6;
 
     protected override async Task OnInitializedAsync()
     {
         await Account.EnsureLoadedAsync();
+        await SysState.EnsureLoadedAsync();
+        if (SysState.Public.PasswordMinLength > 0)
+            _passwordMinLength = SysState.Public.PasswordMinLength;
         if (Account.CurrentUser is { } user)
         {
             _currentEmail = user.Email;
@@ -127,9 +132,12 @@
             Toast.Warning("请填写当前密码与新密码。");
             return;
         }
-        if (_newPassword.Length < 6)
+        await SysState.RefreshAsync();
+        if (SysState.Public.PasswordMinLength > 0)
+            _passwordMinLength = SysState.Public.PasswordMinLength;
+        if (_newPassword.Length < _passwordMinLength)
         {
-            Toast.Warning("新密码至少需要 6 位字符。");
+            Toast.Warning($"新密码至少需要 {_passwordMinLength} 位字符。");
             return;
         }
         if (!string.Equals(_newPassword, _confirmPassword, StringComparison.Ordinal))

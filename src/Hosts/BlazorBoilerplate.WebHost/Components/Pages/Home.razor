@@ -1,6 +1,7 @@
 @page "/"
 @rendermode RenderMode.InteractiveServer
 @inject BlazorBoilerplateApiClient Api
+@inject SystemSettingsState SysState
 @inject ILogger<Home> Logger
 
 @* 页面骨架移植自 Bluebird DashboardPage / OverallStatusCard / 各 Widget：
@@ -125,8 +126,8 @@
 
         <div class="bb-widget span-6">
             <div class="bb-widget-head">
-                <h2 class="bb-widget-title">关于 BlazorBoilerplate 平台</h2>
-                <span class="bb-widget-sub">.NET 10 · Bit.BlazorUI · Dynamic Module Runtime</span>
+                <h2 class="bb-widget-title">关于 @SysState.Public.SystemName</h2>
+                <span class="bb-widget-sub">@SysState.Public.FooterText</span>
             </div>
             <p class="muted">
                 基于 .NET 10、BitPlatform 与 Bit.BlazorUI 的模块化单体（Modular Monolith）演示。

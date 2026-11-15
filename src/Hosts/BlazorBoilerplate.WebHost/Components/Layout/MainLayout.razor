@@ -9,6 +9,7 @@
 @inject NavigationManager Navigation
 @inject ILogger<MainLayout> Logger
 @inject AccountState Account
+@inject SystemSettingsState SysState
 @inject UserPreferences Preferences
 
 <div class="app-shell @(_dark ? "bb-dark" : "") @(_navToggled ? "nav-toggled" : "") @(_navOpen ? "nav-open" : "")"
@@ -18,7 +19,7 @@
             <aside class="nav-panel">
                 <div class="nav-brand">
                     <span class="nav-brand-mark">L</span>
-                    <span class="nav-brand-name">BlazorBoilerplate 平台</span>
+                    <span class="nav-brand-name">@SysState.Public.SystemName</span>
                 </div>
                 <nav class="nav-scroll">
                     @foreach (var group in _navGroups)
@@ -54,7 +55,7 @@
                         }
                     </a>
                 </div>
-                <div class="nav-foot">.NET 10 · Bit.BlazorUI · 动态模块运行时</div>
+                <div class="nav-foot">@SysState.Public.FooterText</div>
             </aside>
 
             <div class="main-body">
@@ -66,10 +67,10 @@
                         <AppIcon Name="CollapseMenu" />
                     </button>
                     <div class="header-titles">
-                        <h1 class="header-title">@_header.Title</h1>
-                        @if (!string.IsNullOrWhiteSpace(_header.Subtitle))
+                        <h1 class="header-title">@HeaderTitle</h1>
+                        @if (!string.IsNullOrWhiteSpace(HeaderSubtitle))
                         {
-                            <span class="header-sub">@_header.Subtitle</span>
+                            <span class="header-sub">@HeaderSubtitle</span>
                         }
                     </div>
                     <div class="header-spacer"></div>
@@ -87,6 +88,12 @@
                 </header>
 
                 <div class="body">
+                    @if (!string.IsNullOrWhiteSpace(SysState.Public.Notice))
+                    {
+                        <BitCallout Class="page-callout" Style="margin-bottom: 1rem;">
+                            <BitText Typography="BitTypography.Body2">@SysState.Public.Notice</BitText>
+                        </BitCallout>
+                    }
                     @Body
                 </div>
             </div>
@@ -131,7 +138,8 @@
         ["Profile"] = ("个人资料", "账户信息、密码与登录会话"),
         ["Tenants"] = ("租户管理", "我的租户、成员邀请与切换"),
         ["Notifications"] = ("通知中心", "查看站内通知并标记已读"),
-        ["Attachments"] = ("附件管理", "上传、预览、下载与管理平台附件")
+        ["Attachments"] = ("附件管理", "上传、预览、下载与管理平台附件"),
+        ["SystemSettings"] = ("系统设置", "站点信息、安全策略、邮件 SMTP、存储与模块运行时配置")
     };
 
     private static readonly string[] GroupOrder = ["工作区", "管理", "系统"];
@@ -144,7 +152,9 @@
     private bool _dark;
     private string? _accent;
     private int _unreadCount;
-    private (string Title, string Subtitle) _header = ("BlazorBoilerplate 平台", "");
+    private (string Title, string Subtitle)? _pageHeader;
+    private string HeaderTitle => _pageHeader?.Title ?? SysState.Public.SystemName;
+    private string HeaderSubtitle => _pageHeader?.Subtitle ?? string.Empty;
 
     /// <summary>账号菜单选中的强调色；null = Fluent2 默认蓝（不渲染 data-accent）。</summary>
     private string AccentStyle => _accent is null ? string.Empty : $"--bb-accent: {_accent};";
@@ -177,6 +187,7 @@
     {
         NavRefresh.OnChanged += HandleNavRefresh;
         Account.Changed += HandleAccountChanged;
+        SysState.Changed += HandleAccountChanged;
     }
 
     private void HandleNavRefresh() => _ = InvokeAsync(RefreshNavAsync);
@@ -187,6 +198,7 @@
     {
         NavRefresh.OnChanged -= HandleNavRefresh;
         Account.Changed -= HandleAccountChanged;
+        SysState.Changed -= HandleAccountChanged;
     }
 
     /// <summary>公共（匿名）路由：登录页与安装向导使用独立的 IdentityLayout，绝不能被本布局的登录守卫重复跳转。</summary>
@@ -201,6 +213,7 @@
     {
         // 账户状态先就绪，IsMenuVisible 的菜单授权过滤才能生效。
         await Account.EnsureLoadedAsync();
+        await SysState.EnsureLoadedAsync();
 
         // 首屏主题 / 强调色恢复：await 后写回并请求重渲染（App.razor 首屏 cookie 由主代理处理）。
         var prefs = await Preferences.GetAsync();
@@ -246,7 +259,7 @@
     private async Task RefreshNavAsync()
     {
         var page = RouteData?.PageType?.Name ?? string.Empty;
-        _header = Headers.TryGetValue(page, out var header) ? header : ("BlazorBoilerplate 平台", "");
+        _pageHeader = Headers.TryGetValue(page, out var header) ? header : null;
 
         try
         {
@@ -316,6 +329,7 @@
                 items.Add(new NavItem("菜单管理", "/identity/menus", "EditList"));
             }
             items.Add(new NavItem("模块管理", "/modules", "Puzzle"));
+            items.Add(new NavItem("系统设置", "/system/settings", "Settings"));
             items = [.. items.GroupBy(i => i.Path, StringComparer.OrdinalIgnoreCase).Select(g => g.First())];
         }
 
@@ -340,7 +354,8 @@
 
     private static string GroupOf(string path) =>
         path.StartsWith("/identity/", StringComparison.OrdinalIgnoreCase) ? "管理" :
-        path.StartsWith("/modules", StringComparison.OrdinalIgnoreCase) ? "系统" : "工作区";
+        path.StartsWith("/modules", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/system/", StringComparison.OrdinalIgnoreCase) ? "系统" : "工作区";
 
     private static string IconOf(string path) => path switch
     {
@@ -352,6 +367,7 @@
         "/modules" => "Puzzle",
         "/attachments" => "Attach",
         "/settings" => "Settings",
+        "/system/settings" => "Settings",
         _ => "Grid"
     };
 }

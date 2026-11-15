@@ -46,6 +46,7 @@ builder.Services.AddScoped<ToastService>();
 
 // ---- 登录态 / 设备偏好：scoped，随每条 Blazor 线路 ----
 builder.Services.AddScoped<AccountState>();
+builder.Services.AddScoped<SystemSettingsState>();
 builder.Services.AddScoped<UserPreferences>();
 
 // ---- 导航刷新事件：模块加载/卸载后通知 MainLayout 重建侧边栏菜单 ----

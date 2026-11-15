@@ -77,6 +77,9 @@ builder.Services.AddBlazorBoilerplateModuleStorage(builder.Configuration);
 builder.Services.AddBlazorBoilerplateModuleRuntime(builder.Configuration);
 builder.Services.AddSingleton<SetupStateProvider>();
 builder.Services.AddSingleton<ISetupInitializer, DefaultSetupInitializer>();
+builder.Services.AddSingleton<BlazorBoilerplate.ApiHost.Services.SystemSettingsStore>();
+builder.Services.AddSingleton<ISmtpSettingsProvider, BlazorBoilerplate.ApiHost.Services.SystemSettingsSmtpProvider>();
+builder.Services.AddSingleton<BlazorBoilerplate.Infrastructure.Attachments.IAttachmentStorage, BlazorBoilerplate.ApiHost.Services.DynamicAttachmentStorage>();
 
 // ---- HTTP 管线通用能力 ----
 builder.Services.AddProblemDetails();
@@ -151,6 +154,10 @@ await using (var scope = app.Services.CreateAsyncScope())
 {
     var manager = scope.ServiceProvider.GetRequiredService<ModuleLifecycleManager>();
     var options = scope.ServiceProvider.GetRequiredService<IOptions<ModuleRuntimeOptions>>().Value;
+    var systemSettings = scope.ServiceProvider.GetRequiredService<BlazorBoilerplate.ApiHost.Services.SystemSettingsStore>().GetRaw();
+    options.AutoLoadOnStartup = systemSettings.AutoLoadOnStartup;
+    options.VerifyChecksum = systemSettings.VerifyChecksum;
+    options.DrainTimeoutSeconds = systemSettings.DrainTimeoutSeconds;
 
     var discovered = await manager.RefreshCatalogAsync(CancellationToken.None);
     Log.Information("Module catalog refreshed. Discovered={Count}, Mode={Mode}", discovered, setup.CurrentMode);
@@ -175,6 +182,26 @@ await using (var scope = app.Services.CreateAsyncScope())
             else
                 await ModuleDataHooks.OnUnloadedAsync(
                     scope.ServiceProvider, descriptor.Id, CancellationToken.None);
+        }
+    }
+
+    if (setup.CurrentMode == SetupMode.Normal)
+    {
+        try
+        {
+            var identityDb = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+            if (!await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AnyAsync(
+                    identityDb.Menus, m => m.Path == "/system/settings"))
+            {
+                identityDb.Menus.Add(BlazorBoilerplate.Modules.Identity.Domain.Menu.Create(
+                    "系统设置", "/system/settings", "Settings", parentId: null, sort: 950,
+                    moduleId: null, permissionCode: null, kind: "menu"));
+                await identityDb.SaveChangesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to ensure /system/settings menu entry.");
         }
     }
 }

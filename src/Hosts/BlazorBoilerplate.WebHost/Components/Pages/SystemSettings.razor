@@ -1,0 +1,463 @@
+@page "/system/settings"
+@page "/system/settings/{Section?}"
+@rendermode RenderMode.InteractiveServer
+@using BlazorBoilerplate.Shared.Features.SystemSettings
+@inject BlazorBoilerplateApiClient Api
+@inject SystemSettingsState SysState
+@inject UserPreferences Preferences
+@inject AccountState Account
+@inject ToastService Toast
+
+<style>
+    .sys-settings-shell {
+        width: 100%;
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 0.5rem 0 2.5rem;
+    }
+
+    .sys-settings-header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.25rem;
+    }
+
+    .sys-settings-header-text {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .sys-settings-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .sys-section-body {
+        padding: 0.75rem 0.25rem 1.25rem;
+    }
+
+    .sys-settings-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.15rem 1.5rem;
+    }
+
+    .sys-settings-grid .sys-full {
+        grid-column: 1 / -1;
+    }
+
+    .sys-settings-grid .bit-txt,
+    .sys-settings-grid .bit-txt-wrapper,
+    .sys-settings-grid .bit-num,
+    .sys-settings-grid .bit-drp {
+        width: 100%;
+    }
+
+    .sys-test-mail-row {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        padding: 1rem 1.15rem;
+        border-radius: 8px;
+        background: var(--bit-clr-bg-pri, rgba(127, 127, 127, 0.06));
+        border: 1px solid var(--bb-brd-ter, rgba(127, 127, 127, 0.16));
+    }
+
+    .sys-settings-footer {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        margin-top: 1.25rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--bb-brd-ter, rgba(127, 127, 127, 0.18));
+    }
+
+    @@media (max-width: 760px) {
+        .sys-settings-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="sys-settings-shell">
+    <div class="sys-settings-header">
+        <BitText Typography="BitTypography.H5">系统设置</BitText>
+    </div>
+
+    @if (_loading)
+    {
+        <BitStack Gap="0.75rem">
+            <BitShimmer Height="3.5rem" Width="100%" />
+            <BitShimmer Height="3.5rem" Width="100%" />
+            <BitShimmer Height="3.5rem" Width="100%" />
+            <BitShimmer Height="3.5rem" Width="100%" />
+            <BitShimmer Height="3.5rem" Width="100%" />
+        </BitStack>
+    }
+    else if (_loadError is not null)
+    {
+        <BitCallout Class="page-callout error">@_loadError</BitCallout>
+    }
+    else
+    {
+        <BitAccordionList TItem="BitAccordionListOption"
+                          HeadingLevel="2"
+                          @bind-ExpandedKey="_expandedSection"
+                          ScrollIntoViewOnExpand
+                          Background="BitColorKind.Secondary"
+                          Border="BitColorKind.Transparent">
+
+            <BitAccordionListOption Key="general"
+                                    Title="基础与站点"
+                                    Description="配置系统名称、页脚文案、默认语言时区与全局系统公告">
+                <div class="sys-section-body">
+                    <div class="sys-settings-grid">
+                        <BitTextField @bind-Value="_model.SystemName"
+                                      Label="系统名称"
+                                      Placeholder="例如：BlazorBoilerplate 平台"
+                                      Required />
+
+                        <BitTextField @bind-Value="_model.FooterText"
+                                      Label="页脚文案"
+                                      Placeholder="侧边栏底部展示文案" />
+
+                        <BitDropdown @bind-Value="_model.DefaultCulture"
+                                     Label="默认语言"
+                                     Items="_cultureItems" />
+
+                        <BitDropdown @bind-Value="_model.DefaultTimeZone"
+                                     Label="默认时区"
+                                     Items="_timeZoneItems" />
+
+                        <div class="sys-full">
+                            <BitTextField @bind-Value="_model.Notice"
+                                          Label="全局系统公告"
+                                          Multiline
+                                          Rows="3"
+                                          Placeholder="留空则不显示公告横幅" />
+                        </div>
+                    </div>
+                </div>
+            </BitAccordionListOption>
+
+            <BitAccordionListOption Key="security"
+                                    Title="登录与安全"
+                                    Description="控制开放注册、邮箱验证、密码强度、多设备会话上限与 Token 有效期">
+                <div class="sys-section-body">
+                    <div class="sys-settings-grid">
+                        <BitToggle @bind-Value="_model.RegisterEnabled"
+                                   Label="允许开放注册"
+                                   OnText="已开启"
+                                   OffText="已关闭" />
+
+                        <BitToggle @bind-Value="_model.EmailVerificationRequired"
+                                   Label="注册需要邮箱验证"
+                                   OnText="需要验证"
+                                   OffText="免验证" />
+
+                        <BitNumberField @bind-Value="_model.PasswordMinLength"
+                                        Label="密码最小长度"
+                                        Min="4"
+                                        Max="64"
+                                        ShowButtons />
+
+                        <BitNumberField @bind-Value="_model.MaxSessionsPerUser"
+                                        Label="单用户最大同时在线会话数"
+                                        Min="1"
+                                        Max="100"
+                                        ShowButtons />
+
+                        <BitNumberField @bind-Value="_model.AccessTokenMinutes"
+                                        Label="Access Token 有效期（分钟）"
+                                        Min="5"
+                                        Max="43200"
+                                        ShowButtons />
+                    </div>
+                </div>
+            </BitAccordionListOption>
+
+            <BitAccordionListOption Key="smtp"
+                                    Title="邮件服务 (SMTP)"
+                                    Description="配置发信服务器、端口、认证凭据并支持即时发送测试邮件">
+                <div class="sys-section-body">
+                    <div class="sys-settings-grid">
+                        <BitTextField @bind-Value="_model.SmtpHost"
+                                      Label="SMTP 服务器"
+                                      Placeholder="例如：smtp.qq.com" />
+
+                        <BitNumberField @bind-Value="_model.SmtpPort"
+                                        Label="SMTP 端口"
+                                        Min="1"
+                                        Max="65535"
+                                        ShowButtons />
+
+                        <BitTextField @bind-Value="_model.SmtpUserName"
+                                      Label="SMTP 用户名"
+                                      Placeholder="发件邮箱账号" />
+
+                        <BitTextField @bind-Value="_model.SmtpPassword"
+                                      Label="SMTP 密码 / 授权码"
+                                      Type="BitInputType.Password"
+                                      CanRevealPassword
+                                      Placeholder="保持 ****** 或留空表示不修改" />
+
+                        <BitTextField @bind-Value="_model.SmtpFromEmail"
+                                      Label="默认发件人邮箱"
+                                      Placeholder="noreply@example.com" />
+
+                        <BitTextField @bind-Value="_model.SmtpFromName"
+                                      Label="默认发件人名称"
+                                      Placeholder="BlazorBoilerplate" />
+
+                        <BitToggle @bind-Value="_model.SmtpEnableSsl"
+                                   Label="启用 SSL / TLS"
+                                   OnText="启用"
+                                   OffText="禁用" />
+
+                        <div class="sys-full sys-test-mail-row">
+                            <div style="flex:1;min-width:240px;">
+                                <BitTextField @bind-Value="_testEmailTo"
+                                              Label="测试收件人邮箱"
+                                              Placeholder="输入邮箱后先保存或直接测试" />
+                            </div>
+                            <BitButton Variant="BitVariant.Outline"
+                                       IconName="@BitIconName.Send"
+                                       IsLoading="_sendingTest"
+                                       OnClick="SendTestEmailAsync">
+                                发送测试邮件
+                            </BitButton>
+                        </div>
+                    </div>
+                </div>
+            </BitAccordionListOption>
+
+            <BitAccordionListOption Key="storage"
+                                    Title="存储与附件"
+                                    Description="配置本地磁盘或 S3 / MinIO 对象存储、单文件大小上限与扩展名白名单">
+                <div class="sys-section-body">
+                    <div class="sys-settings-grid">
+                        <BitDropdown @bind-Value="_model.StorageProvider"
+                                     Label="存储方式"
+                                     Items="_storageItems" />
+
+                        <BitNumberField @bind-Value="_model.MaxUploadSizeMb"
+                                        Label="单文件上传上限（MB）"
+                                        Min="1"
+                                        Max="512"
+                                        ShowButtons />
+
+                        @if (_model.StorageProvider == "S3")
+                        {
+                            <BitTextField @bind-Value="_model.S3Endpoint"
+                                          Label="S3 / MinIO Endpoint"
+                                          Placeholder="http://127.0.0.1:9000" />
+
+                            <BitTextField @bind-Value="_model.S3Bucket"
+                                          Label="Bucket 名称"
+                                          Placeholder="blazorboilerplate-modules" />
+
+                            <BitTextField @bind-Value="_model.S3Region"
+                                          Label="Region"
+                                          Placeholder="us-east-1" />
+
+                            <BitTextField @bind-Value="_model.S3AccessKey"
+                                          Label="AccessKey" />
+
+                            <BitTextField @bind-Value="_model.S3SecretKey"
+                                          Label="SecretKey"
+                                          Type="BitInputType.Password"
+                                          CanRevealPassword
+                                          Placeholder="保持 ****** 或留空表示不修改" />
+                        }
+
+                        <div class="sys-full">
+                            <BitTextField @bind-Value="_model.AllowedExtensions"
+                                          Label="允许上传的扩展名白名单（逗号分隔）"
+                                          Placeholder=".jpg,.jpeg,.png,.pdf,.zip" />
+                        </div>
+                    </div>
+                </div>
+            </BitAccordionListOption>
+
+            <BitAccordionListOption Key="runtime"
+                                    Title="模块运行时"
+                                    Description="控制动态模块启动自动加载、SHA-256 校验与停用排空超时">
+                <div class="sys-section-body">
+                    <div class="sys-settings-grid">
+                        <BitToggle @bind-Value="_model.AutoLoadOnStartup"
+                                   Label="启动时自动加载已启用模块"
+                                   OnText="自动加载"
+                                   OffText="手动加载" />
+
+                        <BitToggle @bind-Value="_model.VerifyChecksum"
+                                   Label="强制校验模块包 SHA-256"
+                                   OnText="严格校验"
+                                   OffText="跳过校验" />
+
+                        <BitNumberField @bind-Value="_model.DrainTimeoutSeconds"
+                                        Label="模块停用排空超时（秒）"
+                                        Min="1"
+                                        Max="300"
+                                        ShowButtons />
+                    </div>
+                </div>
+            </BitAccordionListOption>
+
+        </BitAccordionList>
+
+        <div class="sys-settings-footer">
+            @if (_model.UpdatedAtUtc is { } updatedAt)
+            {
+                <BitText Typography="BitTypography.Caption1" Color="BitColor.SecondaryForeground">
+                    上次保存：@updatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                </BitText>
+                <BitSpacer />
+            }
+            <BitButton Variant="BitVariant.Outline"
+                       IconName="@BitIconName.Refresh"
+                       Disabled="_saving"
+                       OnClick="LoadAsync">
+                重置 / 刷新
+            </BitButton>
+            <BitButton Color="BitColor.Primary"
+                       IconName="@BitIconName.Save"
+                       IsLoading="_saving"
+                       OnClick="SaveAsync">
+                保存设置
+            </BitButton>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string? Section { get; set; }
+
+    private string? _expandedSection = "general";
+    private bool _loading = true;
+    private bool _saving;
+    private bool _sendingTest;
+    private string? _loadError;
+    private string _testEmailTo = string.Empty;
+    private SystemSettingsDto _model = new();
+
+    private readonly List<BitDropdownItem<string>> _cultureItems =
+    [
+        new() { Text = "简体中文 (zh-CN)", Value = "zh-CN" },
+        new() { Text = "English (en-US)", Value = "en-US" },
+        new() { Text = "日本語 (ja-JP)", Value = "ja-JP" },
+        new() { Text = "Deutsch (de-DE)", Value = "de-DE" }
+    ];
+
+    private readonly List<BitDropdownItem<string>> _timeZoneItems =
+    [
+        new() { Text = "(UTC+08:00) 北京 / 上海", Value = "Asia/Shanghai" },
+        new() { Text = "(UTC+00:00) UTC", Value = "UTC" },
+        new() { Text = "(UTC+09:00) 东京", Value = "Asia/Tokyo" },
+        new() { Text = "(UTC+00:00) 伦敦", Value = "Europe/London" },
+        new() { Text = "(UTC+01:00) 柏林 / 巴黎", Value = "Europe/Berlin" },
+        new() { Text = "(UTC-05:00) 纽约", Value = "America/New_York" },
+        new() { Text = "(UTC+10:00) 悉尼", Value = "Australia/Sydney" }
+    ];
+
+    private readonly List<BitDropdownItem<string>> _storageItems =
+    [
+        new() { Text = "本地磁盘 (Local)", Value = "Local" },
+        new() { Text = "对象存储 (S3 / MinIO)", Value = "S3" }
+    ];
+
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrWhiteSpace(Section))
+            _expandedSection = Section.Trim().ToLowerInvariant();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Account.EnsureLoadedAsync();
+        if (string.IsNullOrWhiteSpace(_testEmailTo) && Account.CurrentUser is { } user)
+            _testEmailTo = user.Email;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _loadError = null;
+        try
+        {
+            _model = await Api.GetSystemSettingsAsync();
+        }
+        catch (Exception ex)
+        {
+            _loadError = $"读取系统设置失败：{ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        var prevCulture = SysState.Public.DefaultCulture;
+        var prevTimeZone = SysState.Public.DefaultTimeZone;
+        try
+        {
+            _model = await Api.UpdateSystemSettingsAsync(_model);
+            SysState.ApplyUpdated(_model);
+
+            // 若当前用户仍处于旧的系统默认语言/时区，同步跟随新的系统默认值
+            var prefs = await Preferences.GetAsync();
+            var nextCulture = string.Equals(prefs.Culture, prevCulture, StringComparison.OrdinalIgnoreCase)
+                ? _model.DefaultCulture
+                : prefs.Culture;
+            var nextTimeZone = string.Equals(prefs.TimeZone, prevTimeZone, StringComparison.OrdinalIgnoreCase)
+                ? _model.DefaultTimeZone
+                : prefs.TimeZone;
+            if (nextCulture != prefs.Culture || nextTimeZone != prefs.TimeZone)
+                await Preferences.SetAsync(prefs with { Culture = nextCulture, TimeZone = nextTimeZone });
+
+            Toast.Success("系统设置已保存并生效。");
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"保存系统设置失败：{ex.Message}");
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task SendTestEmailAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_testEmailTo) || !_testEmailTo.Contains('@'))
+        {
+            Toast.Warning("请输入有效的测试收件人邮箱。");
+            return;
+        }
+
+        _sendingTest = true;
+        try
+        {
+            await Api.SendTestSmtpEmailAsync(_testEmailTo.Trim());
+            Toast.Success($"测试邮件已发送至 {_testEmailTo.Trim()}。");
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"测试邮件发送失败：{ex.Message}");
+        }
+        finally
+        {
+            _sendingTest = false;
+        }
+    }
+}

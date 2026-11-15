@@ -1,4 +1,5 @@
 using BlazorBoilerplate.ApiHost.Auth;
+using BlazorBoilerplate.ApiHost.Services;
 using BlazorBoilerplate.Application.Attachments;
 using BlazorBoilerplate.Domain.Attachments;
 using BlazorBoilerplate.Infrastructure.Attachments;
@@ -24,6 +25,7 @@ public sealed class AttachmentController(
     IAttachmentStorage storage,
     IAttachmentMetadataStore metadataStore,
     AttachmentStorageOptions options,
+    SystemSettingsStore settings,
     ILogger<AttachmentController> logger)
     : AppControllerBase(db, tokens, factory), IAttachmentController
 {
@@ -68,7 +70,7 @@ public sealed class AttachmentController(
     }
 
     [HttpPost]
-    [RequestSizeLimit(MaxUploadSizeBytes)]
+    [RequestSizeLimit(512L * 1024 * 1024)]
     public async Task<ActionResult<AttachmentDto>> Upload(
         IFormFile? file,
         [FromForm] AttachmentKind kind = AttachmentKind.General,
@@ -84,7 +86,7 @@ public sealed class AttachmentController(
     }
 
     [HttpPost]
-    [RequestSizeLimit(MaxUploadSizeBytes)]
+    [RequestSizeLimit(512L * 1024 * 1024)]
     public async Task<ActionResult<AttachmentDto>> UploadUserProfilePicture(
         IFormFile? file,
         CancellationToken cancellationToken = default)
@@ -136,7 +138,11 @@ public sealed class AttachmentController(
         if (file is null || file.Length <= 0)
             return BadRequest(new { error = "请选择要上传的非空文件。" });
 
-        var maxBytes = options.MaxUploadSizeBytes > 0 ? options.MaxUploadSizeBytes : MaxUploadSizeBytes;
+        var rawSettings = settings.GetRaw();
+        var configuredMb = rawSettings.MaxUploadSizeMb;
+        var maxBytes = configuredMb > 0
+            ? (long)configuredMb * 1024 * 1024
+            : (options.MaxUploadSizeBytes > 0 ? options.MaxUploadSizeBytes : MaxUploadSizeBytes);
         if (file.Length > maxBytes)
             return BadRequest(new { error = $"文件大小不能超过 {maxBytes / (1024 * 1024)} MB。" });
 
@@ -145,19 +151,35 @@ public sealed class AttachmentController(
             return BadRequest(new { error = "文件名无效。" });
 
         var ext = Path.GetExtension(rawFileName);
-        var allowedMap = kind is AttachmentKind.UserProfileImage or AttachmentKind.ProductPrimaryImage
-            ? AllowedImageContentTypes
-            : AllowedGeneralContentTypes;
-
-        if (string.IsNullOrWhiteSpace(ext) || !allowedMap.TryGetValue(ext, out var resolvedContentType))
-        {
-            var hint = kind is AttachmentKind.UserProfileImage or AttachmentKind.ProductPrimaryImage
-                ? "仅支持 jpg/jpeg/png/webp/gif/bmp 图片格式。"
-                : "不支持该文件格式。";
-            return BadRequest(new { error = hint });
-        }
+        if (string.IsNullOrWhiteSpace(ext))
+            return BadRequest(new { error = "文件缺少扩展名。" });
 
         var normalizedExt = ext.ToLowerInvariant();
+        var whitelist = ParseAllowedExtensions(rawSettings.AllowedExtensions);
+
+        string resolvedContentType;
+        if (kind is AttachmentKind.UserProfileImage or AttachmentKind.ProductPrimaryImage)
+        {
+            if (!AllowedImageContentTypes.TryGetValue(normalizedExt, out resolvedContentType!)
+                || (whitelist.Count > 0 && !whitelist.Contains(normalizedExt)))
+            {
+                return BadRequest(new { error = $"不支持的图片格式（{normalizedExt}）。" });
+            }
+        }
+        else if (whitelist.Count > 0)
+        {
+            if (!whitelist.Contains(normalizedExt))
+                return BadRequest(new { error = $"不支持该文件格式（{normalizedExt}），允许的扩展名：{rawSettings.AllowedExtensions}" });
+
+            resolvedContentType = AllowedGeneralContentTypes.TryGetValue(normalizedExt, out var knownCt)
+                ? knownCt
+                : (string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType);
+        }
+        else if (!AllowedGeneralContentTypes.TryGetValue(normalizedExt, out resolvedContentType!))
+        {
+            return BadRequest(new { error = "不支持该文件格式。" });
+        }
+
         var storageKey = BuildStorageKey(attachmentId, kind, normalizedExt);
         var kindInt = (int)kind;
 
@@ -215,6 +237,20 @@ public sealed class AttachmentController(
 
         await storage.DeleteAsync(entity.Path, cancellationToken);
         await metadataStore.DeleteAsync(attachmentId, kindInt, cancellationToken);
+    }
+
+    private static HashSet<string> ParseAllowedExtensions(string? raw)
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(raw))
+            return set;
+
+        foreach (var token in raw.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var normalized = token.StartsWith('.') ? token.ToLowerInvariant() : $".{token.ToLowerInvariant()}";
+            set.Add(normalized);
+        }
+        return set;
     }
 
     private static string BuildStorageKey(Guid attachmentId, AttachmentKind kind, string normalizedExtension)

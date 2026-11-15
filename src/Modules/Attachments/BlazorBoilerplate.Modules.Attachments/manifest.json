@@ -2,7 +2,7 @@
   "id": "attachments",
   "name": "Attachments",
   "displayName": "附件管理",
-  "version": "1.0.6",
+  "version": "1.0.8",
   "publisher": "BlazorBoilerplate",
   "entryAssembly": "BlazorBoilerplate.Modules.Attachments.dll",
   "entryType": "BlazorBoilerplate.Modules.Attachments.AttachmentsModule",

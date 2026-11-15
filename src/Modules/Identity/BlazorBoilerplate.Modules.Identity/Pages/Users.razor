@@ -122,7 +122,7 @@
 <BlazorBoilerplateModal @bind-IsOpen="_resetPwDialogOpen"
             Title="重置密码" OkText="重置" OnOk="ResetPasswordAsync">
     <div class="id-form">
-        <BitTextField @bind-Value="ResetPw" Label="新密码（至少 6 位）*" />
+        <BitTextField @bind-Value="ResetPw" Label="@($"新密码（至少 {_passwordMinLength} 位）*")" />
     </div>
 </BlazorBoilerplateModal>
 
@@ -156,8 +156,19 @@
     private string EditEmail = string.Empty;
     private string? EditDisplayName;
     private string ResetPw = string.Empty;
+    private int _passwordMinLength = 6;
 
-    protected override async Task OnInitializedAsync() => await RefreshAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var pub = await Api.GetPublicSystemSettingsAsync();
+            if (pub.PasswordMinLength > 0)
+                _passwordMinLength = pub.PasswordMinLength;
+        }
+        catch { /* 失败时保留默认值 */ }
+        await RefreshAsync();
+    }
 
     private void ResetCreateForm()
     {

@@ -226,6 +226,14 @@
         background: rgba(16, 124, 16, 0.1);
     }
 
+    .att-dropzone-content {
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        line-height: 1.5;
+    }
+
     .att-kpi-icon.is-other {
         color: #8a5100;
         background: rgba(180, 110, 0, 0.1);
@@ -245,7 +253,7 @@
 
 <BitCallout Class="page-callout">
     <BitText Element="h1" Class="page-title">附件管理</BitText>
-    <BitText Class="muted">支持多文件拖拽上传、按文件名检索、页内大图预览、链接复制与安全删除（单文件上限 11 MB）。</BitText>
+    <BitText Class="muted">支持多文件拖拽上传、按文件名检索、页内大图预览、链接复制与安全删除（当前存储：@_storageLabel，单文件上限 @_maxUploadSizeMb MB）。</BitText>
 </BitCallout>
 
 <div class="bb-toolbar">
@@ -397,12 +405,13 @@ else
             <InputFile @key="_inputKey"
                        id="att-file-input"
                        OnChange="HandleFilesSelectedAsync"
+                       accept="@AcceptExtensions"
                        multiple
                        disabled="@_uploading" />
             <div class="att-dropzone-content">
                 <BitIcon IconName="CloudUpload" Size="BitSize.Large" Color="BitColor.Primary" />
                 <BitText Typography="BitTypography.Subtitle1">点击选择或拖拽文件到此处</BitText>
-                <BitText Typography="BitTypography.Caption1" Class="muted">支持多选（最多 10 个）· 图片 / PDF / 文档 / ZIP · 单文件最大 11 MB</BitText>
+                <BitText Typography="BitTypography.Caption1" Class="muted">支持多选（最多 10 个）· 允许格式：@AllowedExtensionsDisplay · 单文件最大 @_maxUploadSizeMb MB</BitText>
             </div>
         </label>
 
@@ -452,8 +461,18 @@ else
                         OnOk="ExecuteDeleteAsync" />
 
 @code {
-    private const long MaxUploadSizeBytes = 11 * 1024 * 1024;
     private const int MaxFilesPerBatch = 10;
+    private int _maxUploadSizeMb = 11;
+    private string _allowedExtensions = ".jpg,.jpeg,.png,.webp,.gif,.bmp,.pdf,.txt,.md,.json,.csv,.zip,.doc,.docx,.xls,.xlsx";
+    private string _storageProvider = "Local";
+    private long MaxUploadSizeBytes => (long)_maxUploadSizeMb * 1024 * 1024;
+    private string _storageLabel => string.Equals(_storageProvider, "S3", StringComparison.OrdinalIgnoreCase) ? "S3 / MinIO" : "本地磁盘";
+    private string AcceptExtensions => _uploadKind is AttachmentKind.UserProfileImage or AttachmentKind.ProductPrimaryImage
+        ? ".jpg,.jpeg,.png,.webp,.gif,.bmp"
+        : _allowedExtensions;
+    private string AllowedExtensionsDisplay => string.IsNullOrWhiteSpace(_allowedExtensions)
+        ? "图片 / PDF / 文档 / ZIP"
+        : string.Join(", ", AcceptExtensions.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 
     private sealed record PendingUploadFile(string Name, string ContentType, long Size, byte[]? Bytes, bool TooLarge);
 
@@ -482,7 +501,29 @@ else
         ? _items
         : _items.Where(x => x.FileName.Contains(_searchText.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshUploadLimitAsync();
+        await LoadAsync();
+    }
+
+    private async Task RefreshUploadLimitAsync()
+    {
+        try
+        {
+            var settings = await Api.GetPublicSystemSettingsAsync();
+            if (settings.MaxUploadSizeMb > 0)
+                _maxUploadSizeMb = settings.MaxUploadSizeMb;
+            if (!string.IsNullOrWhiteSpace(settings.AllowedExtensions))
+                _allowedExtensions = settings.AllowedExtensions;
+            if (!string.IsNullOrWhiteSpace(settings.StorageProvider))
+                _storageProvider = settings.StorageProvider;
+        }
+        catch
+        {
+            // 获取失败时保留当前或默认上限
+        }
+    }
 
     private async Task LoadAsync()
     {
@@ -566,7 +607,7 @@ else
             {
                 if (file.TooLarge || file.Bytes is null)
                 {
-                    Toast.Warning($"“{file.Name}”超过 11 MB 上限，已跳过。");
+                    Toast.Warning($"“{file.Name}”超过 {_maxUploadSizeMb} MB 上限，已跳过。");
                     _uploadDone++;
                     continue;
                 }
@@ -603,8 +644,9 @@ else
         }
     }
 
-    private void OpenUploadModal()
+    private async Task OpenUploadModal()
     {
+        await RefreshUploadLimitAsync();
         _pendingFiles.Clear();
         _inputKey++;
         _uploadOpen = true;

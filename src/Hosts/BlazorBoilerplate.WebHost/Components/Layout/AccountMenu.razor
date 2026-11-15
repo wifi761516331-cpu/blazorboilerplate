@@ -263,6 +263,7 @@
     protected override async Task OnInitializedAsync()
     {
         Account.Changed += HandleAccountChanged;
+        Preferences.Changed += HandlePreferencesChanged;
         await Account.EnsureLoadedAsync();
 
         var prefs = await Preferences.GetAsync();
@@ -307,9 +308,22 @@
 
     private void HandleAccountChanged() => _ = InvokeAsync(StateHasChanged);
 
+    private void HandlePreferencesChanged() => _ = InvokeAsync(async () =>
+    {
+        var prefs = await Preferences.GetAsync();
+        _culture = prefs.Culture;
+        _timeZone = prefs.TimeZone;
+        _notifications = prefs.NotificationsEnabled;
+        if (_timeZoneOptions.All(z => z.Id != _timeZone))
+            _timeZoneOptions.Insert(0, (_timeZone, _timeZone));
+        ApplyZoneNow();
+        StateHasChanged();
+    });
+
     public void Dispose()
     {
         Account.Changed -= HandleAccountChanged;
+        Preferences.Changed -= HandlePreferencesChanged;
         _clockCts?.Cancel();
         _clockCts?.Dispose();
     }

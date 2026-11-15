@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using BlazorBoilerplate.ApiHost.Services;
 
 namespace BlazorBoilerplate.ApiHost.Auth;
 
@@ -17,9 +18,11 @@ public sealed class JwtTokenService
     private readonly byte[] _key;
     private readonly int _accessSeconds;
     private readonly int _refreshDays;
+    private readonly SystemSettingsStore _settings;
 
-    public JwtTokenService(IHostEnvironment environment, IConfiguration configuration)
+    public JwtTokenService(IHostEnvironment environment, IConfiguration configuration, SystemSettingsStore settings)
     {
+        _settings = settings;
         _accessSeconds = configuration.GetValue("Auth:AccessTokenLifetimeSeconds", 120);
         _refreshDays = configuration.GetValue("Auth:RefreshTokenLifetimeDays", 7);
 
@@ -44,7 +47,15 @@ public sealed class JwtTokenService
         }
     }
 
-    public int AccessTokenLifetimeSeconds => _accessSeconds;
+    public int AccessTokenLifetimeSeconds
+    {
+        get
+        {
+            var minutes = _settings.GetRaw().AccessTokenMinutes;
+            return minutes > 0 ? minutes * 60 : _accessSeconds;
+        }
+    }
+
     public int RefreshTokenLifetimeDays => _refreshDays;
 
     /// <summary>签发 access token（claims 携带 roles/perms，供 ApiHost 授权与 WebHost UI 直接使用）。</summary>
@@ -64,7 +75,7 @@ public sealed class JwtTokenService
             ["perms"] = permissions,
             ["typ"] = AccessType,
             ["iat"] = now.ToUnixTimeSeconds(),
-            ["exp"] = now.AddSeconds(_accessSeconds).ToUnixTimeSeconds()
+            ["exp"] = now.AddSeconds(AccessTokenLifetimeSeconds).ToUnixTimeSeconds()
         };
         return Encode(payload);
     }

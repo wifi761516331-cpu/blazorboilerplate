@@ -11,7 +11,10 @@ namespace BlazorBoilerplate.WebHost.Services;
 /// 再兜底默认值。写操作先落地本地并即时 apply，再「尽力」同步服务端；
 /// 服务端不可用时只保留本地、不抛致命错误（原因记在 <see cref="LastServerError"/>）。
 /// </summary>
-public sealed class UserPreferences(IJSRuntime js, BlazorBoilerplateApiClient api)
+public sealed class UserPreferences(
+    IJSRuntime js,
+    BlazorBoilerplateApiClient api,
+    SystemSettingsState sysSettings)
 {
     private const string DeviceInfo = "browser";
 
@@ -20,20 +23,28 @@ public sealed class UserPreferences(IJSRuntime js, BlazorBoilerplateApiClient ap
 
     private UserPreferenceDto? _cached;
 
+    /// <summary>偏好变更通知（供顶栏 AccountMenu 等组件实时同步）。</summary>
+    public event Action? Changed;
+
     /// <summary>最近一次服务端同步失败的原因（本地仍生效）；null 表示成功或尚未同步。</summary>
     public string? LastServerError { get; private set; }
 
-    /// <summary>读取偏好：blazorPrefs.get() → Api.GetPreferencesAsync() → 默认值。</summary>
+    /// <summary>读取偏好：blazorPrefs.get() → Api.GetPreferencesAsync() → 系统默认设置。</summary>
     public async Task<UserPreferenceDto> GetAsync()
     {
         if (_cached is not null) return _cached;
+
+        await sysSettings.EnsureLoadedAsync();
+        var fallbackDefaults = new UserPreferenceDto(
+            Culture: string.IsNullOrWhiteSpace(sysSettings.Public.DefaultCulture) ? Defaults.Culture : sysSettings.Public.DefaultCulture,
+            TimeZone: string.IsNullOrWhiteSpace(sysSettings.Public.DefaultTimeZone) ? Defaults.TimeZone : sysSettings.Public.DefaultTimeZone);
 
         UserPreferenceDto? value = null;
         try
         {
             var payload = await js.InvokeAsync<PrefsPayload?>("blazorPrefs.get");
             if (payload is not null && HasAny(payload))
-                value = Merge(Defaults, payload);
+                value = Merge(fallbackDefaults, payload);
         }
         catch
         {
@@ -48,11 +59,11 @@ public sealed class UserPreferences(IJSRuntime js, BlazorBoilerplateApiClient ap
             }
             catch
             {
-                // 服务端不可用：使用默认值。
+                // 服务端不可用：使用系统默认设置。
             }
         }
 
-        _cached = value ?? Defaults;
+        _cached = value ?? fallbackDefaults;
         return _cached;
     }
 
@@ -64,6 +75,7 @@ public sealed class UserPreferences(IJSRuntime js, BlazorBoilerplateApiClient ap
     {
         _cached = value;
         LastServerError = null;
+        Changed?.Invoke();
 
         // 1) 本地：持久化 + 即时改 DOM / culture cookie。
         try

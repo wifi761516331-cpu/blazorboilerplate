@@ -5,6 +5,7 @@ using BlazorBoilerplate.Application.OData;
 using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.Shared.Features.Account;
 using BlazorBoilerplate.Shared.Features.Attachments;
+using BlazorBoilerplate.Shared.Features.SystemSettings;
 using BlazorBoilerplate.Shared.Features.Identity;
 
 namespace BlazorBoilerplate.Web.Shared.Services;
@@ -356,6 +357,33 @@ public sealed class BlazorBoilerplateApiClient(HttpClient http)
         var qs = BuildQueryString(query);
         var response = await http.GetAsync($"{relativeUrl}{qs}", cancellationToken);
         return await ReadOrThrowAsync<ODataPage<T>>(response, cancellationToken);
+    }
+
+    // ---- 系统设置 ----
+
+    public async Task<PublicSystemSettingsDto> GetPublicSystemSettingsAsync(CancellationToken cancellationToken = default) =>
+        await ReadOrThrowAsync<PublicSystemSettingsDto>(
+            await http.GetAsync("api/v1/SystemSettings/GetPublic", cancellationToken),
+            cancellationToken);
+
+    public async Task<SystemSettingsDto> GetSystemSettingsAsync(CancellationToken cancellationToken = default) =>
+        await ReadOrThrowAsync<SystemSettingsDto>(
+            await http.GetAsync("api/v1/SystemSettings/Get", cancellationToken),
+            cancellationToken);
+
+    public async Task<SystemSettingsDto> UpdateSystemSettingsAsync(SystemSettingsDto request, CancellationToken cancellationToken = default) =>
+        await ReadOrThrowAsync<SystemSettingsDto>(
+            await http.PutAsJsonAsync("api/v1/SystemSettings/Update", request, JsonOptions, cancellationToken),
+            cancellationToken);
+
+    public async Task SendTestSmtpEmailAsync(string toEmail, CancellationToken cancellationToken = default)
+    {
+        var response = await http.PostAsJsonAsync(
+            "api/v1/SystemSettings/SendTestEmail",
+            new SendTestSmtpRequestDto(toEmail),
+            JsonOptions,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     private static string BuildQueryString(ODataQuery query)

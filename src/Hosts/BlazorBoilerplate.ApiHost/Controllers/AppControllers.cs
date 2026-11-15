@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using BlazorBoilerplate.ApiHost.Auth;
+using BlazorBoilerplate.ApiHost.Services;
 using BlazorBoilerplate.Application.Abstractions;
 using BlazorBoilerplate.Infrastructure.Email;
 using BlazorBoilerplate.Modules.Identity.Domain;
@@ -48,7 +49,11 @@ public abstract class AppControllerBase(
 /// <summary>登录 / 无感刷新 / 吊销 refresh token / 支持语言。</summary>
 [ApiController, AllowAnonymous]
 [Route("api/v1/[controller]/[action]")]
-public sealed class IdentityController(IdentityDbContext db, JwtTokenService tokens, CurrentUserFactory factory)
+public sealed class IdentityController(
+    IdentityDbContext db,
+    JwtTokenService tokens,
+    CurrentUserFactory factory,
+    SystemSettingsStore settings)
     : AppControllerBase(db, tokens, factory), IIdentityController
 {
     private static readonly string[] Cultures = ["zh-CN", "en-US", "ja-JP", "de-DE", "fr-FR", "ko-KR"];
@@ -62,8 +67,22 @@ public sealed class IdentityController(IdentityDbContext db, JwtTokenService tok
         if (user is null || !user.IsActive || !PasswordHasher.Verify(request.Password ?? string.Empty, user.PasswordHash))
             throw new UnauthorizedAccessException("账号或密码不正确，或账号已停用。");
 
+        var sys = settings.GetRaw();
+        if (sys.MaxSessionsPerUser > 0)
+        {
+            var activeSessions = await Db.UserSessions
+                .Where(s => s.UserId == user.Id && s.RevokedAtUtc == null)
+                .OrderBy(s => s.StartedOnUtc)
+                .ToListAsync(cancellationToken);
+            var excess = activeSessions.Count - (sys.MaxSessionsPerUser - 1);
+            for (var i = 0; i < excess; i++)
+                activeSessions[i].Revoke();
+        }
+
         Guid? tenantId = Guid.TryParse(request.TenantId, out var tid) ? tid : null;
-        var session = UserSession.Create(user.Id, tenantId, ClientIp, "Blazor Server", "zh-CN", "Asia/Shanghai", false, null);
+        var defaultCulture = string.IsNullOrWhiteSpace(sys.DefaultCulture) ? "zh-CN" : sys.DefaultCulture;
+        var defaultTimeZone = string.IsNullOrWhiteSpace(sys.DefaultTimeZone) ? "Asia/Shanghai" : sys.DefaultTimeZone;
+        var session = UserSession.Create(user.Id, tenantId, ClientIp, "Blazor Server", defaultCulture, defaultTimeZone, false, null);
         Db.UserSessions.Add(session);
 
         var refresh = Tokens.IssueRefreshToken(user.Id, session.Id, tenantId);
@@ -173,8 +192,10 @@ public sealed class UserController(IdentityDbContext db, JwtTokenService tokens,
         var user = await RequireUserAsync(cancellationToken);
         if (!PasswordHasher.Verify(request.OldPassword ?? string.Empty, user.PasswordHash))
             throw new InvalidOperationException("原密码不正确。");
-        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
-            throw new InvalidOperationException("新密码至少 6 位。");
+        var minLen = HttpContext.RequestServices.GetService<BlazorBoilerplate.ApiHost.Services.SystemSettingsStore>()
+            ?.GetRaw().PasswordMinLength ?? 6;
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < minLen)
+            throw new InvalidOperationException($"新密码至少 {minLen} 位。");
         user.SetPassword(PasswordHasher.Hash(request.NewPassword));
         await Db.SaveChangesAsync(cancellationToken);
     }
@@ -377,16 +398,24 @@ public sealed class TenantController(
 /// <summary>用户偏好（Bluebird 主要放设备端，这里额外做服务端跨设备同步）。</summary>
 [ApiController, Authorize]
 [Route("api/v1/[controller]/[action]")]
-public sealed class UserPreferenceController(IdentityDbContext db, JwtTokenService tokens, CurrentUserFactory factory)
+public sealed class UserPreferenceController(
+    IdentityDbContext db,
+    JwtTokenService tokens,
+    CurrentUserFactory factory,
+    SystemSettingsStore settings)
     : AppControllerBase(db, tokens, factory), IUserPreferenceController
 {
     [HttpGet]
     public async Task<UserPreferenceDto> Get(CancellationToken cancellationToken)
     {
         var row = await Db.UserPreferences.AsNoTracking().FirstOrDefaultAsync(p => p.UserId == UserId, cancellationToken);
-        return row is null
-            ? new UserPreferenceDto()
-            : new UserPreferenceDto(row.Culture, row.TimeZone, row.Theme, row.AccentColor, row.NotificationsEnabled);
+        if (row is not null)
+            return new UserPreferenceDto(row.Culture, row.TimeZone, row.Theme, row.AccentColor, row.NotificationsEnabled);
+
+        var raw = settings.GetRaw();
+        return new UserPreferenceDto(
+            Culture: string.IsNullOrWhiteSpace(raw.DefaultCulture) ? "zh-CN" : raw.DefaultCulture,
+            TimeZone: string.IsNullOrWhiteSpace(raw.DefaultTimeZone) ? "Asia/Shanghai" : raw.DefaultTimeZone);
     }
 
     [HttpPost]
@@ -417,6 +446,7 @@ public sealed class NotificationController(
     CurrentUserFactory factory,
     IEmailSender emailSender,
     ISmtpSettingsProvider smtpSettingsProvider,
+    SystemSettingsStore settings,
     ILogger<NotificationController> logger)
     : AppControllerBase(db, tokens, factory), INotificationController
 {
@@ -454,7 +484,8 @@ public sealed class NotificationController(
         var enabled = await Db.UserPreferences.AsNoTracking()
             .Where(p => p.UserId == UserId).Select(p => p.NotificationsEnabled).FirstOrDefaultAsync(cancellationToken);
         if (!enabled) throw new InvalidOperationException("请先开启通知。");
-        var item = Notification.Create(UserId, "测试通知", "这是一条来自 BlazorBoilerplate 的测试通知。", "/notifications");
+        var siteName = settings.GetRaw().SystemName;
+        var item = Notification.Create(UserId, "测试通知", $"这是一条来自 {siteName} 的测试通知。", "/notifications");
         Db.Notifications.Add(item);
         await Db.SaveChangesAsync(cancellationToken);
 
@@ -468,8 +499,9 @@ public sealed class NotificationController(
                     var body = EmailTemplateBuilder.BuildNotificationEmail(
                         title: item.Title,
                         message: item.Message,
-                        recipientName: user.DisplayName);
-                    await emailSender.SendAsync(user.Email, $"[{nameof(BlazorBoilerplate)}] {item.Title}", body, cancellationToken);
+                        recipientName: user.DisplayName,
+                        appName: siteName);
+                    await emailSender.SendAsync(user.Email, $"[{siteName}] {item.Title}", body, cancellationToken);
                 }
                 catch (Exception ex)
                 {
@@ -490,17 +522,19 @@ public sealed class NotificationController(
         if (string.IsNullOrWhiteSpace(toEmail) || !toEmail.Contains('@'))
             throw new InvalidOperationException("请提供有效的收件人邮箱地址。");
 
+        var siteName = settings.GetRaw().SystemName;
         var subject = string.IsNullOrWhiteSpace(request.Subject)
-            ? "BlazorBoilerplate 邮件通知测试"
+            ? $"{siteName} 邮件通知测试"
             : request.Subject.Trim();
         var message = string.IsNullOrWhiteSpace(request.Message)
-            ? "这是一条来自 BlazorBoilerplate 平台的测试邮件通知，表明您的 SMTP 邮件服务已配置成功。"
+            ? $"这是一条来自「{siteName}」的测试邮件通知，表明您的 SMTP 邮件服务已配置成功。"
             : request.Message.Trim();
 
         var html = EmailTemplateBuilder.BuildNotificationEmail(
             title: subject,
             message: message,
-            recipientName: user.DisplayName);
+            recipientName: user.DisplayName,
+            appName: siteName);
 
         await emailSender.SendAsync(toEmail, subject, html, cancellationToken);
 

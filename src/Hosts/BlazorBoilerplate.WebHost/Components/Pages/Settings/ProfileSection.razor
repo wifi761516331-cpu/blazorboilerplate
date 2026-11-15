@@ -2,6 +2,7 @@
 @using Microsoft.AspNetCore.Components.Forms
 @inject BlazorBoilerplateApiClient Api
 @inject AccountState Account
+@inject SystemSettingsState SysState
 @inject ToastService Toast
 
 <section style="padding: 1rem 0;">
@@ -124,10 +125,12 @@
         var file = e.File;
         if (file is null) return;
 
-        const long maxBytes = 11 * 1024 * 1024;
+        await SysState.RefreshAsync();
+        var maxMb = SysState.Public.MaxUploadSizeMb > 0 ? SysState.Public.MaxUploadSizeMb : 11;
+        var maxBytes = (long)maxMb * 1024 * 1024;
         if (file.Size > maxBytes)
         {
-            Toast.Warning("头像大小不能超过 11 MB。");
+            Toast.Warning($"头像大小不能超过 {maxMb} MB。");
             _avatarInputKey++;
             return;
         }
