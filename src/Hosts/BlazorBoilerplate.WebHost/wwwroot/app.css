@@ -692,6 +692,33 @@ a { color: var(--bb-pri); }
 .module-summary-item strong { font-size: 1.5rem; font-weight: 600; line-height: 1.25; }
 .module-summary-item strong.ok { color: var(--bb-suc); }
 .module-summary-item strong.warn { color: var(--bb-wrn); }
+.module-summary-item.module-kpi-item {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+}
+.module-kpi-meta {
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+    min-width: 0;
+}
+.module-kpi-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    font-size: 1.15rem;
+}
+.module-kpi-icon svg { width: 1.15rem; height: 1.15rem; }
+.module-kpi-icon.is-total { color: #0078d4; background: rgba(0, 120, 212, 0.1); }
+.module-kpi-icon.is-running { color: #107c10; background: rgba(16, 124, 16, 0.1); }
+.module-kpi-icon.is-essential { color: #5c2d91; background: rgba(92, 45, 145, 0.1); }
+.module-kpi-icon.is-pending { color: #b46e00; background: rgba(180, 110, 0, 0.1); }
 
 .module-grid {
     display: grid;

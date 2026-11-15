@@ -17,6 +17,7 @@
         {
             <BitButton IconName="@BitIconName.AddTo" OnClick="@(() => OpenCreateAsync(_selected.Id))">新建子菜单</BitButton>
         }
+        <BitCheckbox @bind-Value="_showHidden" @bind-Value:after="RebuildNavAndParents" Label="显示已隐藏菜单" />
     </div>
 
     @if (_error is not null)
@@ -85,6 +86,7 @@
     private IdentityMenuDto? _selected;
     private bool _loading = true;
     private bool _busy;
+    private bool _showHidden;
     private string? _error;
     private bool _deleteDialogOpen;
 
@@ -121,16 +123,20 @@
 
     private void RebuildNavAndParents()
     {
+        var visibleMenus = _showHidden ? _menus : _menus.Where(m => m.IsVisible).ToList();
+        if (_selected is not null && !visibleMenus.Any(m => m.Id == _selected.Id))
+            _selected = null;
+
         _menuNavItems = [.. BuildNavItems(parentId: null)];
         _parentItems =
         [
             new() { Text = "（顶级菜单）", Value = null },
-            .. _menus.Select(m => new BitDropdownItem<Guid?> { Text = m.Name, Value = m.Id })
+            .. visibleMenus.Select(m => new BitDropdownItem<Guid?> { Text = m.Name, Value = m.Id })
         ];
     }
 
     private IEnumerable<BitNavItem> BuildNavItems(Guid? parentId) =>
-        _menus.Where(m => m.ParentId == parentId)
+        _menus.Where(m => m.ParentId == parentId && (_showHidden || m.IsVisible))
               .OrderBy(m => m.Sort).ThenBy(m => m.CreatedAtUtc)
               .Select(m => new BitNavItem
               {

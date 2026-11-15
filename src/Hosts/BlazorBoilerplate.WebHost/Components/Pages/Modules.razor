@@ -46,21 +46,51 @@ else
     </div>
 
     <div class="module-summary">
-        <div class="module-summary-item">
-            <span class="module-summary-label">模块总数</span>
-            <strong>@_modules.Count</strong>
+        <style>
+            .module-summary-item.module-kpi-item { flex-direction: row; align-items: center; justify-content: space-between; gap: .75rem; }
+            .module-kpi-meta { display: flex; flex-direction: column; gap: .25rem; min-width: 0; }
+            .module-kpi-icon { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0; font-size: 1.15rem; }
+            .module-kpi-icon svg { width: 1.15rem; height: 1.15rem; }
+            .module-kpi-icon.is-total { color: #0078d4; background: rgba(0, 120, 212, 0.1); }
+            .module-kpi-icon.is-running { color: #107c10; background: rgba(16, 124, 16, 0.1); }
+            .module-kpi-icon.is-essential { color: #5c2d91; background: rgba(92, 45, 145, 0.1); }
+            .module-kpi-icon.is-pending { color: #b46e00; background: rgba(180, 110, 0, 0.1); }
+        </style>
+        <div class="module-summary-item module-kpi-item">
+            <div class="module-kpi-meta">
+                <span class="module-summary-label">模块总数</span>
+                <strong>@_modules.Count</strong>
+            </div>
+            <span class="module-kpi-icon is-total" aria-hidden="true">
+                <AppIcon Name="Puzzle" />
+            </span>
         </div>
-        <div class="module-summary-item">
-            <span class="module-summary-label">运行中</span>
-            <strong class="ok">@RunningCount</strong>
+        <div class="module-summary-item module-kpi-item">
+            <div class="module-kpi-meta">
+                <span class="module-summary-label">运行中</span>
+                <strong class="ok">@RunningCount</strong>
+            </div>
+            <span class="module-kpi-icon is-running" aria-hidden="true">
+                <BitIcon IconName="@BitIconName.CompletedSolid" />
+            </span>
         </div>
-        <div class="module-summary-item">
-            <span class="module-summary-label">必要模块</span>
-            <strong>@EssentialCount</strong>
+        <div class="module-summary-item module-kpi-item">
+            <div class="module-kpi-meta">
+                <span class="module-summary-label">必要模块</span>
+                <strong>@EssentialCount</strong>
+            </div>
+            <span class="module-kpi-icon is-essential" aria-hidden="true">
+                <AppIcon Name="Shield" />
+            </span>
         </div>
-        <div class="module-summary-item">
-            <span class="module-summary-label">待加载 / 异常</span>
-            <strong class="warn">@(_modules.Count - RunningCount)</strong>
+        <div class="module-summary-item module-kpi-item">
+            <div class="module-kpi-meta">
+                <span class="module-summary-label">待加载 / 异常</span>
+                <strong class="warn">@(_modules.Count - RunningCount)</strong>
+            </div>
+            <span class="module-kpi-icon is-pending" aria-hidden="true">
+                <BitIcon IconName="@BitIconName.Warning" />
+            </span>
         </div>
     </div>
 
@@ -94,7 +124,11 @@ else
                         { *@
                             <span class="module-version-badge" title="当前激活版本">v@(m.Version)</span>
                        @*  } *@
-                        <BitBadge Color="@StateColor(m.State)">@m.State</BitBadge>
+                        <BitTag Color="@StateColor(m.State)"
+                                Variant="BitVariant.Outline"
+                                Size="BitSize.Small"
+                                IconName="@StateIcon(m.State)"
+                                Title="@m.State.ToString()">@StateText(m.State)</BitTag>
                     </div>
 
                     <div class="module-card-meta">
@@ -132,8 +166,8 @@ else
                             else
                             {
                                 <PermissionView Code="module.unload">
-                                    <BitButton Color="BitColor.Error" Variant="BitVariant.Text" IconName="@BitIconName.Delete"
-                                               Title="卸载模块" AriaLabel="卸载模块"
+                                    <BitButton Color="BitColor.Error" Variant="BitVariant.Text" IconName="@BitIconName.CircleStop"
+                                               Title="停用模块" AriaLabel="停用模块"
                                                OnClick="@(() => UnloadAsync(m.Id))" Disabled="@_busy.Contains(m.Id)" />
                                 </PermissionView>
                             }
@@ -598,5 +632,27 @@ else
         ModuleState.Failed or ModuleState.Quarantined => BitColor.Error,
         ModuleState.Loading or ModuleState.Unloading or ModuleState.Draining => BitColor.Warning,
         _ => BitColor.Info
+    };
+
+    private static string StateText(ModuleState state) => state switch
+    {
+        ModuleState.Running => "运行中",
+        ModuleState.Installed => "已安装 · 未启用",
+        ModuleState.Disabled => "已禁用",
+        ModuleState.Loading => "加载中",
+        ModuleState.Unloading or ModuleState.Draining => "停用中",
+        ModuleState.Updating => "更新中",
+        ModuleState.Failed => "异常",
+        ModuleState.Quarantined => "已隔离",
+        _ => state.ToString()
+    };
+
+    private static string StateIcon(ModuleState state) => state switch
+    {
+        ModuleState.Running => BitIconName.CompletedSolid,
+        ModuleState.Installed or ModuleState.Disabled => BitIconName.Pause,
+        ModuleState.Failed or ModuleState.Quarantined => BitIconName.ErrorBadge,
+        ModuleState.Loading or ModuleState.Unloading or ModuleState.Draining or ModuleState.Updating => BitIconName.Sync,
+        _ => BitIconName.Info
     };
 }

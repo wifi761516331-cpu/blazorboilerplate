@@ -159,7 +159,7 @@ await using (var scope = app.Services.CreateAsyncScope())
     {
         // ResolveLoadOrder：依赖优先 + DisplayOrder 升序；依赖失败的模块标记 Failed 并跳过，不阻断其余。
         // 仅在已安装（Normal）模式下自动加载，与 nopCommerce 一致：装好之后插件才被激活。
-        var loaded = await manager.LoadAllAsync(CancellationToken.None);
+        var loaded = await manager.LoadAllAsync(CancellationToken.None, respectPersistedState: true);
         var running = loaded.Count(d => d.State == ModuleState.Running);
         Log.Information(
             "nopCommerce-style auto-load at startup. Loaded={Running}/{Total}, Mode={Mode}",
@@ -167,9 +167,15 @@ await using (var scope = app.Services.CreateAsyncScope())
 
         // 模块数据库增量迁移（只增不减）+ 菜单/权限码绑定：加载成功后执行。
         // Bootstrap 未安装时 Hook 内部直接跳过（此时数据库还不存在）。
-        foreach (var descriptor in loaded.Where(d => d.State == ModuleState.Running))
-            await ModuleDataHooks.OnLoadedAsync(
-                scope.ServiceProvider, descriptor.Id, descriptor.PackagePath, CancellationToken.None);
+        foreach (var descriptor in loaded)
+        {
+            if (descriptor.State == ModuleState.Running)
+                await ModuleDataHooks.OnLoadedAsync(
+                    scope.ServiceProvider, descriptor.Id, descriptor.PackagePath, CancellationToken.None);
+            else
+                await ModuleDataHooks.OnUnloadedAsync(
+                    scope.ServiceProvider, descriptor.Id, CancellationToken.None);
+        }
     }
 }
 

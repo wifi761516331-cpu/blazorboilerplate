@@ -144,7 +144,10 @@ public sealed class ModuleMigrationRunner(
 /// - 卸载时把属于该模块的菜单「禁用」（IsVisible=false），不删除、不清理角色授权，重新加载即恢复；
 /// - 数据库迁移与菜单同步彼此独立，降级同样不会删菜单。
 /// </summary>
-public sealed class ModuleMenuSyncService(IdentityDbContext db, ILogger<ModuleMenuSyncService> logger)
+public sealed class ModuleMenuSyncService(
+    IdentityDbContext db,
+    ModuleCatalog catalog,
+    ILogger<ModuleMenuSyncService> logger)
 {
     private static readonly JsonSerializerOptions ManifestOptions = new() { PropertyNameCaseInsensitive = true };
 
@@ -177,6 +180,13 @@ public sealed class ModuleMenuSyncService(IdentityDbContext db, ILogger<ModuleMe
                     permissionCode: null, kind: "menu"));
                 added++;
             }
+            else if (string.IsNullOrWhiteSpace(existing.ModuleId))
+            {
+                // 兼容早期 SetupInitializer 未写入 ModuleId 的模块菜单：补齐归属并确保可见。
+                existing.Update(existing.Name, existing.Path, existing.Icon, existing.ParentId,
+                    existing.Sort, true, moduleId, existing.PermissionCode, existing.Kind);
+                added++;
+            }
             else if (string.Equals(existing.ModuleId, moduleId, StringComparison.OrdinalIgnoreCase) && !existing.IsVisible)
             {
                 // 模块重新加载：恢复被卸载流程禁用的菜单（保留管理员改过的名称/图标/排序）
@@ -199,10 +209,28 @@ public sealed class ModuleMenuSyncService(IdentityDbContext db, ILogger<ModuleMe
 
     public async Task<int> DisableAsync(string moduleId, CancellationToken ct)
     {
-        var rows = await db.Menus.Where(m => m.ModuleId == moduleId && m.IsVisible).ToListAsync(ct);
+        var routeSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (catalog.TryGet(moduleId, out var entry))
+        {
+            foreach (var r in entry.Descriptor.Routes)
+                if (!string.IsNullOrWhiteSpace(r)) routeSet.Add(r.Trim());
+            foreach (var mi in entry.Manifest.Frontend.MenuItems)
+                if (!string.IsNullOrWhiteSpace(mi.Route)) routeSet.Add(mi.Route.Trim());
+        }
+
+        var visibleMenus = await db.Menus.Where(m => m.IsVisible).ToListAsync(ct);
+        var rows = visibleMenus
+            .Where(m =>
+                string.Equals(m.ModuleId, moduleId, StringComparison.OrdinalIgnoreCase) ||
+                (string.IsNullOrWhiteSpace(m.ModuleId) && routeSet.Contains(m.Path.Trim())))
+            .ToList();
+
         foreach (var menu in rows)
+        {
+            var boundModuleId = string.IsNullOrWhiteSpace(menu.ModuleId) ? moduleId : menu.ModuleId;
             menu.Update(menu.Name, menu.Path, menu.Icon, menu.ParentId, menu.Sort, false,
-                menu.ModuleId, menu.PermissionCode, menu.Kind);
+                boundModuleId, menu.PermissionCode, menu.Kind);
+        }
         await db.SaveChangesAsync(ct);
         if (rows.Count > 0) logger.LogInformation("模块 {ModuleId} 已卸载：禁用 {Count} 项菜单（未删除）", moduleId, rows.Count);
         return rows.Count;

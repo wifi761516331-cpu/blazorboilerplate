@@ -199,8 +199,9 @@ public sealed class ModuleCatalog(IModuleAudit audit)
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ModuleCatalogEntry>> _versions =
         new(StringComparer.OrdinalIgnoreCase);
 
-    // id → 当前激活版本。由加载/上传显式设置；未设置时回退为最高语义版本。
+    // id → 当前激活版本。由加载/上传显式设置；未设置时取最高语义版本。
     private readonly ConcurrentDictionary<string, string> _activeVersion = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, byte> _pinnedActiveVersion = new(StringComparer.OrdinalIgnoreCase);
 
     public void Register(ModulePackage package, ModuleState state = ModuleState.Discovered)
     {
@@ -222,16 +223,24 @@ public sealed class ModuleCatalog(IModuleAudit audit)
             Routes = routes
         };
         perVersion[version] = new ModuleCatalogEntry { Descriptor = descriptor, Manifest = manifest };
-        _activeVersion.TryAdd(id, version); // 首次发现时设为默认；显式激活（Load/上传）会覆盖。
+        // 未显式指定激活版本时，默认选最高语义版本（避免按磁盘目录顺序落到最低版本）。
+        if (!_pinnedActiveVersion.ContainsKey(id))
+        {
+            _activeVersion.AddOrUpdate(
+                id,
+                version,
+                (_, existing) => SemanticVersionComparer.Instance.Compare(version, existing) > 0 ? version : existing);
+        }
         audit.Record(new ModuleAuditEntry(DateTimeOffset.UtcNow, id, version, "Install", "OK", package.PackagePath));
     }
 
-    /// <summary>显式设置某模块 Id 的激活版本（加载或上传时调用）。</summary>
+    /// <summary>显式设置某模块 Id 的激活版本（加载、上传或从持久化状态恢复时调用）。</summary>
     public void SetActiveVersion(string id, string version)
     {
         if (!_versions.TryGetValue(id, out var perVersion) || !perVersion.ContainsKey(version))
             throw new KeyNotFoundException($"Module '{id}' version '{version}' is not registered.");
         _activeVersion[id] = version;
+        _pinnedActiveVersion[id] = 1;
     }
 
     private string ActiveVersion(string id)

@@ -81,7 +81,8 @@ public sealed class ModuleLifecycleManager(
     IServiceProvider hostServices,
     ILoggerFactory loggerFactory,
     IModuleAudit audit,
-    ILogger<ModuleLifecycleManager> logger)
+    ILogger<ModuleLifecycleManager> logger,
+    ModuleStateStore? stateStore = null)
 {
     private readonly ConcurrentDictionary<string, ModuleHandle> _handles = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, WeakReference> _lastUnloaded = new(StringComparer.OrdinalIgnoreCase);
@@ -100,7 +101,7 @@ public sealed class ModuleLifecycleManager(
     /// <summary>列出某模块的全部版本（语义版本降序）。</summary>
     public IReadOnlyList<ModuleCatalogEntry> ListVersions(string id) => catalog.ListVersions(id);
 
-    /// <summary>启动时扫描受控目录，只做发现与登记，不自动加载。</summary>
+    /// <summary>启动时扫描受控目录，只做发现与登记，不自动加载；若存在持久化状态则恢复各模块上次激活版本。</summary>
     public async Task<int> RefreshCatalogAsync(CancellationToken cancellationToken)
     {
         var found = await discovery.DiscoverAsync(cancellationToken);
@@ -109,6 +110,21 @@ public sealed class ModuleLifecycleManager(
             // 否则版本下拉/切换（load?version=）会对未注册版本报 not found。
             if (!catalog.HasVersion(package.Manifest.Id, package.Manifest.Version))
                 catalog.Register(package, ModuleState.Installed);
+
+        if (stateStore is not null)
+        {
+            var saved = stateStore.Load();
+            foreach (var (id, persisted) in saved)
+            {
+                if (catalog.HasVersion(id, persisted.ActiveVersion))
+                {
+                    catalog.SetActiveVersion(id, persisted.ActiveVersion);
+                    logger.LogInformation(
+                        "Restored active version from state store. Id={Id}, Version={Version}, WasRunning={IsRunning}",
+                        id, persisted.ActiveVersion, persisted.IsRunning);
+                }
+            }
+        }
         return found.Count;
     }
 
@@ -135,7 +151,10 @@ public sealed class ModuleLifecycleManager(
 
         // 模块当前未加载（无运行中版本）时，新安装版本自动成为激活版本，达到「上传即可加载」。
         if (!_handles.ContainsKey(id))
+        {
             catalog.SetActiveVersion(id, version);
+            stateStore?.Save(id, version, isRunning: false);
+        }
 
         return catalog.GetVersionDescriptor(id, version);
     }
@@ -157,11 +176,14 @@ public sealed class ModuleLifecycleManager(
     /// nopCommerce 风格：被依赖模块先加载；若某模块的依赖未能成功加载，
     /// 该模块标记为 Failed 并跳过，不阻断其余模块的加载。已运行的模块直接计入。
     /// </summary>
-    public async Task<IReadOnlyList<ModuleDescriptor>> LoadAllAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<ModuleDescriptor>> LoadAllAsync(
+        CancellationToken cancellationToken,
+        bool respectPersistedState = false)
     {
         var loadOrder = catalog.ResolveLoadOrder();
         var loaded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var results = new List<ModuleDescriptor>();
+        var saved = respectPersistedState ? stateStore?.Load() : null;
 
         foreach (var id in loadOrder)
         {
@@ -175,6 +197,15 @@ public sealed class ModuleLifecycleManager(
             if (_handles.ContainsKey(id))
             {
                 loaded.Add(id);
+                results.Add(Get(id));
+                continue;
+            }
+
+            if (saved is not null && saved.TryGetValue(id, out var persisted) && !persisted.IsRunning)
+            {
+                logger.LogInformation(
+                    "Module '{Id}' v{Version} was stopped on previous run; skipping startup auto-load.",
+                    id, entry.Descriptor.Version);
                 results.Add(Get(id));
                 continue;
             }
@@ -287,6 +318,7 @@ public sealed class ModuleLifecycleManager(
             registry.Register(id, entry.Descriptor.Version, handle.Definitions);
             _handles[id] = handle;
             catalog.SetState(id, ModuleState.Running);
+            stateStore?.Save(id, entry.Descriptor.Version, isRunning: true);
             audit.Record(new ModuleAuditEntry(DateTimeOffset.UtcNow, id, entry.Descriptor.Version, "Load", "OK",
                 $"{handle.Definitions.Count} endpoints"));
             return Get(id);
@@ -344,6 +376,7 @@ public sealed class ModuleLifecycleManager(
             _lastUnloaded[id] = weak;
             // 卸载仅代表「停用并释放 ALC」，包仍在 modules/installed 中，回到 Installed 以便再次 Load。
             catalog.SetState(id, ModuleState.Installed);
+            stateStore?.Save(id, handle.Version, isRunning: false);
             audit.Record(new ModuleAuditEntry(DateTimeOffset.UtcNow, id, handle.Version, "Unload", "OK", null));
             logger.LogInformation("Module unloaded. Id={Id}, Version={Version} (Unload() is cooperative)", id, handle.Version);
             return weak;

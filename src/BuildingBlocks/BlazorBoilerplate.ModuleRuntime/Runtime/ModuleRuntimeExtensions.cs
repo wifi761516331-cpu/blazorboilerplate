@@ -21,6 +21,7 @@ public static class ModuleRuntimeServiceCollectionExtensions
         services.AddSingleton<IModuleAudit>(sp => sp.GetRequiredService<InMemoryModuleAudit>());
         services.AddSingleton<ModulePackageManager>();
         services.AddSingleton<ModuleDiscovery>();
+        services.AddSingleton<ModuleStateStore>();
         services.AddSingleton<ModuleCatalog>();
         services.AddSingleton<ModuleLoadContextFactory>();
         services.AddSingleton<ModuleEndpointDataSource>();
