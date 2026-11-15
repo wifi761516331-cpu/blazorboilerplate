@@ -315,6 +315,8 @@
     {
         var path = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/');
         return string.Equals(path, "/sign-in", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(path, "/sign-up", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(path, "/forgot-password", StringComparison.OrdinalIgnoreCase)
             || string.Equals(path, "/setup", StringComparison.OrdinalIgnoreCase);
     }
 

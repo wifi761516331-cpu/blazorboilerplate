@@ -136,6 +136,12 @@ public sealed class BlazorBoilerplateApiClient(HttpClient http)
     public Task<SignInResponseDto> SignInAsync(SignInRequestDto request, CancellationToken ct = default) =>
         PostSingleAsync<SignInResponseDto>(IdentityBase + "SignIn", request, ct);
 
+    public async Task SendEmailCodeAsync(SendEmailCodeRequestDto request, CancellationToken ct = default) =>
+        await EnsureSuccessAsync(await http.PostAsJsonAsync(IdentityBase + "SendEmailCode", request, JsonOptions, ct), ct);
+
+    public async Task ResetPasswordByEmailAsync(ResetPasswordByEmailRequestDto request, CancellationToken ct = default) =>
+        await EnsureSuccessAsync(await http.PostAsJsonAsync(IdentityBase + "ResetPasswordByEmail", request, JsonOptions, ct), ct);
+
     public Task<TokenResponseDto> RefreshTokenAsync(RefreshTokenRequestDto request, CancellationToken ct = default) =>
         PostSingleAsync<TokenResponseDto>(IdentityBase + "Refresh", request, ct);
 

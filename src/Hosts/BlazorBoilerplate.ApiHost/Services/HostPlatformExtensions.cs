@@ -4,6 +4,7 @@ using BlazorBoilerplate.ApiHost.HealthChecks;
 using BlazorBoilerplate.ApiHost.Setup;
 using BlazorBoilerplate.Infrastructure;
 using BlazorBoilerplate.Infrastructure.Email;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace BlazorBoilerplate.ApiHost.Services;
@@ -28,6 +29,8 @@ public static class HostPlatformExtensions
         services.AddSingleton<SetupStateProvider>();
         services.AddSingleton<ISetupInitializer, DefaultSetupInitializer>();
         services.AddSingleton<SystemSettingsStore>();
+        services.AddSingleton<EmailVerificationCodeStore>();
+        services.AddScoped<AccountRegistrationService>();
         services.AddSingleton<ISmtpSettingsProvider, SystemSettingsSmtpProvider>();
         services.AddSingleton<BlazorBoilerplate.Infrastructure.Attachments.IAttachmentStorage, DynamicAttachmentStorage>();
 
@@ -51,6 +54,15 @@ public static class HostPlatformExtensions
                     {
                         PermitLimit = 200,
                         Window = TimeSpan.FromSeconds(10),
+                        QueueLimit = 0
+                    }));
+            options.AddPolicy("auth-sensitive", context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 10,
+                        Window = TimeSpan.FromMinutes(1),
                         QueueLimit = 0
                     }));
         });

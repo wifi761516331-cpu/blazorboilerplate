@@ -28,7 +28,7 @@
     private Type PickLayout()
     {
         var path = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/');
-        return path is "/sign-in" or "/setup"
+        return path is "/sign-in" or "/sign-up" or "/forgot-password" or "/setup"
             ? typeof(IdentityLayout)
             : typeof(MainLayout);
     }

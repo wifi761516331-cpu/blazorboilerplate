@@ -10,6 +10,7 @@ using BlazorBoilerplate.Shared.Features.Account;
 using BlazorBoilerplate.Shared.Features.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace BlazorBoilerplate.ApiHost.Controllers;
@@ -53,7 +54,8 @@ public sealed class IdentityController(
     IdentityDbContext db,
     JwtTokenService tokens,
     CurrentUserFactory factory,
-    SystemSettingsStore settings)
+    SystemSettingsStore settings,
+    AccountRegistrationService registrationService)
     : AppControllerBase(db, tokens, factory), IIdentityController
 {
     private static readonly string[] Cultures = ["zh-CN", "en-US", "ja-JP", "de-DE", "fr-FR", "ko-KR"];
@@ -96,6 +98,21 @@ public sealed class IdentityController(
             current.Roles, current.Permissions);
         return new SignInResponseDto(access, refresh, Tokens.AccessTokenLifetimeSeconds, current);
     }
+
+    [HttpPost]
+    [EnableRateLimiting("auth-sensitive")]
+    public Task<SignInResponseDto> Register(RegisterRequestDto request, CancellationToken cancellationToken) =>
+        registrationService.RegisterAsync(request, ClientIp, cancellationToken);
+
+    [HttpPost]
+    [EnableRateLimiting("auth-sensitive")]
+    public Task SendEmailCode(SendEmailCodeRequestDto request, CancellationToken cancellationToken) =>
+        registrationService.SendEmailCodeAsync(request, cancellationToken);
+
+    [HttpPost]
+    [EnableRateLimiting("auth-sensitive")]
+    public Task ResetPasswordByEmail(ResetPasswordByEmailRequestDto request, CancellationToken cancellationToken) =>
+        registrationService.ResetPasswordByEmailAsync(request, cancellationToken);
 
     [HttpPost]
     public async Task<TokenResponseDto> Refresh(RefreshTokenRequestDto request, CancellationToken cancellationToken)

@@ -283,8 +283,20 @@
     private void ExternalMicrosoftAsync() => NotifyUnavailable();
     private void ExternalGitHubAsync() => NotifyUnavailable();
     private void ExternalAppleAsync() => NotifyUnavailable();
-    private void ForgotPassword() => NotifyUnavailable();
-    private void SignUp() => NotifyUnavailable();
+    private void ForgotPassword()
+    {
+        var url = string.IsNullOrWhiteSpace(_returnUrl)
+            ? "/forgot-password"
+            : $"/forgot-password?return-url={Uri.EscapeDataString(_returnUrl)}";
+        Navigation.NavigateTo(url);
+    }
+    private void SignUp()
+    {
+        var url = string.IsNullOrWhiteSpace(_returnUrl)
+            ? "/sign-up"
+            : $"/sign-up?return-url={Uri.EscapeDataString(_returnUrl)}";
+        Navigation.NavigateTo(url);
+    }
     private void Passkey() => NotifyUnavailable();
 
     private void NotifyUnavailable()

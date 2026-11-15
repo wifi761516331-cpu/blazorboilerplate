@@ -10,6 +10,9 @@ namespace BlazorBoilerplate.Shared.Features.Identity;
 public interface IIdentityController : IAppController
 {
     [HttpPost] Task<SignInResponseDto> SignIn(SignInRequestDto request, CancellationToken cancellationToken) => default!;
+    [HttpPost] Task<SignInResponseDto> Register(RegisterRequestDto request, CancellationToken cancellationToken) => default!;
+    [HttpPost] Task SendEmailCode(SendEmailCodeRequestDto request, CancellationToken cancellationToken) => Task.CompletedTask;
+    [HttpPost] Task ResetPasswordByEmail(ResetPasswordByEmailRequestDto request, CancellationToken cancellationToken) => Task.CompletedTask;
     [HttpPost] Task<TokenResponseDto> Refresh(RefreshTokenRequestDto request, CancellationToken cancellationToken) => default!;
     [HttpPost] Task RevokeRefreshToken(RefreshTokenRequestDto request, CancellationToken cancellationToken);
     [HttpGet] Task<IReadOnlyList<string>> GetSupportedCultures(CancellationToken cancellationToken) => default!;
@@ -40,6 +43,9 @@ public interface IUserController : IAppController
 // ---- DTO（camelCase JSON：ApiHost 与 ApiClient 统一用 CamelCase 命名策略）----
 
 public sealed record SignInRequestDto(string UserName, string Password, bool RememberMe = true, string? TenantId = null);
+public sealed record RegisterRequestDto(string UserName, string Email, string Password, string? DisplayName = null, string? VerificationCode = null);
+public sealed record SendEmailCodeRequestDto(string Email, string Purpose);
+public sealed record ResetPasswordByEmailRequestDto(string Email, string VerificationCode, string NewPassword);
 public record TokenResponseDto(string AccessToken, string RefreshToken, int ExpiresIn);
 public sealed record SignInResponseDto(string AccessToken, string RefreshToken, int ExpiresIn, CurrentUserDto User)
     : TokenResponseDto(AccessToken, RefreshToken, ExpiresIn);

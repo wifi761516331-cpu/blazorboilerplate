@@ -527,6 +527,19 @@ a { color: var(--bb-pri); }
     background: var(--bb-pri-tint); color: var(--bb-pri); font-size: .8125rem; line-height: 1.5;
 }
 .auth-msg.error { border-color: var(--bb-err-brd); background: var(--bb-err-bg); color: var(--bb-err); }
+.auth-code-row { display: flex; gap: .5rem; align-items: center; }
+.auth-code-row .auth-input-wrap { flex: 1; min-width: 0; }
+.auth-code-btn {
+    flex-shrink: 0; height: 2.5rem; padding: 0 .875rem;
+    border: 1px solid var(--bb-brd-sec); border-radius: var(--bb-radius-sm);
+    background: transparent; color: var(--bb-fg-pri);
+    font-family: var(--bb-font); font-size: .8125rem; font-weight: 600;
+    white-space: nowrap; cursor: pointer;
+    transition: background-color .15s, border-color .15s, color .15s;
+}
+.auth-code-btn:hover:not(:disabled) { background: var(--bb-bg-ter); border-color: var(--bb-pri); color: var(--bb-pri); }
+.auth-code-btn:disabled { opacity: .6; cursor: not-allowed; }
+.auth-links-inline { display: flex; align-items: center; justify-content: center; gap: .5rem; margin-top: 1.25rem; font-size: .8125rem; color: var(--bb-fg-sec); }
 
 /* =========================================================================================
    页面通用块（对齐 Bluebird 页面：<AppPageData> 把标题交给 Header，页面内只有内容）

@@ -293,6 +293,7 @@ public static class WebAuthEndpoints
     public static IEndpointRouteBuilder MapWebAuthEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapPost("/auth/login", LoginAsync).DisableAntiforgery();
+        app.MapPost("/auth/register", RegisterAsync).DisableAntiforgery();
         app.MapPost("/auth/refresh", RefreshAsync).DisableAntiforgery();
         app.MapPost("/auth/switch-account", SwitchAccountAsync).DisableAntiforgery();
         app.MapPost("/auth/switch-tenant", SwitchTenantAsync).DisableAntiforgery();
@@ -316,6 +317,31 @@ public static class WebAuthEndpoints
         if (!response.IsSuccessStatusCode)
             return Fail(await ReadErrorAsync(response, ct));
 
+        return await SignInFromAuthResponseAsync(response, request.RememberMe, context, ct);
+    }
+
+    private static async Task<IResult> RegisterAsync(
+        RegisterRequest request, IHttpClientFactory factory, HttpContext context, CancellationToken ct)
+    {
+        var client = factory.CreateClient(WebAuth.RefreshClient);
+        using var response = await client.PostAsJsonAsync(WebAuth.IdentityBase + "Register", new
+        {
+            userName = request.UserName?.Trim() ?? string.Empty,
+            email = request.Email?.Trim() ?? string.Empty,
+            password = request.Password ?? string.Empty,
+            displayName = request.DisplayName?.Trim(),
+            verificationCode = request.VerificationCode?.Trim()
+        }, WebAuth.Json, ct);
+
+        if (!response.IsSuccessStatusCode)
+            return Fail(await ReadErrorAsync(response, ct));
+
+        return await SignInFromAuthResponseAsync(response, rememberMe: true, context, ct);
+    }
+
+    private static async Task<IResult> SignInFromAuthResponseAsync(
+        HttpResponseMessage response, bool rememberMe, HttpContext context, CancellationToken ct)
+    {
         var payload = await response.Content.ReadFromJsonAsync<SignInPayload>(WebAuth.Json, ct);
         if (payload is null || string.IsNullOrWhiteSpace(payload.AccessToken))
             return Fail("登录响应无效。");
@@ -326,7 +352,7 @@ public static class WebAuthEndpoints
             user.DisplayName, payload.RefreshToken));
 
         await SignInCookieAsync(context, payload.AccessToken, payload.RefreshToken, payload.ExpiresIn,
-            user, request.RememberMe, accounts, null);
+            user, rememberMe, accounts, null);
         return Ok();
     }
 
@@ -528,6 +554,7 @@ public static class WebAuthEndpoints
     // ---- DTO（与 ApiHost 的 camelCase JSON 对齐）----
 
     public sealed record LoginRequest(string? UserName, string? Password, bool RememberMe = true, string? TenantId = null);
+    public sealed record RegisterRequest(string? UserName, string? Email, string? Password, string? DisplayName = null, string? VerificationCode = null);
     public sealed record SwitchAccountRequest(string? AccountId);
     public sealed record SwitchTenantRequest(string? TenantId);
     public sealed record LogoutRequest(bool All = false);

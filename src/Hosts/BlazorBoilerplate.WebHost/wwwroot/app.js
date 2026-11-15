@@ -79,6 +79,7 @@ window.blazorDownloadFile = async (fileName, contentType, contentStreamReference
 
     window.blazorAuth = {
         login: (payload) => postJson('/auth/login', payload),
+        register: (payload) => postJson('/auth/register', payload),
         refresh: () => postJson('/auth/refresh', {}),
         logout: (all) => postJson('/auth/logout', { all: !!all }),
         switchAccount: (accountId) => postJson('/auth/switch-account', { accountId }),
