@@ -93,6 +93,13 @@ window.blazorDownloadFile = async (fileName, contentType, contentStreamReference
                 return [];
             }
         },
-        redirect: (url) => window.location.assign(url || '/')
+        redirect: (url) => {
+            const target = url || '/';
+            if (window.location.pathname + window.location.search === target) {
+                window.location.reload();
+            } else {
+                window.location.assign(target);
+            }
+        }
     };
 })();

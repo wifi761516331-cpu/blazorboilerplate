@@ -29,6 +29,7 @@ public static class WebAuth
 {
     public const string CookieScheme = CookieAuthenticationDefaults.AuthenticationScheme;
     public const string RefreshClient = "bb-auth-refresh";
+    public const string ApiClient = "bb-api-backend";
 
     public const string AccessClaim = "bb_access";
     public const string RefreshClaim = "bb_refresh";
@@ -83,6 +84,31 @@ public static class WebAuth
         {
             client.BaseAddress = new Uri(apiBaseUrl);
             client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
+        // 底层连接池由 IHttpClientFactory 管理；BlazorBoilerplateApiClient 与 AuthHeaderHandler 必须绑定到
+        // 当前 Blazor Circuit / HTTP 请求的 Scoped 容器中，避免 AddHttpMessageHandler 将 IAuthSession 困在
+        // IHttpClientFactory 2 分钟全局复用的 Handler 作用域内导致跨账号/跨请求串号。
+        services.AddHttpClient(ApiClient, client =>
+        {
+            client.BaseAddress = new Uri(apiBaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
+        services.AddScoped<BlazorBoilerplateApiClient>(sp =>
+        {
+            var handlerFactory = sp.GetRequiredService<IHttpMessageHandlerFactory>();
+            var session = sp.GetRequiredService<IAuthSession>();
+            var handler = new AuthHeaderHandler(session)
+            {
+                InnerHandler = handlerFactory.CreateHandler(ApiClient)
+            };
+            var httpClient = new HttpClient(handler, disposeHandler: true)
+            {
+                BaseAddress = new Uri(apiBaseUrl),
+                Timeout = TimeSpan.FromSeconds(30)
+            };
+            return new BlazorBoilerplateApiClient(httpClient);
         });
 
         return services;
@@ -148,6 +174,7 @@ public sealed class CookieAuthSession(
     private readonly SemaphoreSlim _gate = new(1, 1);
     private string? _access;
     private string? _refresh;
+    private string? _cookieAccess;
     private DateTimeOffset _expiresAtUtc = DateTimeOffset.MinValue;
     private bool _loaded;
 
@@ -156,6 +183,7 @@ public sealed class CookieAuthSession(
 
     public void Set(string? accessToken, string? refreshToken)
     {
+        _cookieAccess = accessToken;
         _access = accessToken;
         _refresh = refreshToken;
         _expiresAtUtc = WebAuth.ParseExpiry(accessToken, null);
@@ -211,20 +239,50 @@ public sealed class CookieAuthSession(
 
     private async Task EnsureLoadedAsync(CancellationToken cancellationToken)
     {
-        if (_loaded) return;
+        var principal = await ResolvePrincipalAsync();
+        var claimAccess = WebAuth.Find(principal, WebAuth.AccessClaim);
+        var claimRefresh = WebAuth.Find(principal, WebAuth.RefreshClaim);
 
-        ClaimsPrincipal principal;
-        try { principal = (await authState.GetAuthenticationStateAsync()).User; }
-        catch { principal = new ClaimsPrincipal(); }
+        // 若尚未加载，或当前认证票据中的令牌已发生变化（如切换账号、重新登录、切换租户），
+        // 则以最新认证票据为准更新会话中的令牌。
+        if (!string.IsNullOrWhiteSpace(claimAccess) || !string.IsNullOrWhiteSpace(claimRefresh))
+        {
+            if (!_loaded
+                || !string.Equals(_cookieAccess, claimAccess, StringComparison.Ordinal)
+                || !string.Equals(_refresh, claimRefresh, StringComparison.Ordinal))
+            {
+                _cookieAccess = claimAccess;
+                _access = claimAccess;
+                _refresh = claimRefresh;
+                _expiresAtUtc = WebAuth.ParseExpiry(_access, WebAuth.Find(principal, WebAuth.ExpiryClaim));
+                _loaded = true;
+            }
+            return;
+        }
 
-        // 双保险：某些宿主版本在 circuit 内不传播 AuthenticationState，回落 HttpContextAccessor。
-        if (principal.Identity?.IsAuthenticated != true)
-            principal = httpContext.HttpContext?.User ?? principal;
+        if (!_loaded)
+        {
+            _loaded = true;
+        }
+    }
 
-        _access = WebAuth.Find(principal, WebAuth.AccessClaim);
-        _refresh = WebAuth.Find(principal, WebAuth.RefreshClaim);
-        _expiresAtUtc = WebAuth.ParseExpiry(_access, WebAuth.Find(principal, WebAuth.ExpiryClaim));
-        _loaded = true;
+    private async Task<ClaimsPrincipal> ResolvePrincipalAsync()
+    {
+        if (httpContext.HttpContext?.User is { Identity.IsAuthenticated: true } httpUser)
+            return httpUser;
+
+        try
+        {
+            var state = await authState.GetAuthenticationStateAsync();
+            if (state.User.Identity?.IsAuthenticated == true)
+                return state.User;
+        }
+        catch
+        {
+            // 非 Blazor 组件作用域时回落 HttpContextAccessor。
+        }
+
+        return httpContext.HttpContext?.User ?? new ClaimsPrincipal();
     }
 }
 

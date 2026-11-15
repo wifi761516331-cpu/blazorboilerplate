@@ -37,15 +37,8 @@ builder.Services.Configure<HttpClientFactoryOptions>(options =>
         client.Timeout = TimeSpan.FromSeconds(30);
     });
 });
-builder.Services.AddHttpClient<BlazorBoilerplateApiClient>(client =>
-{
-    client.BaseAddress = new Uri(apiBaseUrl);
-    client.Timeout = TimeSpan.FromSeconds(30);
-})
-// 每个请求附加 Bearer；access_token 临期时先在服务端无感刷新（浏览器只见 Cookie）。
-.AddHttpMessageHandler<AuthHeaderHandler>();
 
-// ---- 浏览器 ↔ WebHost：Cookie 认证票据（内含 JWT）+ 线路级会话 ----
+// ---- 浏览器 ↔ WebHost：Cookie 认证票据（内含 JWT）+ 线路级会话 + Scoped ApiClient ----
 builder.Services.AddWebHostAuth(apiBaseUrl);
 
 // ---- 全局通知：scoped（每条 Blazor 线路一个实例），BlazorBoilerplateToast 订阅渲染 ----

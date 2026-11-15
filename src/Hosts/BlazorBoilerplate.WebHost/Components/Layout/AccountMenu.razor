@@ -430,6 +430,7 @@
                 Fail(Err(result) ?? "切换账号失败。");
                 return;
             }
+            Account.Invalidate();
             Toast.Success($"正在切换到 {LabelOf(account)}…");
             await Redirect("/");
         }
