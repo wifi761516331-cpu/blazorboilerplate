@@ -26,7 +26,7 @@ public interface IUserPreferenceController : IAppController
     [HttpPost] Task<UserPreferenceDto> Save(UserPreferenceDto request, CancellationToken cancellationToken) => default!;
 }
 
-/// <summary>站内通知（通知开关的真实后端：会话状态 + 消息列表 + 已读）。</summary>
+/// <summary>站内通知与邮件通知（会话状态 + 消息列表 + 已读 + SMTP 邮件通知）。</summary>
 [Route("api/v1/[controller]/[action]/"), AuthorizedApi]
 public interface INotificationController : IAppController
 {
@@ -35,6 +35,7 @@ public interface INotificationController : IAppController
     [HttpPost("{id}")] Task MarkRead(Guid id, CancellationToken cancellationToken);
     [HttpPost] Task MarkAllRead(CancellationToken cancellationToken);
     [HttpPost] Task<NotificationDto> SendTestNotification(CancellationToken cancellationToken) => default!;
+    [HttpPost] Task<SendEmailNotificationResultDto> SendTestEmail(SendEmailNotificationRequestDto request, CancellationToken cancellationToken) => default!;
 }
 
 /// <summary>
@@ -67,6 +68,16 @@ public sealed record NotificationDto(
     bool IsRead,
     DateTimeOffset CreatedAtUtc,
     string? PageUrl);
+
+public sealed record SendEmailNotificationRequestDto(
+    string? ToEmail = null,
+    string? Subject = null,
+    string? Message = null);
+
+public sealed record SendEmailNotificationResultDto(
+    string ToEmail,
+    string Subject,
+    DateTimeOffset SentAtUtc);
 
 public sealed record PushNotificationSubscriptionDto(
     string DeviceId,

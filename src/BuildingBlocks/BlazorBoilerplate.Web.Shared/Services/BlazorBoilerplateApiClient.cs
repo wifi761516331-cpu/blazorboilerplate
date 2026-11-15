@@ -219,6 +219,13 @@ public sealed class BlazorBoilerplateApiClient(HttpClient http)
     public Task<NotificationDto> SendTestNotificationAsync(CancellationToken ct = default) =>
         PostSingleAsync<NotificationDto>(NotificationBase + "SendTestNotification", new { }, ct);
 
+    public Task<SendEmailNotificationResultDto> SendTestEmailAsync(
+        SendEmailNotificationRequestDto? request = null, CancellationToken ct = default) =>
+        PostSingleAsync<SendEmailNotificationResultDto>(
+            NotificationBase + "SendTestEmail",
+            request ?? new SendEmailNotificationRequestDto(),
+            ct);
+
     public Task SubscribePushAsync(PushNotificationSubscriptionDto subscription, CancellationToken ct = default) =>
         PostVoidAsync(PushBase + "Subscribe", subscription, ct);
 

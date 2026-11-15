@@ -1,8 +1,10 @@
 using System.Threading.RateLimiting;
 using BlazorBoilerplate.ApiHost.Auth;
+using BlazorBoilerplate.ApiHost.HealthChecks;
 using BlazorBoilerplate.ApiHost.Modules;
 using BlazorBoilerplate.ApiHost.Setup;
 using BlazorBoilerplate.Infrastructure;
+using BlazorBoilerplate.Infrastructure.Email;
 using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.ModuleRuntime;
 using BlazorBoilerplate.ModuleRuntime.Runtime;
@@ -69,6 +71,7 @@ builder.Services.AddSingleton<ModulePackService>();
 // ---- 平台能力（第一批为占位实现）+ 模块运行时 ----
 builder.Services.Configure<SetupOptions>(builder.Configuration.GetSection(SetupOptions.SectionName));
 builder.Services.AddBlazorBoilerplateInfrastructurePlaceholders();
+builder.Services.AddBlazorBoilerplateEmail(builder.Configuration);
 builder.Services.AddBlazorBoilerplateModuleStorage(builder.Configuration);
 builder.Services.AddBlazorBoilerplateModuleRuntime(builder.Configuration);
 builder.Services.AddSingleton<SetupStateProvider>();
@@ -76,7 +79,8 @@ builder.Services.AddSingleton<ISetupInitializer, DefaultSetupInitializer>();
 
 // ---- HTTP 管线通用能力 ----
 builder.Services.AddProblemDetails();
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddCheck<SmtpHealthCheck>("smtp", failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded);
 builder.Services.AddOpenApi();
 builder.Services.AddCors(options => options.AddPolicy("web", policy =>
     policy.WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [])

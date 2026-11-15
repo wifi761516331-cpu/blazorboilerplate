@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using BlazorBoilerplate.ApiHost.Auth;
+using BlazorBoilerplate.Application.Abstractions;
+using BlazorBoilerplate.Infrastructure.Email;
 using BlazorBoilerplate.Modules.Identity.Domain;
 using BlazorBoilerplate.Modules.Identity.Persistence;
 using BlazorBoilerplate.Modules.Identity.Services;
@@ -267,7 +269,13 @@ public sealed class UserController(IdentityDbContext db, JwtTokenService tokens,
 /// <summary>租户管理 / 切换（切换时轮换 token，把新 t-id 写进 claims）。</summary>
 [ApiController, Authorize]
 [Route("api/v1/[controller]/[action]")]
-public sealed class TenantController(IdentityDbContext db, JwtTokenService tokens, CurrentUserFactory factory)
+public sealed class TenantController(
+    IdentityDbContext db,
+    JwtTokenService tokens,
+    CurrentUserFactory factory,
+    IEmailSender emailSender,
+    ISmtpSettingsProvider smtpSettingsProvider,
+    ILogger<TenantController> logger)
     : AppControllerBase(db, tokens, factory), ITenantController
 {
     [HttpGet]
@@ -311,12 +319,35 @@ public sealed class TenantController(IdentityDbContext db, JwtTokenService token
     [HttpPost]
     public async Task InviteUser(InviteUserToTenantRequestDto request, CancellationToken cancellationToken)
     {
+        var tenant = await Db.Tenants.AsNoTracking().FirstOrDefaultAsync(t => t.Id == request.TenantId, cancellationToken)
+            ?? throw new KeyNotFoundException("租户不存在。");
         var user = await Db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken)
             ?? throw new KeyNotFoundException("该邮箱没有对应的用户。");
         var exists = await Db.TenantUsers.AnyAsync(
             t => t.TenantId == request.TenantId && t.UserId == user.Id, cancellationToken);
         if (!exists) Db.TenantUsers.Add(TenantUser.Create(request.TenantId, user.Id));
         await Db.SaveChangesAsync(cancellationToken);
+
+        if (smtpSettingsProvider.GetSettings().IsConfigured && !string.IsNullOrWhiteSpace(user.Email))
+        {
+            try
+            {
+                var inviter = await Db.Users.AsNoTracking()
+                    .Where(u => u.Id == UserId)
+                    .Select(u => u.DisplayName)
+                    .FirstOrDefaultAsync(cancellationToken);
+                var title = $"租户邀请：{tenant.Title ?? tenant.Name}";
+                var body = EmailTemplateBuilder.BuildNotificationEmail(
+                    title: title,
+                    message: $"{(string.IsNullOrWhiteSpace(inviter) ? "管理员" : inviter)} 邀请您加入租户「{tenant.Title ?? tenant.Name}」，请登录平台查看并接受邀请。",
+                    recipientName: user.DisplayName);
+                await emailSender.SendAsync(user.Email, title, body, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "租户邀请邮件发送失败：TenantId={TenantId}, Email={Email}", request.TenantId, user.Email);
+            }
+        }
     }
 
     [HttpPost("{tenantId}")]
@@ -377,10 +408,16 @@ public sealed class UserPreferenceController(IdentityDbContext db, JwtTokenServi
     }
 }
 
-/// <summary>站内通知（通知开关的真实后端）。</summary>
+/// <summary>站内通知与邮件通知（通知开关 + SMTP 邮件通知）。</summary>
 [ApiController, Authorize]
 [Route("api/v1/[controller]/[action]")]
-public sealed class NotificationController(IdentityDbContext db, JwtTokenService tokens, CurrentUserFactory factory)
+public sealed class NotificationController(
+    IdentityDbContext db,
+    JwtTokenService tokens,
+    CurrentUserFactory factory,
+    IEmailSender emailSender,
+    ISmtpSettingsProvider smtpSettingsProvider,
+    ILogger<NotificationController> logger)
     : AppControllerBase(db, tokens, factory), INotificationController
 {
     [HttpGet]
@@ -420,7 +457,58 @@ public sealed class NotificationController(IdentityDbContext db, JwtTokenService
         var item = Notification.Create(UserId, "测试通知", "这是一条来自 BlazorBoilerplate 的测试通知。", "/notifications");
         Db.Notifications.Add(item);
         await Db.SaveChangesAsync(cancellationToken);
+
+        if (smtpSettingsProvider.GetSettings().IsConfigured)
+        {
+            var user = await Db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == UserId, cancellationToken);
+            if (user is not null && !string.IsNullOrWhiteSpace(user.Email))
+            {
+                try
+                {
+                    var body = EmailTemplateBuilder.BuildNotificationEmail(
+                        title: item.Title,
+                        message: item.Message,
+                        recipientName: user.DisplayName);
+                    await emailSender.SendAsync(user.Email, $"[{nameof(BlazorBoilerplate)}] {item.Title}", body, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "测试通知邮件发送失败（站内通知已保存）：To={Email}", user.Email);
+                }
+            }
+        }
+
         return new NotificationDto(item.Id, item.Title, item.Message, item.IsRead, item.CreatedAtUtc, item.PageUrl);
+    }
+
+    [HttpPost]
+    public async Task<SendEmailNotificationResultDto> SendTestEmail(
+        SendEmailNotificationRequestDto request, CancellationToken cancellationToken)
+    {
+        var user = await RequireUserAsync(cancellationToken);
+        var toEmail = string.IsNullOrWhiteSpace(request.ToEmail) ? user.Email : request.ToEmail.Trim();
+        if (string.IsNullOrWhiteSpace(toEmail) || !toEmail.Contains('@'))
+            throw new InvalidOperationException("请提供有效的收件人邮箱地址。");
+
+        var subject = string.IsNullOrWhiteSpace(request.Subject)
+            ? "BlazorBoilerplate 邮件通知测试"
+            : request.Subject.Trim();
+        var message = string.IsNullOrWhiteSpace(request.Message)
+            ? "这是一条来自 BlazorBoilerplate 平台的测试邮件通知，表明您的 SMTP 邮件服务已配置成功。"
+            : request.Message.Trim();
+
+        var html = EmailTemplateBuilder.BuildNotificationEmail(
+            title: subject,
+            message: message,
+            recipientName: user.DisplayName);
+
+        await emailSender.SendAsync(toEmail, subject, html, cancellationToken);
+
+        var item = Notification.Create(UserId, $"邮件已发送：{subject}", $"收件人：{toEmail}\n{message}", "/notifications");
+        Db.Notifications.Add(item);
+        await Db.SaveChangesAsync(cancellationToken);
+
+        return new SendEmailNotificationResultDto(toEmail, subject, DateTimeOffset.UtcNow);
     }
 }
 

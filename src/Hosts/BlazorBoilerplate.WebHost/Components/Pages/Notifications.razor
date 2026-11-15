@@ -3,6 +3,7 @@
 @inject BlazorBoilerplateApiClient Api
 @inject ToastService Toast
 @inject UserPreferences Preferences
+@inject AccountState Account
 
 <div class="page-callout">
     <h1 class="page-title">通知中心</h1>
@@ -19,6 +20,9 @@
     <div class="bb-spacer"></div>
     <button type="button" class="blazorboilerplate-btn ghost" @onclick="MarkAllReadAsync" disabled="@(UnreadCount == 0)">全部标记已读</button>
     <PermissionView Code="notification.send-test">
+        <button type="button" class="blazorboilerplate-btn primary" @onclick="OpenEmailModal" disabled="@_sendingEmail">
+            @(_sendingEmail ? "发送中…" : "发送测试邮件")
+        </button>
         @if (_notificationsEnabled)
         {
             <button type="button" class="blazorboilerplate-btn primary" @onclick="SendTestAsync" disabled="@_sending">
@@ -73,10 +77,36 @@
     }
 </div>
 
+<BlazorBoilerplateModal @bind-IsOpen="_emailModalOpen"
+                        Title="发送邮件通知"
+                        OkText="发送邮件"
+                        OnOk="SendTestEmailAsync">
+    <div class="id-form">
+        <div class="auth-field">
+            <label class="auth-label" for="email-to">收件人邮箱</label>
+            <input id="email-to" class="auth-input" type="email" @bind="_emailTo" placeholder="761516331@qq.com" />
+        </div>
+        <div class="auth-field">
+            <label class="auth-label" for="email-subject">邮件主题</label>
+            <input id="email-subject" class="auth-input" @bind="_emailSubject" placeholder="BlazorBoilerplate 邮件通知测试" />
+        </div>
+        <div class="auth-field">
+            <label class="auth-label" for="email-body">邮件内容</label>
+            <textarea id="email-body" class="auth-input" rows="4" @bind="_emailBody"
+                      placeholder="这是一条来自 BlazorBoilerplate 平台的测试邮件通知。"></textarea>
+        </div>
+    </div>
+</BlazorBoilerplateModal>
+
 @code {
     private List<NotificationDto> _notifications = [];
     private bool _notificationsEnabled;
     private bool _sending;
+    private bool _sendingEmail;
+    private bool _emailModalOpen;
+    private string _emailTo = string.Empty;
+    private string _emailSubject = "BlazorBoilerplate 邮件通知测试";
+    private string _emailBody = "这是一条来自 BlazorBoilerplate 平台的测试邮件通知，表明您的 SMTP 邮件服务已配置成功。";
     private string? _loadError;
     private readonly HashSet<Guid> _marking = [];
 
@@ -84,6 +114,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await Account.EnsureLoadedAsync();
+        _emailTo = Account.CurrentUser?.Email ?? string.Empty;
         var prefs = await Preferences.GetAsync();
         _notificationsEnabled = prefs.NotificationsEnabled;
         await LoadAsync();
@@ -154,6 +186,34 @@
         finally
         {
             _sending = false;
+        }
+    }
+
+    private void OpenEmailModal()
+    {
+        if (string.IsNullOrWhiteSpace(_emailTo))
+            _emailTo = Account.CurrentUser?.Email ?? string.Empty;
+        _emailModalOpen = true;
+    }
+
+    private async Task SendTestEmailAsync()
+    {
+        _emailModalOpen = false;
+        _sendingEmail = true;
+        try
+        {
+            var result = await Api.SendTestEmailAsync(new SendEmailNotificationRequestDto(
+                _emailTo, _emailSubject, _emailBody));
+            Toast.Success($"测试邮件已发送至 {result.ToEmail}。");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"发送测试邮件失败：{ex.Message}");
+        }
+        finally
+        {
+            _sendingEmail = false;
         }
     }
 }

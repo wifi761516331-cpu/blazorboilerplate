@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using BlazorBoilerplate.Application.Abstractions;
+using BlazorBoilerplate.Infrastructure.Email;
 using BlazorBoilerplate.Infrastructure.S3;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -145,6 +146,23 @@ public static class InfrastructureServiceCollectionExtensions
             services.AddSingleton<IFileStorage, PlaceholderFileStorage>();
         }
 
+        return services;
+    }
+
+    /// <summary>
+    /// 接入真实 SMTP 邮件发送服务（读取 ConnectionStrings:smtp / Infrastructure:Smtp / Email 配置节）。
+    /// 始终替换占位 IEmailSender 为 <see cref="SmtpEmailSender"/>；若未配置，发送时抛出明确异常或由调用方感知。
+    /// </summary>
+    public static IServiceCollection AddBlazorBoilerplateEmail(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddSingleton<ISmtpSettingsProvider>(_ => new ConfigurationSmtpSettingsProvider(configuration));
+
+        var placeholder = services.FirstOrDefault(d =>
+            d.ServiceType == typeof(IEmailSender) && d.ImplementationType == typeof(PlaceholderEmailSender));
+        if (placeholder is not null)
+            services.Remove(placeholder);
+
+        services.AddSingleton<IEmailSender, SmtpEmailSender>();
         return services;
     }
 }
