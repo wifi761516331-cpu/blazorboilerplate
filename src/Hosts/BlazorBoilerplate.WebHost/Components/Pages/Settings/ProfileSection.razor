@@ -1,0 +1,206 @@
+@using BlazorBoilerplate.Shared.Features.Attachments
+@using Microsoft.AspNetCore.Components.Forms
+@inject BlazorBoilerplateApiClient Api
+@inject AccountState Account
+@inject ToastService Toast
+
+<section style="padding: 1rem 0;">
+    <BitStack HorizontalAlign="BitAlignment.Center" Gap="1rem">
+        @if (_loading)
+        {
+            <BitShimmer Height="4.5rem" Circle />
+            <BitShimmer Height="1.5rem" Width="12.5rem" />
+            <BitShimmer Height="2.25rem" Width="22rem" />
+            <BitShimmer Height="2.25rem" Width="22rem" />
+        }
+        else if (Account.CurrentUser is null)
+        {
+            <BitCallout Class="page-callout error">无法读取当前用户信息，请确认已登录。</BitCallout>
+        }
+        else
+        {
+            <div class="settings-avatar-wrap" title="点击更换头像">
+                @if (_uploadingAvatar)
+                {
+                    <BitShimmer Height="4.5rem" Circle />
+                    <BitText Typography="BitTypography.Caption1" Color="BitColor.SecondaryForeground">正在上传…</BitText>
+                }
+                else
+                {
+                    <BitPersona HidePersonaDetails
+                                ImageUrl="@_avatarUrl"
+                                PrimaryText="@_displayName"
+                                Size="BitPersonaSize.Size72"
+                                Presence="BitPersonaPresence.Online" />
+                    <BitText Typography="BitTypography.Body2" Color="BitColor.Primary">上传新头像</BitText>
+                    <InputFile @key="_avatarInputKey"
+                               class="settings-avatar-input"
+                               OnChange="UploadAvatarAsync"
+                               accept=".jpg,.jpeg,.png,.webp,.gif,.bmp"
+                               disabled="@_uploadingAvatar" />
+                }
+            </div>
+
+            @if (_avatarUrl is not null)
+            {
+                <BitButton Variant="BitVariant.Outline"
+                           Color="BitColor.Error"
+                           Size="BitSize.Small"
+                           IsLoading="_uploadingAvatar"
+                           OnClick="DeleteAvatarAsync">
+                    移除头像
+                </BitButton>
+            }
+
+            <div class="settings-form">
+                <BitStack FillContent Gap="0.85rem">
+                    <BitTextField @bind-Value="_displayName"
+                                  Label="显示名"
+                                  Placeholder="请输入显示名"
+                                  Required />
+
+                    <BitTextField @bind-Value="_email"
+                                  Label="邮箱"
+                                  Type="BitInputType.Email"
+                                  Placeholder="请输入邮箱"
+                                  Required />
+
+                    <BitTextField Value="@Account.CurrentUser.UserName"
+                                  Label="用户名"
+                                  ReadOnly />
+
+                    <PermissionView Code="identity.user.update">
+                        <BitButton IsLoading="_saving"
+                                   Color="BitColor.Primary"
+                                   OnClick="SaveProfileAsync">
+                            保存
+                        </BitButton>
+                    </PermissionView>
+                </BitStack>
+            </div>
+        }
+    </BitStack>
+</section>
+
+@code {
+    private bool _loading = true;
+    private bool _saving;
+    private bool _uploadingAvatar;
+    private int _avatarInputKey;
+    private string _displayName = string.Empty;
+    private string _email = string.Empty;
+    private string? _avatarUrl;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Account.EnsureLoadedAsync();
+        if (Account.CurrentUser is { } user)
+        {
+            _displayName = user.DisplayName;
+            _email = user.Email;
+            await LoadAvatarAsync(user.Id);
+        }
+        _loading = false;
+    }
+
+    private async Task LoadAvatarAsync(Guid userId)
+    {
+        try
+        {
+            var list = await Api.GetAttachmentsAsync(AttachmentKind.UserProfileImage, userId);
+            var avatar = list.FirstOrDefault();
+            _avatarUrl = avatar is null
+                ? null
+                : Api.GetAttachmentUrl(avatar.Id, avatar.Kind, cacheBust: avatar.CreatedAtUtc.ToUnixTimeMilliseconds().ToString());
+        }
+        catch
+        {
+            _avatarUrl = null;
+        }
+    }
+
+    private async Task UploadAvatarAsync(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+
+        const long maxBytes = 11 * 1024 * 1024;
+        if (file.Size > maxBytes)
+        {
+            Toast.Warning("头像大小不能超过 11 MB。");
+            _avatarInputKey++;
+            return;
+        }
+
+        _uploadingAvatar = true;
+        try
+        {
+            await using var stream = file.OpenReadStream(maxBytes);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            ms.Position = 0;
+
+            var uploaded = await Api.UploadUserProfilePictureAsync(ms, file.Name, file.ContentType);
+            _avatarUrl = Api.GetAttachmentUrl(uploaded.Id, uploaded.Kind, cacheBust: uploaded.CreatedAtUtc.ToUnixTimeMilliseconds().ToString());
+            Account.SetAvatarUrl(_avatarUrl);
+            Toast.Success("头像已更新。");
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"上传头像失败：{ex.Message}");
+        }
+        finally
+        {
+            _avatarInputKey++;
+            _uploadingAvatar = false;
+        }
+    }
+
+    private async Task DeleteAvatarAsync()
+    {
+        _uploadingAvatar = true;
+        try
+        {
+            await Api.DeleteUserProfilePictureAsync();
+            _avatarUrl = null;
+            Account.SetAvatarUrl(null);
+            Toast.Success("头像已移除。");
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"移除头像失败：{ex.Message}");
+        }
+        finally
+        {
+            _uploadingAvatar = false;
+        }
+    }
+
+    private async Task SaveProfileAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_displayName) || string.IsNullOrWhiteSpace(_email))
+        {
+            Toast.Warning("显示名与邮箱不能为空。");
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var updated = await Api.UpdateProfileAsync(new EditUserRequestDto(_email.Trim(), _displayName.Trim()));
+            _displayName = updated.DisplayName;
+            _email = updated.Email;
+            Account.UpdateCurrentUser(updated);
+            Toast.Success("个人资料已保存。");
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"保存资料失败：{ex.Message}");
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}
+

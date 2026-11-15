@@ -37,7 +37,14 @@
                     <a href="/sign-in" class="nav-item" title="登录 / 切换账号" @onclick="CloseNav">
                         @if (Account.IsAuthenticated)
                         {
-                            <span class="nav-signin-avatar">@Initials(Account.CurrentUser!.DisplayName)</span>
+                            @if (!string.IsNullOrWhiteSpace(Account.AvatarUrl))
+                            {
+                                <img src="@Account.AvatarUrl" class="nav-signin-avatar" style="object-fit:cover;" alt="" />
+                            }
+                            else
+                            {
+                                <span class="nav-signin-avatar">@Initials(Account.CurrentUser!.DisplayName)</span>
+                            }
                             <span class="nav-text">@Account.CurrentUser!.DisplayName</span>
                         }
                         else
@@ -166,12 +173,21 @@
         return RunningRoutes.Contains(path);
     }
 
-    protected override void OnInitialized() =>
+    protected override void OnInitialized()
+    {
         NavRefresh.OnChanged += HandleNavRefresh;
+        Account.Changed += HandleAccountChanged;
+    }
 
     private void HandleNavRefresh() => _ = InvokeAsync(RefreshNavAsync);
 
-    public void Dispose() => NavRefresh.OnChanged -= HandleNavRefresh;
+    private void HandleAccountChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        NavRefresh.OnChanged -= HandleNavRefresh;
+        Account.Changed -= HandleAccountChanged;
+    }
 
     /// <summary>公共（匿名）路由：登录页与安装向导使用独立的 IdentityLayout，绝不能被本布局的登录守卫重复跳转。</summary>
     private bool IsPublicRoute()
@@ -335,6 +351,7 @@
         "/identity/menus" => "EditList",
         "/modules" => "Puzzle",
         "/attachments" => "Attach",
+        "/settings" => "Settings",
         _ => "Grid"
     };
 }

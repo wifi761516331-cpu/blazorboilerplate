@@ -1,0 +1,109 @@
+@page "/settings"
+@page "/settings/{Section?}"
+@rendermode RenderMode.InteractiveServer
+@inject NavigationManager Navigation
+
+<style>
+    .settings-shell {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 0.5rem 0 2rem;
+    }
+
+    .settings-header {
+        margin-bottom: 1.25rem;
+    }
+
+    .settings-form {
+        width: 100%;
+        max-width: 28rem;
+    }
+
+    .settings-form .bit-txt,
+    .settings-form .bit-txt-wrapper {
+        width: 100%;
+    }
+
+    .settings-avatar-wrap {
+        position: relative;
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+    }
+
+    .settings-avatar-input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .settings-session-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        width: 100%;
+    }
+
+    .settings-session-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-shrink: 0;
+    }
+</style>
+
+<div class="settings-shell">
+    <div class="settings-header">
+        <BitText Typography="BitTypography.H5">设置</BitText>
+        <BitText Typography="BitTypography.Body2" Color="BitColor.SecondaryForeground">
+            管理您的个人资料、账户安全与多设备活动会话
+        </BitText>
+    </div>
+
+    <BitStack Gap="0.75rem">
+        <BitAccordionList TItem="BitAccordionListOption"
+                          HeadingLevel="2"
+                          @bind-ExpandedKey="_expandedSection"
+                          LazyContent
+                          ScrollIntoViewOnExpand
+                          Background="BitColorKind.Secondary"
+                          Border="BitColorKind.Transparent">
+
+            <BitAccordionListOption Key="profile"
+                                    Title="个人资料"
+                                    Description="编辑您的个人资料数据">
+                <ProfileSection />
+            </BitAccordionListOption>
+
+            <BitAccordionListOption Key="account"
+                                    Title="账户"
+                                    Description="更改您的账户电子邮件或登录密码">
+                <AccountSection />
+            </BitAccordionListOption>
+
+            <BitAccordionListOption Key="sessions"
+                                    Title="会话"
+                                    Description="您在多个设备上的活动会话">
+                <SessionsSection />
+            </BitAccordionListOption>
+
+        </BitAccordionList>
+    </BitStack>
+</div>
+
+@code {
+    [Parameter] public string? Section { get; set; }
+
+    private string? _expandedSection;
+
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrWhiteSpace(Section))
+            _expandedSection = Section.Trim().ToLowerInvariant();
+    }
+}
+

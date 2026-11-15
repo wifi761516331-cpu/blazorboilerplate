@@ -14,7 +14,17 @@
     <button type="button" class="header-persona" title="账户菜单" aria-expanded="@_isOpen" @onclick="Toggle">
         @if (Account.IsAuthenticated)
         {
-            <span class="persona-avatar">@UserInitials()<span class="persona-presence"></span></span>
+            <span class="persona-avatar">
+                @if (!string.IsNullOrWhiteSpace(Account.AvatarUrl))
+                {
+                    <img src="@Account.AvatarUrl" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" alt="" />
+                }
+                else
+                {
+                    @UserInitials()
+                }
+                <span class="persona-presence"></span>
+            </span>
             <span class="persona-name">@Account.CurrentUser!.DisplayName</span>
         }
         else
@@ -37,7 +47,14 @@
         {
             <div class="account-identity">
                 <button type="button" class="account-avatar-lg" title="编辑个人资料" @onclick="GoToProfile">
-                    <span class="avatar-lg-text">@UserInitials()</span>
+                    @if (!string.IsNullOrWhiteSpace(Account.AvatarUrl))
+                    {
+                        <img src="@Account.AvatarUrl" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" alt="" />
+                    }
+                    else
+                    {
+                        <span class="avatar-lg-text">@UserInitials()</span>
+                    }
                     <span class="avatar-overlay">编辑</span>
                     <span class="presence-dot" title="在线"></span>
                 </button>
@@ -69,9 +86,9 @@
 
             <div class="account-separator"></div>
 
-            <button type="button" class="account-action" @onclick="GoToProfile">
-                <AppIcon Name="Contact" />
-                <span>个人资料</span>
+            <button type="button" class="account-action" @onclick="GoToSettings">
+                <AppIcon Name="Settings" />
+                <span>个人设置</span>
             </button>
             <button type="button" class="account-action has-chevron" @onclick="OpenLanguages">
                 <AppIcon Name="Globe" />
@@ -245,6 +262,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Account.Changed += HandleAccountChanged;
         await Account.EnsureLoadedAsync();
 
         var prefs = await Preferences.GetAsync();
@@ -287,8 +305,11 @@
         }
     }
 
+    private void HandleAccountChanged() => _ = InvokeAsync(StateHasChanged);
+
     public void Dispose()
     {
+        Account.Changed -= HandleAccountChanged;
         _clockCts?.Cancel();
         _clockCts?.Dispose();
     }
@@ -414,7 +435,8 @@
         await Preferences.SetAsync(prefs with { AccentColor = next });
     }
 
-    private void GoToProfile() { Close(); Navigation.NavigateTo("/profile"); }
+    private void GoToProfile() { Close(); Navigation.NavigateTo("/settings/profile"); }
+    private void GoToSettings() { Close(); Navigation.NavigateTo("/settings"); }
     private void GoToNotifications() { Close(); Navigation.NavigateTo("/notifications"); }
     private void ManageTenants() { Close(); Navigation.NavigateTo("/tenants"); }
 

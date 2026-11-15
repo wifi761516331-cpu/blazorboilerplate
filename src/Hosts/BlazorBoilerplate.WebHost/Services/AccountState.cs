@@ -1,3 +1,4 @@
+using BlazorBoilerplate.Shared.Features.Attachments;
 using BlazorBoilerplate.Shared.Features.Identity;
 using BlazorBoilerplate.Web.Shared.Services;
 
@@ -18,7 +19,9 @@ public sealed class AccountState(BlazorBoilerplateApiClient api)
     private volatile bool _loaded;
 
     public CurrentUserDto? CurrentUser { get; private set; }
+    public string? AvatarUrl { get; private set; }
     public bool IsAuthenticated => CurrentUser is not null;
+    public event Action? Changed;
     public IReadOnlySet<string> Permissions { get; private set; } = Empty;
     public IReadOnlySet<string> MenuPaths { get; private set; } = Empty;
 
@@ -72,9 +75,26 @@ public sealed class AccountState(BlazorBoilerplateApiClient api)
         lock (_gate) _inflight = null;
         _loaded = false;
         CurrentUser = null;
+        AvatarUrl = null;
         Permissions = Empty;
         MenuPaths = Empty;
         LoadError = null;
+        Changed?.Invoke();
+    }
+
+    public void UpdateCurrentUser(CurrentUserDto user)
+    {
+        CurrentUser = user;
+        Permissions = ToSet(user.Permissions);
+        MenuPaths = ToSet(user.MenuPaths);
+        LoadError = null;
+        Changed?.Invoke();
+    }
+
+    public void SetAvatarUrl(string? url)
+    {
+        AvatarUrl = url;
+        Changed?.Invoke();
     }
 
     private async Task LoadAndMarkAsync()
@@ -99,13 +119,30 @@ public sealed class AccountState(BlazorBoilerplateApiClient api)
             Permissions = ToSet(user.Permissions);
             MenuPaths = ToSet(user.MenuPaths);
             LoadError = null;
+            try
+            {
+                var list = await api.GetAttachmentsAsync(AttachmentKind.UserProfileImage, user.Id);
+                var avatar = list.FirstOrDefault();
+                AvatarUrl = avatar is null
+                    ? null
+                    : api.GetAttachmentUrl(avatar.Id, avatar.Kind, cacheBust: avatar.CreatedAtUtc.ToUnixTimeMilliseconds().ToString());
+            }
+            catch
+            {
+                AvatarUrl = null;
+            }
         }
         catch (Exception ex)
         {
             CurrentUser = null;
+            AvatarUrl = null;
             Permissions = Empty;
             MenuPaths = Empty;
             LoadError = ex.Message;
+        }
+        finally
+        {
+            Changed?.Invoke();
         }
     }
 

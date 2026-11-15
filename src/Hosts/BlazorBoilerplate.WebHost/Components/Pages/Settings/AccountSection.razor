@@ -1,0 +1,160 @@
+@inject BlazorBoilerplateApiClient Api
+@inject AccountState Account
+@inject ToastService Toast
+
+<section style="padding: 0.75rem 0 1.25rem;">
+    <BitPivot Alignment="BitAlignment.Center"
+              OverflowBehavior="BitPivotOverflowBehavior.Menu"
+              DefaultSelectedKey="password">
+        <BitPivotItem Key="email" HeaderText="邮箱">
+            <div style="display:flex;justify-content:center;padding-top:1rem;width:100%;">
+                <div class="settings-form">
+                    <BitStack FillContent Gap="0.85rem">
+                        <BitTextField Value="@_currentEmail"
+                                      Label="当前邮箱"
+                                      ReadOnly />
+
+                        <BitTextField @bind-Value="_newEmail"
+                                      Label="新邮箱"
+                                      Type="BitInputType.Email"
+                                      Placeholder="请输入新的电子邮箱地址" />
+
+                        <PermissionView Code="identity.user.update">
+                            <BitButton IsLoading="_savingEmail"
+                                       Color="BitColor.Primary"
+                                       OnClick="SaveEmailAsync">
+                                更改邮箱
+                            </BitButton>
+                        </PermissionView>
+                    </BitStack>
+                </div>
+            </div>
+        </BitPivotItem>
+
+        <BitPivotItem Key="password" HeaderText="密码">
+            <div style="display:flex;justify-content:center;padding-top:1rem;width:100%;">
+                <div class="settings-form">
+                    <BitStack FillContent Gap="0.85rem">
+                        <BitTextField @bind-Value="_oldPassword"
+                                      Label="当前密码"
+                                      Type="BitInputType.Password"
+                                      CanRevealPassword
+                                      Placeholder="请输入当前密码" />
+
+                        <BitTextField @bind-Value="_newPassword"
+                                      Label="新密码"
+                                      Type="BitInputType.Password"
+                                      CanRevealPassword
+                                      Placeholder="至少 6 位字符" />
+
+                        <BitTextField @bind-Value="_confirmPassword"
+                                      Label="确认新密码"
+                                      Type="BitInputType.Password"
+                                      CanRevealPassword
+                                      Placeholder="请再次输入新密码" />
+
+                        <PermissionView Code="identity.user.change-password">
+                            <BitButton IsLoading="_savingPassword"
+                                       Color="BitColor.Primary"
+                                       OnClick="ChangePasswordAsync">
+                                修改密码
+                            </BitButton>
+                        </PermissionView>
+                    </BitStack>
+                </div>
+            </div>
+        </BitPivotItem>
+    </BitPivot>
+</section>
+
+@code {
+    private string _currentEmail = string.Empty;
+    private string _displayName = string.Empty;
+    private string _newEmail = string.Empty;
+    private string _oldPassword = string.Empty;
+    private string _newPassword = string.Empty;
+    private string _confirmPassword = string.Empty;
+    private bool _savingEmail;
+    private bool _savingPassword;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Account.EnsureLoadedAsync();
+        if (Account.CurrentUser is { } user)
+        {
+            _currentEmail = user.Email;
+            _displayName = user.DisplayName;
+        }
+    }
+
+    private async Task SaveEmailAsync()
+    {
+        var email = _newEmail.Trim();
+        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
+        {
+            Toast.Warning("请输入有效的电子邮箱地址。");
+            return;
+        }
+        if (string.Equals(email, _currentEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            Toast.Info("新邮箱与当前邮箱相同。");
+            return;
+        }
+
+        _savingEmail = true;
+        try
+        {
+            var updated = await Api.UpdateProfileAsync(new EditUserRequestDto(email, _displayName));
+            _currentEmail = updated.Email;
+            _newEmail = string.Empty;
+            Account.UpdateCurrentUser(updated);
+            Toast.Success("账户邮箱已更新。");
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"更改邮箱失败：{ex.Message}");
+        }
+        finally
+        {
+            _savingEmail = false;
+        }
+    }
+
+    private async Task ChangePasswordAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_oldPassword) || string.IsNullOrWhiteSpace(_newPassword))
+        {
+            Toast.Warning("请填写当前密码与新密码。");
+            return;
+        }
+        if (_newPassword.Length < 6)
+        {
+            Toast.Warning("新密码至少需要 6 位字符。");
+            return;
+        }
+        if (!string.Equals(_newPassword, _confirmPassword, StringComparison.Ordinal))
+        {
+            Toast.Warning("两次输入的新密码不一致。");
+            return;
+        }
+
+        _savingPassword = true;
+        try
+        {
+            await Api.ChangePasswordAsync(new ChangePasswordRequestDto(_oldPassword, _newPassword));
+            _oldPassword = string.Empty;
+            _newPassword = string.Empty;
+            _confirmPassword = string.Empty;
+            Toast.Success("密码已修改，其他设备可能需要重新登录。");
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"修改密码失败：{ex.Message}");
+        }
+        finally
+        {
+            _savingPassword = false;
+        }
+    }
+}
+

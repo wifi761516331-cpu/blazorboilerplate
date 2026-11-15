@@ -1,0 +1,146 @@
+@inject BlazorBoilerplateApiClient Api
+@inject ToastService Toast
+
+<section style="padding: 0.75rem 0 1.25rem;">
+    <BitStack Gap="0.85rem">
+        <BitStack Horizontal VerticalAlign="BitAlignment.Center">
+            <BitText Typography="BitTypography.Subtitle2">当前会话</BitText>
+            <BitSpacer />
+            <BitButton Variant="BitVariant.Outline"
+                       Size="BitSize.Small"
+                       IconName="@BitIconName.Refresh"
+                       IsLoading="_loading"
+                       OnClick="LoadSessionsAsync">
+                刷新
+            </BitButton>
+        </BitStack>
+
+        @if (_loading)
+        {
+            <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.75rem">
+                <BitShimmer Height="3.5rem" Circle />
+                <BitStack Gap="0.4rem">
+                    <BitShimmer Height="1rem" Width="12rem" />
+                    <BitShimmer Height="0.9rem" Width="16rem" />
+                </BitStack>
+            </BitStack>
+        }
+        else
+        {
+            @if (_currentSession is not null)
+            {
+                <BitCard FullWidth>
+                    <div class="settings-session-card">
+                        <BitPersona PrimaryText="@(string.IsNullOrWhiteSpace(_currentSession.DeviceInfo) ? "当前设备" : _currentSession.DeviceInfo)"
+                                    SecondaryText="@($"IP: {(_currentSession.IP ?? "—")} · {FormatTime(_currentSession)}")"
+                                    TertiaryText="@($"时区: {(_currentSession.TimeZone ?? "—")} · 语言: {(_currentSession.CultureName ?? "—")}")"
+                                    Size="BitPersonaSize.Size56"
+                                    ImageInitials="✓"
+                                    CoinVariant="BitVariant.Fill"
+                                    Presence="BitPersonaPresence.Online" />
+                        <div class="settings-session-actions">
+                            <BitTag Color="BitColor.Success" Variant="BitVariant.Outline" Size="BitSize.Small">当前会话</BitTag>
+                            <BitIcon Title="@(_currentSession.NotificationsEnabled ? "已开启通知" : "未开启通知")"
+                                     IconName="@(_currentSession.NotificationsEnabled ? BitIconName.Ringer : BitIconName.RingerOff)"
+                                     Color="@(_currentSession.NotificationsEnabled ? BitColor.Success : BitColor.TertiaryForeground)" />
+                        </div>
+                    </div>
+                </BitCard>
+            }
+
+            <BitText Typography="BitTypography.Subtitle2" Style="margin-top: 0.5rem;">其他活动会话</BitText>
+
+            @if (_otherSessions.Count == 0)
+            {
+                <BitCard FullWidth>
+                    <BitText Typography="BitTypography.Body2" Color="BitColor.SecondaryForeground">
+                        暂无其他设备上的活动会话。
+                    </BitText>
+                </BitCard>
+            }
+            else
+            {
+                @foreach (var session in _otherSessions)
+                {
+                    <BitCard FullWidth>
+                        <div class="settings-session-card">
+                            <BitPersona PrimaryText="@(string.IsNullOrWhiteSpace(session.DeviceInfo) ? "未知设备" : session.DeviceInfo)"
+                                        SecondaryText="@($"IP: {(session.IP ?? "—")} · {FormatTime(session)}")"
+                                        TertiaryText="@($"时区: {(session.TimeZone ?? "—")} · 语言: {(session.CultureName ?? "—")}")"
+                                        Size="BitPersonaSize.Size56"
+                                        ImageInitials="•"
+                                        CoinVariant="BitVariant.Outline"
+                                        Presence="BitPersonaPresence.None" />
+                            <div class="settings-session-actions">
+                                <BitIcon Title="@(session.NotificationsEnabled ? "已开启通知" : "未开启通知")"
+                                         IconName="@(session.NotificationsEnabled ? BitIconName.Ringer : BitIconName.RingerOff)"
+                                         Color="@(session.NotificationsEnabled ? BitColor.Success : BitColor.TertiaryForeground)" />
+                                <PermissionView Code="identity.user.revoke-session">
+                                    <BitButton IconOnly
+                                               Color="BitColor.Error"
+                                               Variant="BitVariant.Text"
+                                               IconName="@BitIconName.Delete"
+                                               IsLoading="@_revoking.Contains(session.Id)"
+                                               Title="撤销此会话"
+                                               AriaLabel="撤销此会话"
+                                               OnClick="@(() => RevokeAsync(session))" />
+                                </PermissionView>
+                            </div>
+                        </div>
+                    </BitCard>
+                }
+            }
+        }
+    </BitStack>
+</section>
+
+@code {
+    private bool _loading = true;
+    private UserSessionDto? _currentSession;
+    private List<UserSessionDto> _otherSessions = [];
+    private readonly HashSet<Guid> _revoking = [];
+
+    protected override async Task OnInitializedAsync() => await LoadSessionsAsync();
+
+    private async Task LoadSessionsAsync()
+    {
+        _loading = true;
+        try
+        {
+            var all = await Api.GetUserSessionsAsync();
+            _currentSession = all.FirstOrDefault(s => s.Current);
+            _otherSessions = all.Where(s => !s.Current).OrderByDescending(s => s.StartedOnUtc).ToList();
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"读取会话列表失败：{ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task RevokeAsync(UserSessionDto session)
+    {
+        _revoking.Add(session.Id);
+        try
+        {
+            await Api.RevokeSessionAsync(session.Id);
+            _otherSessions.RemoveAll(s => s.Id == session.Id);
+            Toast.Success("会话已撤销。");
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"撤销会话失败：{ex.Message}");
+        }
+        finally
+        {
+            _revoking.Remove(session.Id);
+        }
+    }
+
+    private static string FormatTime(UserSessionDto s) =>
+        $"登录于 {s.StartedOnUtc.ToLocalTime():yyyy-MM-dd HH:mm}";
+}
+
