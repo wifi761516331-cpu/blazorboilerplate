@@ -19,6 +19,7 @@
     { "code": "catalog.product.delete", "name": "删除商品" }
   ],
   "frontend": {
+    "assembly": "BlazorBoilerplate.Modules.Catalog.Frontend.dll",
     "routes": [ "/catalog" ],
     "menus": [ "Catalog" ],
     "menuItems": [

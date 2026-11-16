@@ -130,7 +130,10 @@ public static class WebAuth
     internal static List<AccountEntry> UpsertAccount(ClaimsPrincipal? principal, AccountEntry entry)
     {
         var list = ReadAccounts(principal)
-            .Where(a => !string.Equals(a.UserId, entry.UserId, StringComparison.OrdinalIgnoreCase))
+            .Where(a =>
+                !string.Equals(a.UserId, entry.UserId, StringComparison.OrdinalIgnoreCase) &&
+                (string.IsNullOrWhiteSpace(entry.Email) || !string.Equals(a.Email, entry.Email, StringComparison.OrdinalIgnoreCase)) &&
+                (string.IsNullOrWhiteSpace(entry.UserName) || !string.Equals(a.UserName, entry.UserName, StringComparison.OrdinalIgnoreCase)))
             .ToList();
         list.Insert(0, entry);
         return list.Take(8).ToList();

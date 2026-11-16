@@ -48,14 +48,22 @@ public static class HostPlatformExtensions
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            {
+                var ip = context.Connection.RemoteIpAddress;
+                if (ip is not null && System.Net.IPAddress.IsLoopback(ip))
+                {
+                    return RateLimitPartition.GetNoLimiter("loopback");
+                }
+
+                return RateLimitPartition.GetFixedWindowLimiter(
+                    ip?.ToString() ?? "anonymous",
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 200,
                         Window = TimeSpan.FromSeconds(10),
                         QueueLimit = 0
-                    }));
+                    });
+            });
             options.AddPolicy("auth-sensitive", context =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",

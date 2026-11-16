@@ -77,9 +77,10 @@ public sealed class DefaultSetupInitializer(
         }
         else
         {
-            builder
-                .UseNpgsql(conn, npgsql => npgsql.EnableRetryOnFailure())
-                .ReplaceService<IMigrationsSqlGenerator, CustomNpgsqlMigrationsSqlGenerator>();
+            builder.UseIdentityProvider(
+                provider: provider,
+                connectionString: conn,
+                enableRetryOnFailure: true);
         }
         return new IdentityDbContext(builder.Options);
     }

@@ -61,6 +61,24 @@ foreach ($folder in 'frontend', 'migrations', 'localization') {
     if (Test-Path $src) { Copy-Item $src (Join-Path $stage $folder) -Recurse }
 }
 
+# 独立前端 RCL 程序集（若 manifest.frontend.assembly 已声明）
+if ($manifest.frontend -and $manifest.frontend.assembly) {
+    $frontendAsm = [IO.Path]::GetFileName($manifest.frontend.assembly)
+    $frontendBase = [IO.Path]::GetFileNameWithoutExtension($frontendAsm)
+    $frontendDir = Join-Path (Split-Path $ModuleDir -Parent) $frontendBase
+    $frontendCsproj = if (Test-Path $frontendDir) { Get-ChildItem $frontendDir -Filter '*.csproj' | Select-Object -First 1 } else { $null }
+    if ($frontendCsproj) {
+        Write-Host "构建前端 RCL $($frontendCsproj.FullName)（v$version）..." -ForegroundColor DarkCyan
+        dotnet build $frontendCsproj.FullName -c Release -p:Version=$version --nologo -v q
+        if ($LASTEXITCODE -ne 0) { throw "前端 RCL dotnet build 失败" }
+        $frontendOut = Join-Path $frontendDir 'bin\Release\net10.0'
+        $frontendStage = New-Item (Join-Path $stage 'frontend') -ItemType Directory -Force
+        Copy-Item (Join-Path $frontendOut $frontendAsm) $frontendStage.FullName
+        $frontendDeps = Join-Path $frontendOut "$frontendBase.deps.json"
+        if (Test-Path $frontendDeps) { Copy-Item $frontendDeps $frontendStage.FullName }
+    }
+}
+
 # checksums.sha256（若模块声明了 checksumSha256 则必须包含入口程序集哈希）
 $checksums = Join-Path $ModuleDir 'checksums.sha256'
 if (Test-Path $checksums) { Copy-Item $checksums $stage }

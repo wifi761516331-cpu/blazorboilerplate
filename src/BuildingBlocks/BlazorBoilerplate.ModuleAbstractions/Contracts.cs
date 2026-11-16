@@ -75,6 +75,8 @@ public sealed class ModuleManifest
 
 public sealed class ModuleFrontendManifest
 {
+    /// <summary>独立前端 RCL 程序集名（位于包内 frontend/ 目录）。为空时兼容旧单 DLL 模式回退到 backend/entryAssembly。</summary>
+    public string? Assembly { get; set; }
     public string[] Routes { get; set; } = [];
     public string[] Menus { get; set; } = [];
     public string[] Localization { get; set; } = [];

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>BlazorBoilerplate.Modules.Catalog</RootNamespace>
+    <AssemblyName>BlazorBoilerplate.Modules.Catalog.Frontend</AssemblyName>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Bit.BlazorUI" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\BlazorBoilerplate.Application\BlazorBoilerplate.Application.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\BlazorBoilerplate.ModuleAbstractions\BlazorBoilerplate.ModuleAbstractions.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\BlazorBoilerplate.Web.Shared\BlazorBoilerplate.Web.Shared.csproj" />
+  </ItemGroup>
+
+</Project>
+

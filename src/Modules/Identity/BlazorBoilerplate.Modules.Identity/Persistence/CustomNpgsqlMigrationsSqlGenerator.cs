@@ -17,7 +17,7 @@ namespace BlazorBoilerplate.Modules.Identity.Persistence;
 /// 设计时工厂同样注册，保证 dotnet ef 迁移与运行时行为一致。
 /// </summary>
 #pragma warning disable EF1001 // EF Core internal API（INpgsqlSingletonOptions）
-public sealed class CustomNpgsqlMigrationsSqlGenerator(
+internal sealed class CustomNpgsqlMigrationsSqlGenerator(
     MigrationsSqlGeneratorDependencies dependencies,
     INpgsqlSingletonOptions npgsqlSingletonOptions)
     : NpgsqlMigrationsSqlGenerator(dependencies, npgsqlSingletonOptions)

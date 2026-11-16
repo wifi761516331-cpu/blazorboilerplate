@@ -70,6 +70,11 @@ public static class ModuleStartupExtensions
         options.VerifyChecksum = systemSettings.VerifyChecksum;
         options.DrainTimeoutSeconds = systemSettings.DrainTimeoutSeconds;
 
+        // 开发环境启动自动同步：在加载模块 ALC 之前，将 src/Modules 最新构建产物同步到 modules/installed/。
+        var packService = scope.ServiceProvider.GetService<ModulePackService>();
+        if (packService is { IsEnabled: true })
+            packService.SyncDevModulesToInstalled(options.PackagesRoot);
+
         var discovered = await manager.RefreshCatalogAsync(CancellationToken.None);
         Log.Information("Module catalog refreshed. Discovered={Count}, Mode={Mode}", discovered, setup.CurrentMode);
 

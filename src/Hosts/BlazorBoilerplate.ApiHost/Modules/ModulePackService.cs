@@ -112,6 +112,24 @@ public sealed class ModulePackService(
                 if (Directory.Exists(src))
                     CopyDirectory(src, Path.Combine(stage, folder));
             }
+            if (!string.IsNullOrWhiteSpace(manifest.Frontend.Assembly))
+            {
+                var frontendCsproj = FindFrontendCsproj(sourceDir, manifest.Frontend.Assembly);
+                if (frontendCsproj is not null)
+                {
+                    var frontendBuildOut = await RunDotnetBuildAsync(frontendCsproj, manifest.Version, cancellationToken);
+                    var frontendName = Path.GetFileName(manifest.Frontend.Assembly);
+                    var frontendDll = FindBuildOutput(frontendBuildOut, frontendName)
+                                      ?? throw new FileNotFoundException($"前端构建产物缺少 {frontendName}。");
+                    var frontendStage = Path.Combine(stage, ModulePackageLayout.FrontendFolder);
+                    Directory.CreateDirectory(frontendStage);
+                    File.Copy(frontendDll, Path.Combine(frontendStage, frontendName), overwrite: true);
+                    var frontendDeps = Path.Combine(Path.GetDirectoryName(frontendDll)!,
+                        Path.GetFileNameWithoutExtension(frontendName) + ".deps.json");
+                    if (File.Exists(frontendDeps))
+                        File.Copy(frontendDeps, Path.Combine(frontendStage, Path.GetFileName(frontendDeps)), overwrite: true);
+                }
+            }
             var checksums = Path.Combine(sourceDir, "checksums.sha256");
             if (File.Exists(checksums)) File.Copy(checksums, Path.Combine(stage, "checksums.sha256"));
 
@@ -125,6 +143,133 @@ public sealed class ModulePackService(
         {
             try { Directory.Delete(stage, recursive: true); } catch { /* 清理失败不影响交付 */ }
         }
+    }
+
+    /// <summary>
+    /// 开发期启动自动同步：在模块 ALC 加载前，把 src/Modules 下已有最新构建产物同步到
+    /// modules/installed/{id}/{version}/，避免改完源码 F5 启动仍加载到旧版包 DLL。
+    /// </summary>
+    public int SyncDevModulesToInstalled(string packagesRoot)
+    {
+        if (!IsEnabled) return 0;
+
+        var synced = 0;
+        foreach (var source in ListSources())
+        {
+            var manifestPath = Path.Combine(source.Directory, "manifest.json");
+            ModuleManifest? manifest;
+            try
+            {
+                using var stream = File.OpenRead(manifestPath);
+                manifest = JsonSerializer.Deserialize<ModuleManifest>(stream, JsonOptions);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "启动同步跳过无法解析的 manifest：{Path}", manifestPath);
+                continue;
+            }
+
+            if (manifest is null || string.IsNullOrWhiteSpace(manifest.Id) ||
+                string.IsNullOrWhiteSpace(manifest.Version) || string.IsNullOrWhiteSpace(manifest.EntryAssembly))
+                continue;
+
+            var entryName = Path.GetFileName(manifest.EntryAssembly);
+            var debugDll = FindBuildOutput(Path.Combine(source.Directory, "bin", "Debug"), entryName);
+            var releaseDll = FindBuildOutput(Path.Combine(source.Directory, "bin", "Release"), entryName);
+            var sourceDll = (debugDll, releaseDll) switch
+            {
+                (not null, not null) => File.GetLastWriteTimeUtc(debugDll) >= File.GetLastWriteTimeUtc(releaseDll) ? debugDll : releaseDll,
+                (not null, null) => debugDll,
+                (null, not null) => releaseDll,
+                _ => null
+            };
+            if (sourceDll is null) continue;
+
+            var moduleRoot = Path.Combine(packagesRoot, manifest.Id);
+            var targetVersion = manifest.Version;
+            if (Directory.Exists(moduleRoot))
+            {
+                var latestExisting = Directory.EnumerateDirectories(moduleRoot)
+                    .Select(Path.GetFileName)
+                    .Where(v => !string.IsNullOrWhiteSpace(v))
+                    .OrderByDescending(v => Version.TryParse(v, out var parsed) ? parsed : new Version(0, 0), Comparer<Version>.Default)
+                    .FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(latestExisting))
+                    targetVersion = latestExisting;
+            }
+
+            var installedDir = Path.Combine(moduleRoot, targetVersion);
+            var installedBackend = Path.Combine(installedDir, "backend");
+            var installedDll = Path.Combine(installedBackend, entryName);
+            var installedManifest = Path.Combine(installedDir, "manifest.json");
+
+            string? frontendSourceDll = null;
+            string? frontendName = null;
+            string? installedFrontendDll = null;
+            if (!string.IsNullOrWhiteSpace(manifest.Frontend.Assembly))
+            {
+                frontendName = Path.GetFileName(manifest.Frontend.Assembly);
+                var frontendDir = FindFrontendProjectDir(source.Directory, manifest.Frontend.Assembly);
+                if (frontendDir is not null)
+                {
+                    var fDebug = FindBuildOutput(Path.Combine(frontendDir, "bin", "Debug"), frontendName);
+                    var fRelease = FindBuildOutput(Path.Combine(frontendDir, "bin", "Release"), frontendName);
+                    frontendSourceDll = (fDebug, fRelease) switch
+                    {
+                        (not null, not null) => File.GetLastWriteTimeUtc(fDebug) >= File.GetLastWriteTimeUtc(fRelease) ? fDebug : fRelease,
+                        (not null, null) => fDebug,
+                        (null, not null) => fRelease,
+                        _ => null
+                    };
+                }
+                installedFrontendDll = Path.Combine(installedDir, ModulePackageLayout.FrontendFolder, frontendName);
+            }
+
+            var needsBackendSync = !File.Exists(installedDll)
+                                   || File.GetLastWriteTimeUtc(sourceDll) > File.GetLastWriteTimeUtc(installedDll)
+                                   || !File.Exists(installedManifest)
+                                   || File.GetLastWriteTimeUtc(manifestPath) > File.GetLastWriteTimeUtc(installedManifest);
+            var needsFrontendSync = frontendSourceDll is not null && installedFrontendDll is not null &&
+                                    (!File.Exists(installedFrontendDll) ||
+                                     File.GetLastWriteTimeUtc(frontendSourceDll) > File.GetLastWriteTimeUtc(installedFrontendDll));
+            if (!needsBackendSync && !needsFrontendSync) continue;
+
+            if (needsBackendSync)
+            {
+                Directory.CreateDirectory(installedBackend);
+                File.Copy(manifestPath, installedManifest, overwrite: true);
+                File.Copy(sourceDll, installedDll, overwrite: true);
+
+                var depsFile = Path.Combine(Path.GetDirectoryName(sourceDll)!,
+                    Path.GetFileNameWithoutExtension(entryName) + ".deps.json");
+                if (File.Exists(depsFile))
+                    File.Copy(depsFile, Path.Combine(installedBackend, Path.GetFileName(depsFile)), overwrite: true);
+
+                foreach (var folder in new[] { ModulePackageLayout.FrontendFolder, ModulePackageLayout.MigrationsFolder, ModulePackageLayout.LocalizationFolder })
+                {
+                    var src = Path.Combine(source.Directory, folder);
+                    if (Directory.Exists(src))
+                        CopyDirectory(src, Path.Combine(installedDir, folder));
+                }
+            }
+
+            if (needsFrontendSync && frontendSourceDll is not null && installedFrontendDll is not null && frontendName is not null)
+            {
+                var installedFrontendDir = Path.GetDirectoryName(installedFrontendDll)!;
+                Directory.CreateDirectory(installedFrontendDir);
+                File.Copy(frontendSourceDll, installedFrontendDll, overwrite: true);
+                var frontendDeps = Path.Combine(Path.GetDirectoryName(frontendSourceDll)!,
+                    Path.GetFileNameWithoutExtension(frontendName) + ".deps.json");
+                if (File.Exists(frontendDeps))
+                    File.Copy(frontendDeps, Path.Combine(installedFrontendDir, Path.GetFileName(frontendDeps)), overwrite: true);
+            }
+
+            synced++;
+            logger.LogInformation("开发期自动同步模块包：{Id} v{Version}（后端={BackendSync}, 前端={FrontendSync}）",
+                manifest.Id, manifest.Version, needsBackendSync, needsFrontendSync);
+        }
+
+        return synced;
     }
 
     private async Task<string> RunDotnetBuildAsync(string csproj, string version, CancellationToken cancellationToken)
@@ -160,6 +305,21 @@ public sealed class ModulePackService(
             throw new InvalidOperationException($"dotnet build 失败（exit={process.ExitCode}）：\n{stderr}\n{stdout}");
         var binDir = Path.Combine(Path.GetDirectoryName(csproj)!, "bin", "Release");
         return binDir;
+    }
+
+    private static string? FindFrontendProjectDir(string sourceDir, string frontendAssembly)
+    {
+        var baseName = Path.GetFileNameWithoutExtension(frontendAssembly);
+        var parent = Path.GetDirectoryName(sourceDir);
+        if (string.IsNullOrEmpty(parent)) return null;
+        var candidate = Path.Combine(parent, baseName);
+        return Directory.Exists(candidate) ? candidate : null;
+    }
+
+    private static string? FindFrontendCsproj(string sourceDir, string frontendAssembly)
+    {
+        var dir = FindFrontendProjectDir(sourceDir, frontendAssembly);
+        return dir is null ? null : Directory.EnumerateFiles(dir, "*.csproj").FirstOrDefault();
     }
 
     private static string? FindBuildOutput(string binDir, string entryName)

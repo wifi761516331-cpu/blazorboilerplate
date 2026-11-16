@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Razor">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -10,9 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Bit.BlazorUI" />
-    <PackageReference Include="Bit.BlazorUI.Extras" />
-    <PackageReference Include="Bit.BlazorUI.Icons" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <!-- EF Core：DbContext + PostgreSQL 迁移 + SQLite 开发降级。
          Design 仅供 dotnet-ef 设计期使用，不随运行时发布。 -->
     <PackageReference Include="Microsoft.EntityFrameworkCore" />

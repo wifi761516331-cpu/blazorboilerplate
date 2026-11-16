@@ -275,11 +275,17 @@
         ApplyZoneNow();
 
         await Task.WhenAll(
-            LoadAccountsAsync(),
             LoadCulturesAsync(),
             LoadUnreadAsync());
 
         StartClock();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await LoadAccountsAsync();
+        StateHasChanged();
     }
 
     /// <summary>每 30 秒刷新菜单内的「该时区当前时间」（可选增强，失败自动停止）。</summary>

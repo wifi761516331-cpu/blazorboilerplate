@@ -16,7 +16,8 @@ public static class IdentityDbContextOptions
         this DbContextOptionsBuilder builder,
         IServiceProvider? services = null,
         string? provider = null,
-        string? connectionString = null)
+        string? connectionString = null,
+        bool enableRetryOnFailure = false)
     {
         var resolved = PlatformConnectionState.Normalize(provider ?? PlatformConnectionState.DatabaseProvider);
         var conn = connectionString ?? PlatformConnectionState.ResolveConnectionString();
@@ -30,7 +31,7 @@ public static class IdentityDbContextOptions
         }
 
         builder
-            .UseNpgsql(conn)
+            .UseNpgsql(conn, npgsql => { if (enableRetryOnFailure) npgsql.EnableRetryOnFailure(); })
             .ReplaceService<IMigrationsSqlGenerator, CustomNpgsqlMigrationsSqlGenerator>();
     }
 }

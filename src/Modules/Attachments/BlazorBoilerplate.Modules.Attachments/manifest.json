@@ -18,6 +18,7 @@
     { "code": "attachments.delete", "name": "删除附件" }
   ],
   "frontend": {
+    "assembly": "BlazorBoilerplate.Modules.Attachments.Frontend.dll",
     "routes": [ "/attachments" ],
     "menus": [ "Attachments" ],
     "menuItems": [

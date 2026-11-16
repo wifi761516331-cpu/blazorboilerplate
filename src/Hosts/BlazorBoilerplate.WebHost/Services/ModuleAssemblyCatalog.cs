@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Components;
 namespace BlazorBoilerplate.WebHost.Services;
 
 /// <summary>
-/// 动态模块前端程序集目录（运行时注入）。
+/// 动态模块前端程序集目录（运行时注入，不写死任何静态模块引用）。
 /// 模块是前后端同体 RCL：页面组件与后端服务在同一个 DLL 里。
 ///
 /// 两条渲染路径都支持运行时换版本（无需重启 WebHost）：
@@ -17,29 +17,20 @@ namespace BlazorBoilerplate.WebHost.Services;
 ///   从当前激活程序集解析组件后 DynamicComponent 渲染 —— endpoint 固定，组件动态。
 /// - <b>Interactive 线路导航</b>：Router.AdditionalAssemblies 绑定 <see cref="Assemblies"/>；
 ///   Router 每次导航按程序集序列内容比较 RouteKey，集合替换后自动重建路由表，新导航即命中新版本。
-///
-/// 程序集加载走默认 ALC：打包注入 -p:Version 使程序集身份随包版本变化，多版本可共存；
-/// 切换后旧版本程序集暂留内存（默认 ALC 不可卸载，collectible ALC 是后续 POC）。
 /// </summary>
 public sealed class ModuleAssemblyCatalog
 {
     private readonly HttpClient _http;
     private readonly ILogger<ModuleAssemblyCatalog> _logger;
     private readonly Uri _apiBase;
+    private readonly object _gate = new();
 
-    /// <summary>编译时静态引用的模块程序集（开发回退：改源码即生效；键 = 模块 id）。</summary>
-    private static readonly ImmutableDictionary<string, Assembly> StaticByModule =
-        new Dictionary<string, Assembly>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["identity"] = typeof(BlazorBoilerplate.Modules.Identity.IdentityModule).Assembly,
-            ["catalog"] = typeof(BlazorBoilerplate.Modules.Catalog.CatalogModule).Assembly,
-        }.ToImmutableDictionary(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>当前激活条目（moduleId → 程序集 + 可卸载 ALC；初始为静态引用，包版本更新时替换并卸载旧 ALC）。</summary>
+    /// <summary>当前激活条目（moduleId → 程序集 + 可卸载 ALC；包版本更新时替换并卸载旧 ALC）。</summary>
     private readonly Dictionary<string, ModuleEntry> _active = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>暴露给 Router.AdditionalAssemblies 的当前集合（整体替换引用）。</summary>
-    private ImmutableArray<Assembly> _assemblies = [.. StaticByModule.Values];
+    private ImmutableArray<Assembly> _assemblies = [];
+    private long _lastLoadAttemptTicks;
 
     /// <summary>路由解析缓存（assembly → 模板/组件映射），程序集被 GC 回收后条目随之消失。</summary>
     private readonly ConditionalWeakTable<Assembly, Dictionary<string, Type>> _routeCache = new();
@@ -50,13 +41,29 @@ public sealed class ModuleAssemblyCatalog
         _http = http;
         _logger = logger;
         _apiBase = new Uri(configuration["ApiHost:BaseUrl"] ?? "http://localhost:5100");
-        foreach (var (id, asm) in StaticByModule) _active[id] = new ModuleEntry(asm);
     }
 
     /// <summary>Router.AdditionalAssemblies 绑定此属性；Router 每次导航按内容比较并按需重建路由表。</summary>
-    public IReadOnlyList<Assembly> Assemblies => _assemblies;
+    public IReadOnlyList<Assembly> Assemblies
+    {
+        get
+        {
+            EnsureLoadedOnDemand();
+            return _assemblies;
+        }
+    }
 
-    /// <summary>启动时装载：优先 ApiHost 激活版本的包 DLL（版本比编译时新才替换），否则保持静态引用。</summary>
+    private void EnsureLoadedOnDemand()
+    {
+        if (!_assemblies.IsEmpty) return;
+        var now = Environment.TickCount64;
+        var last = Volatile.Read(ref _lastLoadAttemptTicks);
+        if (last != 0 && now - last < 3000) return;
+        if (Interlocked.CompareExchange(ref _lastLoadAttemptTicks, now, last) == last)
+            LoadAll();
+    }
+
+    /// <summary>启动时装载：从 ApiHost `/api/modules` 动态发现所有 Running 模块并加载其前端程序集。</summary>
     public void LoadAll()
     {
         try
@@ -72,17 +79,18 @@ public sealed class ModuleAssemblyCatalog
         }
         catch (Exception ex)
         {
-            // ApiHost 未启动等：保持静态引用（开发模式），SSR/导航由 ModuleHost 兜底提示。
-            _logger.LogWarning(ex, "启动时装载模块前端程序集失败（ApiHost 不可达？），使用编译时静态引用");
+            // ApiHost 尚未就绪时记录告警，后续请求/导航时可按需重试加载。
+            _logger.LogWarning(ex, "启动时装载模块前端程序集失败（ApiHost 不可达？）");
         }
-        _assemblies = [.. _active.Values.Select(e => e.Assembly)];
+        lock (_gate)
+            _assemblies = [.. _active.Values.Select(e => e.Assembly)];
         _logger.LogInformation("模块前端程序集目录就绪：{Modules}",
             string.Join(", ", _active.Select(kv => $"{kv.Key}={kv.Value.Assembly.GetName().Name} v{kv.Value.Assembly.GetName().Version}")));
     }
 
     /// <summary>
-    /// 运行时刷新单个模块（上传新版本 / 切换激活版本 / 加载成功后由页面调用，进程内即时生效）。
-    /// 返回 true 表示程序集发生了替换。
+    /// 运行时刷新单个模块（上传新版本 / 切换激活版本 / 加载或卸载成功后由页面调用，进程内即时生效）。
+    /// 返回 true 表示程序集发生了替换或移除。
     /// </summary>
     public async Task<bool> RefreshModuleAsync(string moduleId, CancellationToken cancellationToken = default)
     {
@@ -90,8 +98,11 @@ public sealed class ModuleAssemblyCatalog
         {
             var descriptor = await _http.GetFromJsonAsync<ModuleDto>(new Uri(_apiBase, $"/api/modules/{moduleId}"),
                 JsonOptions, cancellationToken);
+            if (descriptor is null || descriptor.State != BlazorBoilerplate.ModuleAbstractions.ModuleState.Running)
+                return UnloadModule(moduleId);
+
             // UI 显式切版本/加载后的刷新：允许回退降级（以 ApiHost 激活版本为准）。
-            return LoadFromPackage(moduleId, descriptor?.PackagePath, allowDowngrade: true);
+            return LoadFromPackage(moduleId, descriptor.PackagePath, allowDowngrade: true);
         }
         catch (Exception ex)
         {
@@ -104,6 +115,7 @@ public sealed class ModuleAssemblyCatalog
     public Type? ResolveComponent(string path)
     {
         if (string.IsNullOrEmpty(path) || path == "/") return null;
+        if (_assemblies.IsEmpty) LoadAll();
         var normalized = path.TrimEnd('/');
         if (normalized.Length == 0) normalized = "/";
 
@@ -115,19 +127,44 @@ public sealed class ModuleAssemblyCatalog
         return null;
     }
 
+    private bool UnloadModule(string moduleId)
+    {
+        ModuleEntry? current;
+        lock (_gate)
+        {
+            if (!_active.Remove(moduleId, out current))
+                return false;
+            _assemblies = [.. _active.Values.Select(e => e.Assembly)];
+        }
+
+        if (current.Context is not null)
+        {
+            try
+            {
+                current.Context.Unload();
+                _logger.LogInformation("模块 {ModuleId} v{OldVersion} 的前端 ALC 已请求卸载", moduleId, current.Version);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "模块 {ModuleId} 前端 ALC 卸载请求失败", moduleId);
+            }
+        }
+        return true;
+    }
+
     /// <param name="allowDowngrade">
-    /// 启动装载（false）：只进不退 —— 防止磁盘上的旧包覆盖开发编译的静态引用。
+    /// 启动装载（false）：只进不退，避免重复加载同版本。
     /// 显式刷新（true，UI 切版本后调用）：以 ApiHost 激活版本为准，允许回退降级。
     /// </param>
     private bool LoadFromPackage(string moduleId, string? packagePath, bool allowDowngrade = false)
     {
         if (string.IsNullOrWhiteSpace(packagePath)) return false;
-        var current = _active.GetValueOrDefault(moduleId) ?? (StaticByModule.TryGetValue(moduleId, out var s) ? new ModuleEntry(s) : null);
+        ModuleEntry? current;
+        lock (_gate)
+            current = _active.GetValueOrDefault(moduleId);
 
-        // manifest.entryAssembly 与包内 backend/ 目录约定：BlazorBoilerplate.Modules.<Id>.dll
-        var id = char.ToUpperInvariant(moduleId[0]) + moduleId[1..];
-        var dll = Path.Combine(packagePath, "backend", $"BlazorBoilerplate.Modules.{id}.dll");
-        if (!File.Exists(dll)) return false;
+        var dll = ResolveEntryDllPath(moduleId, packagePath);
+        if (dll is null || !File.Exists(dll)) return false;
 
         var packageVersion = AssemblyName.GetAssemblyName(dll).Version;
         if (!allowDowngrade && current is not null && packageVersion <= current.Assembly.GetName().Version)
@@ -151,9 +188,13 @@ public sealed class ModuleAssemblyCatalog
             throw;
         }
 
-        _active[moduleId] = new ModuleEntry(loaded, context, packageVersion);
+        lock (_gate)
+        {
+            _active[moduleId] = new ModuleEntry(loaded, context, packageVersion);
+            _assemblies = [.. _active.Values.Select(e => e.Assembly)]; // 整体替换引用：Router 下次导航重建路由表
+        }
 
-        // 卸载旧的可回收 ALC（静态引用无 ALC、不卸载）。旧组件实例仍被活跃线路引用时卸载请求挂起，
+        // 卸载旧的可回收 ALC。旧组件实例仍被活跃线路引用时卸载请求挂起，
         // 等引用释放（线路关闭 + GC）后自动完成 —— 官方 unloadability 模式的标准行为。
         if (current?.Context is not null)
         {
@@ -169,9 +210,45 @@ public sealed class ModuleAssemblyCatalog
             }
         }
 
-        _assemblies = [.. _active.Values.Select(e => e.Assembly)]; // 整体替换引用：Router 下次导航重建路由表
         _logger.LogInformation("模块 {ModuleId} 前端程序集已切换：v{PackageVersion}（{Path}）", moduleId, packageVersion, dll);
         return true;
+    }
+
+    private static string? ResolveEntryDllPath(string moduleId, string packagePath)
+    {
+        var manifestPath = Path.Combine(packagePath, "manifest.json");
+        if (File.Exists(manifestPath))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(File.ReadAllText(manifestPath));
+                if (doc.RootElement.TryGetProperty("frontend", out var frontend) &&
+                    frontend.TryGetProperty("assembly", out var frontendAsm))
+                {
+                    var asmName = frontendAsm.GetString();
+                    if (!string.IsNullOrWhiteSpace(asmName))
+                    {
+                        var frontendDll = Path.Combine(packagePath, "frontend", Path.GetFileName(asmName));
+                        if (File.Exists(frontendDll))
+                            return frontendDll;
+                    }
+                }
+
+                if (doc.RootElement.TryGetProperty("entryAssembly", out var prop))
+                {
+                    var entry = prop.GetString();
+                    if (!string.IsNullOrWhiteSpace(entry))
+                        return Path.Combine(packagePath, "backend", Path.GetFileName(entry));
+                }
+            }
+            catch
+            {
+                // manifest 解析失败时回退命名约定
+            }
+        }
+
+        var id = char.ToUpperInvariant(moduleId[0]) + moduleId[1..];
+        return Path.Combine(packagePath, "backend", $"BlazorBoilerplate.Modules.{id}.dll");
     }
 
     /// <summary>激活条目：程序集 + 承载它的可回收 ALC（静态引用为 null）+ 已加载版本。</summary>
