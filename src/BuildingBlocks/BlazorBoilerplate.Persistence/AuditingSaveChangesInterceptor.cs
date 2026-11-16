@@ -1,10 +1,10 @@
-using BlazorBoilerplate.Application.Abstractions;
+﻿using BlazorBoilerplate.Application.Abstractions;
 using BlazorBoilerplate.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace BlazorBoilerplate.Modules.Identity.Persistence;
+namespace BlazorBoilerplate.Persistence;
 
 /// <summary>
 /// EF Core 审计与软删除拦截器：

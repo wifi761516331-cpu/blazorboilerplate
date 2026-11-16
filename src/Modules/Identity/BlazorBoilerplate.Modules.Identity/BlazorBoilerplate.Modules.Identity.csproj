@@ -11,18 +11,14 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <!-- EF Core：DbContext + PostgreSQL 迁移 + SQLite 开发降级。
-         Design 仅供 dotnet-ef 设计期使用，不随运行时发布。 -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <!-- Design 仅供 dotnet-ef 设计期使用，不随运行时发布；EF Core 与各数据库 Provider 由 BlazorBoilerplate.Persistence 统一提供。 -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\BlazorBoilerplate.Application\BlazorBoilerplate.Application.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\BlazorBoilerplate.ModuleAbstractions\BlazorBoilerplate.ModuleAbstractions.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\BlazorBoilerplate.Persistence\BlazorBoilerplate.Persistence.csproj" />
     <!-- 前端共享层：页面用的 BlazorBoilerplateApiClient / DTO / IdentityLayout 都在这里，
          模块只依赖共享契约，不反向引用 WebHost。 -->
     <ProjectReference Include="..\..\..\BuildingBlocks\BlazorBoilerplate.Web.Shared\BlazorBoilerplate.Web.Shared.csproj" />

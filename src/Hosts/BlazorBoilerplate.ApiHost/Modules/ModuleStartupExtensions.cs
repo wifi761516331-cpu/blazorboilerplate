@@ -112,10 +112,16 @@ public static class ModuleStartupExtensions
             string? pg = infra.ValueKind != JsonValueKind.Undefined && infra.TryGetProperty("postgreSQL", out var pgp)
                 ? pgp.GetString()
                 : null;
+            string? mysql = infra.ValueKind != JsonValueKind.Undefined && infra.TryGetProperty("mySQL", out var myp)
+                ? myp.GetString()
+                : null;
+            string? mssql = infra.ValueKind != JsonValueKind.Undefined && infra.TryGetProperty("mssql", out var msp)
+                ? msp.GetString()
+                : null;
             string? sqlite = infra.ValueKind != JsonValueKind.Undefined && infra.TryGetProperty("sqlite", out var sp)
                 ? sp.GetString()
                 : null;
-            PlatformConnectionState.Set(provider, pg, sqlite);
+            PlatformConnectionState.Set(provider, pg, sqlite, mysql, mssql);
             Log.Information("Platform connection state restored. Provider={Provider}", PlatformConnectionState.DatabaseProvider);
         }
         catch (Exception ex)

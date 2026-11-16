@@ -2,8 +2,8 @@ namespace BlazorBoilerplate.ModuleAbstractions;
 
 /// <summary>
 /// 模块数据库声明（manifest.json 的 database 段）。
-/// 模块加载时由宿主的 ModuleMigrationRunner 执行增量迁移：只按 Sequence 递增应用未应用过的步骤，
-/// 版本降级/卸载时【绝不】回滚或删表 —— 保证数据库结构只向前演进。
+/// 模块加载时由宿主的 ModuleMigrationRunner 基于 EF Core 执行增量迁移/种子：
+/// 只按 Sequence 递增应用未应用过的步骤，版本降级/卸载时绝不回滚或删表。
 /// </summary>
 public sealed class ModuleDatabaseManifest
 {
@@ -15,21 +15,16 @@ public sealed class ModuleDatabaseManifest
 }
 
 /// <summary>
-/// 模块在 DI 中注册本接口，提供单调递增的增量迁移步骤。
-/// 步骤必须是幂等的 CREATE TABLE IF NOT EXISTS / ALTER TABLE ADD COLUMN 等纯增量 DDL，
-/// 严禁 DROP/DELETE/回滚；History 表持久化已应用的最大 Sequence，降级后不会重放也不会倒退。
+/// 模块在 DI 中注册本接口，提供基于 EF Core 的单调递增迁移/种子步骤。
+/// 已应用的 Sequence 持久化在 ModuleMigrationHistory 表，降级后不会重放也不会倒退。
 /// </summary>
 public interface IModuleDatabaseMigrations
 {
     IReadOnlyList<ModuleMigrationStep> Steps { get; }
 }
 
-/// <summary>
-/// 单个迁移步骤。Sql 为 SQLite 语法（默认），PostgreSql 为 PG 语法（为空时回退 Sql）。
-/// 允许多条语句，用 ";" 分隔；runner 逐条执行。
-/// </summary>
+/// <summary>单个 EF Core 迁移/种子步骤（不再使用原生 SQL 字符串）。</summary>
 public sealed record ModuleMigrationStep(
     int Sequence,
     string Name,
-    string Sql,
-    string? PostgreSql = null);
+    Func<IServiceProvider, CancellationToken, Task> ExecuteAsync);

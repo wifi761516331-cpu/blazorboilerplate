@@ -434,7 +434,9 @@ public sealed record SetupConfiguration(
     string DatabaseProvider,
     string? PostgreSQL,
     string? SQLite,
-    string? Redis);
+    string? Redis,
+    string? MySQL = null,
+    string? MSSQL = null);
 
 /// <summary>POST /api/modules/upload 响应体（camelCase：descriptor / s3Key）。</summary>
 public sealed record ModuleUploadResult(

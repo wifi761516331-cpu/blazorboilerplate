@@ -219,7 +219,7 @@ public sealed class ModulePackService(
                         (not null, not null) => File.GetLastWriteTimeUtc(fDebug) >= File.GetLastWriteTimeUtc(fRelease) ? fDebug : fRelease,
                         (not null, null) => fDebug,
                         (null, not null) => fRelease,
-                        _ => null
+                        _ => TryBuildFrontendProject(frontendDir, frontendName, logger)
                     };
                 }
                 installedFrontendDll = Path.Combine(installedDir, ModulePackageLayout.FrontendFolder, frontendName);
@@ -305,6 +305,48 @@ public sealed class ModulePackService(
             throw new InvalidOperationException($"dotnet build 失败（exit={process.ExitCode}）：\n{stderr}\n{stdout}");
         var binDir = Path.Combine(Path.GetDirectoryName(csproj)!, "bin", "Release");
         return binDir;
+    }
+
+    private static string? TryBuildFrontendProject(string frontendDir, string frontendName, ILogger logger)
+    {
+        var csproj = Directory.EnumerateFiles(frontendDir, "*.csproj").FirstOrDefault();
+        if (csproj is null)
+            return null;
+
+        try
+        {
+            var psi = new ProcessStartInfo("dotnet", $"build \"{csproj}\" -c Debug --nologo -v q")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = frontendDir
+            };
+            using var process = Process.Start(psi);
+            if (process is null)
+                return null;
+
+            if (!process.WaitForExit(120_000))
+            {
+                process.Kill(entireProcessTree: true);
+                logger.LogWarning("开发期自动编译模块前端超时：{Csproj}", csproj);
+                return null;
+            }
+
+            if (process.ExitCode != 0)
+            {
+                logger.LogWarning("开发期自动编译模块前端失败（exit={Code}）：{Csproj}", process.ExitCode, csproj);
+                return null;
+            }
+
+            return FindBuildOutput(Path.Combine(frontendDir, "bin", "Debug"), frontendName);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "开发期自动编译模块前端异常：{Csproj}", csproj);
+            return null;
+        }
     }
 
     private static string? FindFrontendProjectDir(string sourceDir, string frontendAssembly)

@@ -33,6 +33,16 @@ else
             <BitTextField Label="PostgreSQL 连接字符串" @bind-Value="_postgreSql"
                           Placeholder="Host=localhost;Port=5432;Database=blazorboilerplate;Username=...;Password=..." />
         }
+        else if (_provider == "MySQL")
+        {
+            <BitTextField Label="MySQL 连接字符串" @bind-Value="_mySql"
+                          Placeholder="Server=localhost;Port=3306;Database=blazorboilerplate;Uid=root;Pwd=...;" />
+        }
+        else if (_provider == "MSSQL")
+        {
+            <BitTextField Label="MSSQL (SQL Server) 连接字符串" @bind-Value="_mssql"
+                          Placeholder="Server=localhost;Database=blazorboilerplate;User Id=sa;Password=...;MultipleActiveResultSets=True;Encrypt=False;" />
+        }
         else
         {
             <BitTextField Label="SQLite 连接串（留空 = data/blazorboilerplate.db）" @bind-Value="_sqlite"
@@ -65,6 +75,8 @@ else
     private string? _systemName;
     private string _provider = "PostgreSQL";
     private string? _postgreSql;
+    private string? _mySql;
+    private string? _mssql;
     private string? _sqlite;
     private string? _redis;
     private bool _submitting;
@@ -73,6 +85,8 @@ else
     private static readonly List<BitDropdownItem<string>> _providerItems =
     [
         new() { Text = "PostgreSQL（生产推荐）", Value = "PostgreSQL" },
+        new() { Text = "MySQL", Value = "MySQL" },
+        new() { Text = "MSSQL (SQL Server)", Value = "MSSQL" },
         new() { Text = "SQLite（开发/演示）", Value = "SQLite" }
     ];
 
@@ -118,7 +132,9 @@ else
                 _provider,
                 _provider == "PostgreSQL" ? _postgreSql : null,
                 _provider == "SQLite" ? _sqlite : null,
-                _redis);
+                _redis,
+                _provider == "MySQL" ? _mySql : null,
+                _provider == "MSSQL" ? _mssql : null);
 
             _status = await Api.CompleteSetupAsync(config);
         }

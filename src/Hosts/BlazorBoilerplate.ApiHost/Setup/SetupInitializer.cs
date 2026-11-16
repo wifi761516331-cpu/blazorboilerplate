@@ -25,7 +25,9 @@ public sealed record SetupConfiguration(
     string DatabaseProvider,
     string? PostgreSQL,
     string? SQLite,
-    string? Redis);
+    string? Redis,
+    string? MySQL = null,
+    string? MSSQL = null);
 
 /// <summary>首次运行时的基础设施初始化：建库（迁移）+ 种子数据（管理员/角色/菜单）。</summary>
 public interface ISetupInitializer
@@ -45,20 +47,22 @@ public sealed class DefaultSetupInitializer(
 
         var provider = PlatformConnectionState.Normalize(configuration.DatabaseProvider);
         var sqliteConn = ResolveSqliteConnection(configuration.SQLite);
-        var conn = provider == PlatformConnectionState.SqliteProvider ? sqliteConn : configuration.PostgreSQL;
+        var conn = PlatformConnectionState.ResolveSystemType(provider) switch
+        {
+            DbSystemType.Sqlite => sqliteConn,
+            DbSystemType.MySql => configuration.MySQL,
+            DbSystemType.SqlServer => configuration.MSSQL,
+            _ => configuration.PostgreSQL
+        };
 
         // 1) 持久化配置（appsettings 之外的运行时配置文件），并同步平台连接状态供模块读取。
         PersistSettings(configuration, provider, conn, sqliteConn);
-        PlatformConnectionState.Set(provider, configuration.PostgreSQL, sqliteConn);
+        PlatformConnectionState.Set(provider, configuration.PostgreSQL, sqliteConn, configuration.MySQL, configuration.MSSQL);
 
-        // 2) 建库建表：PostgreSQL 应用 EF Core 迁移（无外键 SQL）；SQLite EnsureCreated。
+        // 2) 建库建表：统一按所选数据库（PostgreSQL / MySQL / MSSQL / SQLite）执行对应 EF Core 迁移。
+        await IdentityMigrationHelper.MigrateAsync(provider, conn, cancellationToken);
         await using (var db = CreateDbContext(provider, conn))
         {
-            if (provider == PlatformConnectionState.SqliteProvider)
-                await db.Database.EnsureCreatedAsync(cancellationToken);
-            else
-                await db.Database.MigrateAsync(cancellationToken);
-
             // 3) 种子数据（仅空库时执行；安装幂等由 setup.json 标记保证）。
             await SeedAsync(db, configuration, cancellationToken);
         }
@@ -71,17 +75,10 @@ public sealed class DefaultSetupInitializer(
     private IdentityDbContext CreateDbContext(string provider, string? conn)
     {
         var builder = new DbContextOptionsBuilder<IdentityDbContext>();
-        if (provider == PlatformConnectionState.SqliteProvider)
-        {
-            builder.UseSqlite(conn);
-        }
-        else
-        {
-            builder.UseIdentityProvider(
-                provider: provider,
-                connectionString: conn,
-                enableRetryOnFailure: true);
-        }
+        builder.UseIdentityProvider(
+            provider: provider,
+            connectionString: conn,
+            enableRetryOnFailure: true);
         return new IdentityDbContext(builder.Options);
     }
 
@@ -106,6 +103,8 @@ public sealed class DefaultSetupInitializer(
             infrastructure = new
             {
                 postgreSQL = configuration.PostgreSQL,
+                mySQL = configuration.MySQL,
+                mssql = configuration.MSSQL,
                 sqlite = provider == PlatformConnectionState.SqliteProvider ? sqliteConn : configuration.SQLite,
                 configuration.Redis
             }

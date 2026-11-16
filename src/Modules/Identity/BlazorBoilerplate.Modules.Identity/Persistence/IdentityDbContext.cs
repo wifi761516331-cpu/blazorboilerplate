@@ -1,6 +1,5 @@
-using System.Linq.Expressions;
-using BlazorBoilerplate.Domain;
 using BlazorBoilerplate.Modules.Identity.Domain;
+using BlazorBoilerplate.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -15,8 +14,10 @@ namespace BlazorBoilerplate.Modules.Identity.Persistence;
 /// 由 IModuleDatabaseMigrations 的增量 SQL 建表；EF 仅负责查询/写入映射，
 /// 因此这里的列名必须与增量 SQL 完全一致（PascalCase）。
 /// </summary>
-public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : DbContext(options)
+public class IdentityDbContext : ModuleDbContextBase
 {
+    public IdentityDbContext(DbContextOptions<IdentityDbContext> options) : base(options) { }
+    protected IdentityDbContext(DbContextOptions options) : base(options) { }
     public DbSet<User> Users => Set<User>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<Menu> Menus => Set<Menu>();
@@ -31,11 +32,10 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
     public DbSet<PushNotificationSubscription> PushNotificationSubscriptions => Set<PushNotificationSubscription>();
     public DbSet<PermissionDefinition> PermissionDefinitions => Set<PermissionDefinition>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    public DbSet<ModuleMigrationHistory> ModuleMigrationHistories => Set<ModuleMigrationHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        base.OnModelCreating(modelBuilder);
-
         modelBuilder.Entity<User>(ConfigureUser);
         modelBuilder.Entity<Role>(ConfigureRole);
         modelBuilder.Entity<Menu>(ConfigureMenu);
@@ -50,22 +50,9 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
         modelBuilder.Entity<PushNotificationSubscription>(ConfigurePushNotificationSubscription);
         modelBuilder.Entity<PermissionDefinition>(ConfigurePermissionDefinition);
         modelBuilder.Entity<RolePermission>(ConfigureRolePermission);
+        modelBuilder.Entity<ModuleMigrationHistory>(ConfigureModuleMigrationHistory);
 
-        ApplySoftDeleteQueryFilters(modelBuilder);
-    }
-
-    private static void ApplySoftDeleteQueryFilters(ModelBuilder modelBuilder)
-    {
-        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
-        {
-            if (!typeof(ISoftDeletable).IsAssignableFrom(entityType.ClrType))
-                continue;
-
-            var param = Expression.Parameter(entityType.ClrType, "e");
-            var prop = Expression.Property(param, nameof(ISoftDeletable.IsDeleted));
-            var filter = Expression.Lambda(Expression.Not(prop), param);
-            entityType.SetQueryFilter(filter);
-        }
+        base.OnModelCreating(modelBuilder);
     }
 
     private static void ConfigureUser(EntityTypeBuilder<User> b)
@@ -102,6 +89,10 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
         b.Property(m => m.PermissionCode).HasMaxLength(128);
         b.Property(m => m.Kind).IsRequired().HasMaxLength(32);
         b.HasIndex(m => m.ParentId).HasDatabaseName("IX_Menus_ParentId");
+        b.HasOne(m => m.Parent)
+            .WithMany(m => m.Children)
+            .HasForeignKey(m => m.ParentId)
+            .OnDelete(DeleteBehavior.NoAction);
     }
 
     private static void ConfigureUserRole(EntityTypeBuilder<UserRole> b)
@@ -110,6 +101,14 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
         b.HasKey(x => x.Id);
         b.HasIndex(x => x.UserId).HasDatabaseName("IX_UserRoles_UserId");
         b.HasIndex(x => x.RoleId).HasDatabaseName("IX_UserRoles_RoleId");
+        b.HasOne(x => x.User)
+            .WithMany(u => u.UserRoles)
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.NoAction);
+        b.HasOne(x => x.Role)
+            .WithMany(r => r.UserRoles)
+            .HasForeignKey(x => x.RoleId)
+            .OnDelete(DeleteBehavior.NoAction);
     }
 
     private static void ConfigureRoleMenu(EntityTypeBuilder<RoleMenu> b)
@@ -118,6 +117,14 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
         b.HasKey(x => x.Id);
         b.HasIndex(x => x.RoleId).HasDatabaseName("IX_RoleMenus_RoleId");
         b.HasIndex(x => x.MenuId).HasDatabaseName("IX_RoleMenus_MenuId");
+        b.HasOne(x => x.Role)
+            .WithMany(r => r.RoleMenus)
+            .HasForeignKey(x => x.RoleId)
+            .OnDelete(DeleteBehavior.NoAction);
+        b.HasOne(x => x.Menu)
+            .WithMany(m => m.RoleMenus)
+            .HasForeignKey(x => x.MenuId)
+            .OnDelete(DeleteBehavior.NoAction);
     }
 
     private static void ConfigureTenant(EntityTypeBuilder<Tenant> b)
@@ -136,6 +143,14 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
         b.HasKey(x => x.Id);
         b.HasIndex(x => x.TenantId).HasDatabaseName("IX_TenantUsers_TenantId");
         b.HasIndex(x => x.UserId).HasDatabaseName("IX_TenantUsers_UserId");
+        b.HasOne(x => x.Tenant)
+            .WithMany(t => t.TenantUsers)
+            .HasForeignKey(x => x.TenantId)
+            .OnDelete(DeleteBehavior.NoAction);
+        b.HasOne(x => x.User)
+            .WithMany(u => u.TenantUsers)
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.NoAction);
     }
 
     private static void ConfigureUserSession(EntityTypeBuilder<UserSession> b)
@@ -149,6 +164,14 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
         b.Property(x => x.RefreshToken).HasMaxLength(512);
         b.HasIndex(x => x.UserId).HasDatabaseName("IX_UserSessions_UserId");
         b.HasIndex(x => x.RefreshToken).HasDatabaseName("IX_UserSessions_RefreshToken");
+        b.HasOne(x => x.User)
+            .WithMany(u => u.Sessions)
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.NoAction);
+        b.HasOne(x => x.Tenant)
+            .WithMany(t => t.Sessions)
+            .HasForeignKey(x => x.TenantId)
+            .OnDelete(DeleteBehavior.NoAction);
     }
 
     private static void ConfigureUserPreference(EntityTypeBuilder<UserPreference> b)
@@ -160,6 +183,10 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
         b.Property(x => x.Theme).IsRequired().HasMaxLength(32);
         b.Property(x => x.AccentColor).HasMaxLength(64);
         b.HasIndex(x => x.UserId).HasDatabaseName("IX_UserPreferences_UserId");
+        b.HasOne(x => x.User)
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.NoAction);
     }
 
     private static void ConfigureNotification(EntityTypeBuilder<Notification> b)
@@ -170,6 +197,10 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
         b.Property(x => x.Message).IsRequired().HasMaxLength(2048);
         b.Property(x => x.PageUrl).HasMaxLength(512);
         b.HasIndex(x => x.UserId).HasDatabaseName("IX_Notifications_UserId");
+        b.HasOne(x => x.User)
+            .WithMany(u => u.Notifications)
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.NoAction);
     }
 
     private static void ConfigurePushNotificationSubscription(EntityTypeBuilder<PushNotificationSubscription> b)
@@ -184,6 +215,10 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
         b.Property(x => x.Auth).HasMaxLength(256);
         b.HasIndex(x => x.DeviceId).HasDatabaseName("IX_PushNotificationSubscriptions_DeviceId");
         b.HasIndex(x => x.UserId).HasDatabaseName("IX_PushNotificationSubscriptions_UserId");
+        b.HasOne(x => x.User)
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.NoAction);
     }
 
     private static void ConfigurePermissionDefinition(EntityTypeBuilder<PermissionDefinition> b)
@@ -205,5 +240,18 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
         b.Property(x => x.Code).IsRequired().HasMaxLength(128);
         b.HasIndex(x => x.RoleId).HasDatabaseName("IX_RolePermissions_RoleId");
         b.HasIndex(x => x.Code).HasDatabaseName("IX_RolePermissions_Code");
+        b.HasOne(x => x.Role)
+            .WithMany(r => r.RolePermissions)
+            .HasForeignKey(x => x.RoleId)
+            .OnDelete(DeleteBehavior.NoAction);
+    }
+
+    private static void ConfigureModuleMigrationHistory(EntityTypeBuilder<ModuleMigrationHistory> b)
+    {
+        b.ToTable("ModuleMigrationHistory");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.ModuleId).IsRequired().HasMaxLength(128);
+        b.Property(x => x.Name).IsRequired().HasMaxLength(256);
+        b.HasIndex(x => new { x.ModuleId, x.Sequence }).HasDatabaseName("IX_ModuleMigrationHistory_Module_Seq");
     }
 }

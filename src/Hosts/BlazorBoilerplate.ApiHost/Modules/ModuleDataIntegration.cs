@@ -1,4 +1,3 @@
-using System.Data.Common;
 using System.Text.Json;
 using BlazorBoilerplate.ApiHost.Setup;
 using BlazorBoilerplate.ModuleAbstractions;
@@ -9,38 +8,22 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BlazorBoilerplate.ApiHost.Modules;
 
-/// <summary>
-/// 宿主侧的必要模块迁移声明。用于覆盖「磁盘上已安装旧版本包，DLL 里还没注册
-/// IModuleDatabaseMigrations」的升级场景；模块自己声明的迁移始终优先。
-/// </summary>
 public sealed record HostModuleMigration(string ModuleId, IModuleDatabaseMigrations Migrations);
 
-/// <summary>
-/// 模块数据库增量迁移执行器（只升不降）。
-/// - 模块在 DI 注册 IModuleDatabaseMigrations 提供单调递增的 Sequence 步骤；
-/// - 已应用的 Sequence 持久化在 ModuleMigrationHistory 表；
-/// - 每次加载只执行 Sequence > 已应用最大值的步骤，且只做 CREATE/ADD/INSERT 等纯增量语句；
-/// - 版本降级、切旧版本、卸载模块均不删除历史、不执行任何 Down —— 数据库结构永不回退。
-/// </summary>
 public sealed class ModuleMigrationRunner(
+    IServiceProvider rootServices,
     IdentityDbContext db,
     ModuleLifecycleManager manager,
     IEnumerable<HostModuleMigration> hostMigrations,
     ILogger<ModuleMigrationRunner> logger)
 {
-    private const string HistoryTable = "ModuleMigrationHistory";
-
     public async Task<int> ApplyAsync(string moduleId, CancellationToken ct)
     {
         var moduleServices = manager.GetModuleServices(moduleId);
-
-        // 合并模块自身声明与宿主兜底声明：
-        // 已安装的旧版本包可能只包含旧 Sequence（例如 1..4），而宿主新模型已经需要 Sequence 5+；
-        // 按 Sequence 合并（同一 Sequence 以模块自身优先），既尊重模块包又能自动补齐宿主新列。
         var moduleMigrations = moduleServices?.GetService<IModuleDatabaseMigrations>();
         var hostMigration = hostMigrations.FirstOrDefault(h =>
             string.Equals(h.ModuleId, moduleId, StringComparison.OrdinalIgnoreCase))?.Migrations;
-        if (moduleMigrations is null && hostMigration is null) return 0; // 纯内存模块：无数据库
+        if (moduleMigrations is null && hostMigration is null) return 0;
 
         var mergedSteps = new Dictionary<int, ModuleMigrationStep>();
         if (hostMigration is not null)
@@ -50,98 +33,28 @@ public sealed class ModuleMigrationRunner(
             foreach (var step in moduleMigrations.Steps)
                 mergedSteps[step.Sequence] = step;
 
-        await EnsureHistoryAsync(ct);
-        var applied = await ReadMaxSequenceAsync(moduleId, ct);
-        var isPg = db.Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) == true;
-        var count = 0;
+        await IdentityMigrationHelper.MigrateAsync(cancellationToken: ct);
 
+        var applied = await db.ModuleMigrationHistories
+            .AsNoTracking()
+            .Where(h => h.ModuleId == moduleId)
+            .Select(h => (int?)h.Sequence)
+            .MaxAsync(ct) ?? 0;
+
+        var executionServices = moduleServices ?? rootServices;
+        var count = 0;
         foreach (var step in mergedSteps.Values.OrderBy(s => s.Sequence))
         {
-            if (step.Sequence <= applied) continue; // 降级/旧版本：绝不动数据库
-            var sql = isPg && !string.IsNullOrWhiteSpace(step.PostgreSql) ? step.PostgreSql! : step.Sql;
-            foreach (var statement in SplitStatements(sql))
-                await ExecuteAsync(statement, [], ignoreAlreadyExists: true, ct);
-
-            await ExecuteAsync(
-                $"INSERT INTO \"{HistoryTable}\" (\"ModuleId\", \"Sequence\", \"Name\", \"AppliedAtUtc\") VALUES (@p0, @p1, @p2, @p3)",
-                [moduleId, step.Sequence, step.Name, DateTimeOffset.UtcNow.ToString("O")],
-                ignoreAlreadyExists: true, ct);
-
+            if (step.Sequence <= applied) continue;
+            await step.ExecuteAsync(executionServices, ct);
+            db.ModuleMigrationHistories.Add(ModuleMigrationHistory.Create(moduleId, step.Sequence, step.Name));
+            await db.SaveChangesAsync(ct);
             applied = step.Sequence;
             count++;
-            logger.LogInformation("模块 {ModuleId} 增量迁移已应用：#{Sequence} {Name}", moduleId, step.Sequence, step.Name);
+            logger.LogInformation("模块 {ModuleId} EF Core 增量迁移已应用：#{Sequence} {Name}", moduleId, step.Sequence, step.Name);
         }
         return count;
     }
-
-    private async Task EnsureHistoryAsync(CancellationToken ct) =>
-        await ExecuteAsync(
-            $"CREATE TABLE IF NOT EXISTS \"{HistoryTable}\" (" +
-            "\"ModuleId\" TEXT NOT NULL, \"Sequence\" INTEGER NOT NULL, \"Name\" TEXT NOT NULL, " +
-            "\"AppliedAtUtc\" TEXT NOT NULL, PRIMARY KEY (\"ModuleId\", \"Sequence\"))",
-            [], ignoreAlreadyExists: true, ct);
-
-    private async Task<int> ReadMaxSequenceAsync(string moduleId, CancellationToken ct)
-    {
-        var connection = db.Database.GetDbConnection();
-        var closeAfter = connection.State != System.Data.ConnectionState.Open;
-        if (closeAfter) await connection.OpenAsync(ct);
-        try
-        {
-            await using var command = connection.CreateCommand();
-            command.CommandText = $"SELECT COALESCE(MAX(\"Sequence\"), 0) FROM \"{HistoryTable}\" WHERE \"ModuleId\" = @p0";
-            AddParameter(command, "p0", moduleId);
-            var value = await command.ExecuteScalarAsync(ct);
-            return value is null or DBNull ? 0 : Convert.ToInt32(value);
-        }
-        finally { if (closeAfter) await connection.CloseAsync(); }
-    }
-
-    private async Task ExecuteAsync(string sql, object[] parameters, bool ignoreAlreadyExists, CancellationToken ct)
-    {
-        var connection = db.Database.GetDbConnection();
-        var closeAfter = connection.State != System.Data.ConnectionState.Open;
-        if (closeAfter) await connection.OpenAsync(ct);
-        try
-        {
-            await using var command = connection.CreateCommand();
-            command.CommandText = sql;
-            for (var i = 0; i < parameters.Length; i++) AddParameter(command, $"p{i}", parameters[i]);
-            await command.ExecuteNonQueryAsync(ct);
-        }
-        catch (DbException ex) when (ignoreAlreadyExists && IsAlreadyExists(ex))
-        {
-            // SQLite 的 ALTER TABLE ADD COLUMN 不支持 IF NOT EXISTS：重放旧步骤时的重复列错误可忽略。
-            logger.LogDebug(ex, "增量迁移语句跳过（对象已存在）：{Sql}", Truncate(sql));
-        }
-        finally { if (closeAfter) await connection.CloseAsync(); }
-    }
-
-    private static bool IsAlreadyExists(DbException ex)
-    {
-        var message = ex.Message;
-        return message.Contains("duplicate column name", StringComparison.OrdinalIgnoreCase)
-               || message.Contains("already exists", StringComparison.OrdinalIgnoreCase)
-               || message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase)
-               || message.Contains("42701", StringComparison.Ordinal)   // PG duplicate_column
-               || message.Contains("42P07", StringComparison.Ordinal)   // PG duplicate_table
-               || message.Contains("23505", StringComparison.Ordinal);  // PG unique_violation
-    }
-
-    private static void AddParameter(DbCommand command, string name, object value)
-    {
-        var parameter = command.CreateParameter();
-        parameter.ParameterName = name;
-        parameter.Value = value;
-        command.Parameters.Add(parameter);
-    }
-
-    private static IEnumerable<string> SplitStatements(string sql) =>
-        sql.Split(';', StringSplitOptions.RemoveEmptyEntries)
-           .Select(s => s.Trim())
-           .Where(s => s.Length > 0 && !s.StartsWith("--", StringComparison.Ordinal));
-
-    private static string Truncate(string sql) => sql.Length > 120 ? sql[..120] + "…" : sql;
 }
 
 /// <summary>

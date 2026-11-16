@@ -5,6 +5,7 @@
     <Project Path="src/BuildingBlocks/BlazorBoilerplate.Infrastructure/BlazorBoilerplate.Infrastructure.csproj" />
     <Project Path="src/BuildingBlocks/BlazorBoilerplate.ModuleAbstractions/BlazorBoilerplate.ModuleAbstractions.csproj" />
     <Project Path="src/BuildingBlocks/BlazorBoilerplate.ModuleRuntime/BlazorBoilerplate.ModuleRuntime.csproj" />
+    <Project Path="src/BuildingBlocks/BlazorBoilerplate.Persistence/BlazorBoilerplate.Persistence.csproj" />
     <Project Path="src/BuildingBlocks/BlazorBoilerplate.Web.Shared/BlazorBoilerplate.Web.Shared.csproj" />
   </Folder>
   <Folder Name="/src/Hosts/">

@@ -6,10 +6,10 @@
    线路建立后 Router（AdditionalAssemblies = ModuleCatalog.Assemblies）接管客户端导航。 *@
 @if (_componentType is null)
 {
-    <BitCallout Class="page-callout error">
+    <div class="page-callout error">
         <AppIcon Name="Alert" />
         <span>没有找到与「@(Path ?? "/")」匹配的模块页面。模块可能尚未加载，或路由不存在。</span>
-    </BitCallout>
+    </div>
 }
 else
 {

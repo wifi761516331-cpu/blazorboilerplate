@@ -19,6 +19,7 @@ public sealed class ModuleLoadContext : AssemblyLoadContext
         "BlazorBoilerplate.Domain",
         "BlazorBoilerplate.Infrastructure",
         "BlazorBoilerplate.ModuleRuntime",
+        "BlazorBoilerplate.Persistence",
         // 前端共享 RCL：AppIcon / IdentityLayout / BlazorBoilerplateApiClient 等。
         // 模块 RCL 把前端页面与后端同体打包，故动态加载的模块程序集编译期引用它；
         // 加入共享白名单可回落默认上下文，避免 ALC 再加载一份或解析失败。
