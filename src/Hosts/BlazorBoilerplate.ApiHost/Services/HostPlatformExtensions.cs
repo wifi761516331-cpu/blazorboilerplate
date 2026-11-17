@@ -24,6 +24,7 @@ public static class HostPlatformExtensions
         services.Configure<SetupOptions>(configuration.GetSection(SetupOptions.SectionName));
         services.AddBlazorBoilerplateInfrastructurePlaceholders();
         services.AddBlazorBoilerplateCaching(configuration, contentRootPath);
+        services.AddBlazorBoilerplateEventBus();
         services.AddBlazorBoilerplateEmail(configuration);
         services.AddBlazorBoilerplateAttachments(configuration, contentRootPath);
         services.AddBlazorBoilerplateModuleStorage(configuration);

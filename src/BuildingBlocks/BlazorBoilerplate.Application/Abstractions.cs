@@ -102,18 +102,6 @@ public interface ICacheService
         CacheEntryOptions? options, CancellationToken cancellationToken);
 }
 
-public abstract record IntegrationEvent
-{
-    public Guid EventId { get; init; } = Guid.NewGuid();
-    public DateTimeOffset OccurredOnUtc { get; init; } = DateTimeOffset.UtcNow;
-    public required string ContractVersion { get; init; }
-}
-
-public interface IIntegrationEventBus
-{
-    Task PublishAsync(IntegrationEvent integrationEvent, CancellationToken cancellationToken);
-}
-
 /// <summary>用例标记接口。不使用 MediatR（v13+ 商业授权），采用自研极简分发器。</summary>
 public interface IUseCase<out TResult>;
 

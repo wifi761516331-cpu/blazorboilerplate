@@ -4,7 +4,9 @@ using BlazorBoilerplate.Infrastructure.Caching;
 using Microsoft.Extensions.Caching.Memory;
 using BlazorBoilerplate.Application.Abstractions;
 using BlazorBoilerplate.Application.Attachments;
+using BlazorBoilerplate.Domain.Events;
 using BlazorBoilerplate.Infrastructure.Attachments;
+using BlazorBoilerplate.Infrastructure.Events;
 using BlazorBoilerplate.Infrastructure.Email;
 using BlazorBoilerplate.Infrastructure.S3;
 using Microsoft.Extensions.Configuration;
@@ -115,21 +117,6 @@ public sealed class PlaceholderEmailSender(ILogger<PlaceholderEmailSender> logge
     }
 }
 
-public sealed class PlaceholderIntegrationEventBus(ILogger<PlaceholderIntegrationEventBus> logger) : IIntegrationEventBus
-{
-    private readonly ConcurrentQueue<IntegrationEvent> _pending = new();
-    public IReadOnlyCollection<IntegrationEvent> Pending => _pending;
-
-    public Task PublishAsync(IntegrationEvent integrationEvent, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        _pending.Enqueue(integrationEvent);
-        logger.LogWarning("Outbox/Transport 尚未接入（第二批）；IntegrationEvent 仅在内存中排队。Type={Type}",
-            integrationEvent.GetType().Name);
-        return Task.CompletedTask;
-    }
-}
-
 public static class InfrastructureServiceCollectionExtensions
 {
     public static IServiceCollection AddBlazorBoilerplateInfrastructurePlaceholders(this IServiceCollection services)
@@ -138,7 +125,6 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<ICacheService, PlaceholderCacheService>();
         services.AddSingleton<IFileStorage, PlaceholderFileStorage>();
         services.AddSingleton<IEmailSender, PlaceholderEmailSender>();
-        services.AddSingleton<IIntegrationEventBus, PlaceholderIntegrationEventBus>();
         services.AddSingleton<IUseCaseDispatcher, UseCaseDispatcher>();
         return services;
     }
@@ -252,6 +238,20 @@ public static class InfrastructureServiceCollectionExtensions
             services.AddSingleton<IFileStorage, PlaceholderFileStorage>();
         }
 
+        return services;
+    }
+
+    /// <summary>
+    /// 注册事件总线：进程内强类型 <see cref="IEventPublisher"/>（EventBus）+ 字符串频道 <see cref="IChannelBus"/>。
+    /// 强类型契约位于 Domain 共享程序集，宿主与模块 ALC 共用类型身份。
+    /// ChannelBus 默认纯进程内收发（不依赖外部组件），配置 Redis 时首次使用惰性建立跨节点订阅。
+    /// </summary>
+    public static IServiceCollection AddBlazorBoilerplateEventBus(this IServiceCollection services)
+    {
+        services.AddSingleton<EventBus>();
+        services.AddSingleton<IEventPublisher>(sp => sp.GetRequiredService<EventBus>());
+        services.AddSingleton<ChannelBus>();
+        services.AddSingleton<IChannelBus>(sp => sp.GetRequiredService<ChannelBus>());
         return services;
     }
 

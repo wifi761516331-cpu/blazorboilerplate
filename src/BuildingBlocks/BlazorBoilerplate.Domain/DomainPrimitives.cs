@@ -9,6 +9,15 @@ public interface IDomainEvent
     DateTimeOffset OccurredOnUtc { get; }
 }
 
+/// <summary>
+/// 领域事件生产者。模块 DbContext 在 SaveChanges 后按此接口收集并发布事件。
+/// </summary>
+public interface IDomainEventProducer
+{
+    IReadOnlyCollection<IDomainEvent> DomainEvents { get; }
+    void ClearDomainEvents();
+}
+
 public abstract class DomainEventBase : IDomainEvent
 {
     protected DomainEventBase()
@@ -21,7 +30,7 @@ public abstract class DomainEventBase : IDomainEvent
     public DateTimeOffset OccurredOnUtc { get; }
 }
 
-public abstract class Entity<TId> where TId : notnull
+public abstract class Entity<TId> : IDomainEventProducer where TId : notnull
 {
     public TId Id { get; protected init; } = default!;
 

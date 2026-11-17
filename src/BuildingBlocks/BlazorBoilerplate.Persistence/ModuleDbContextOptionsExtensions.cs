@@ -1,5 +1,6 @@
 using BlazorBoilerplate.ModuleAbstractions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace BlazorBoilerplate.Persistence;
 
@@ -21,6 +22,9 @@ public static class ModuleDbContextOptionsExtensions
             : connectionString;
 
         builder.AddInterceptors(new AuditingSaveChangesInterceptor(services));
+        builder.AddInterceptors(new DomainEventPublishingInterceptor(
+            services,
+            services?.GetService<Microsoft.Extensions.Logging.ILogger<DomainEventPublishingInterceptor>>()));
         return DbFactory.Create(system).ConfigureDbContext(builder, conn, enableRetryOnFailure);
     }
 }

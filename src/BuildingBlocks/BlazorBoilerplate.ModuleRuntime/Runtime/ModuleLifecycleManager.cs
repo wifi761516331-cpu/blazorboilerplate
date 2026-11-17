@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using BlazorBoilerplate.Domain.Events;
+using BlazorBoilerplate.Infrastructure.Events;
 using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.ModuleRuntime.Endpoints;
 using BlazorBoilerplate.ModuleRuntime.LoadContext;
@@ -28,6 +30,7 @@ internal sealed class ModuleHandle : IModuleContext
     public ServiceProvider? Services;
     public IModule? Module;
     public IReadOnlyList<ModuleEndpointDefinition>? Definitions;
+    public List<object>? EventHandlers;
     public WeakReference? AlcReference;
     public int ActiveRequests;
     public int Accepting = 1;
@@ -54,6 +57,7 @@ internal sealed class ModuleHandle : IModuleContext
         Services = null;
         Module = null;
         Definitions = null;
+        EventHandlers = null;
     }
 }
 
@@ -294,6 +298,14 @@ public sealed class ModuleLifecycleManager(
 
             var services = new ServiceCollection();
             services.AddSingleton(loggerFactory);
+
+            // 宿主事件总线注入模块 DI：DbContext 的写后发布拦截器与模块 handler 共用同一实例。
+            // IEventPublisher / IChannelBus 契约在 Domain（共享程序集），类型身份一致。
+            if (hostServices.GetService(typeof(IEventPublisher)) is IEventPublisher publisher)
+                services.AddSingleton(publisher);
+            if (hostServices.GetService(typeof(IChannelBus)) is IChannelBus channelBus)
+                services.AddSingleton(channelBus);
+
             if (handle.HostServices.GetService(typeof(BlazorBoilerplate.Application.Abstractions.ICurrentUserContext))
                 is BlazorBoilerplate.Application.Abstractions.ICurrentUserContext currentUser)
             {
@@ -320,6 +332,29 @@ public sealed class ModuleLifecycleManager(
                 .ToArray();
 
             await module.StartAsync(cancellationToken);
+
+            // 扫描模块程序集中标记 [Subscribe] 的处理器，注册到宿主 EventBus 的弱引用表。
+            // 强引用由 handle.EventHandlers 持有（生命周期跟随模块）；卸载时显式摘除订阅。
+            var eventBus = hostServices.GetService<EventBus>();
+            if (eventBus is not null)
+            {
+                var handlerTypes = assembly.GetTypes()
+                    .Where(t => t.IsClass && !t.IsAbstract
+                        && t.GetCustomAttributes(typeof(SubscribeAttribute), inherit: false).Length > 0)
+                    .ToArray();
+                if (handlerTypes.Length > 0)
+                {
+                    var handlers = new List<object>(handlerTypes.Length);
+                    foreach (var handlerType in handlerTypes)
+                    {
+                        var handler = ActivatorUtilities.CreateInstance(provider, handlerType);
+                        eventBus.SubscribeAll(handler, id);
+                        handlers.Add(handler);
+                    }
+                    handle.EventHandlers = handlers;
+                }
+            }
+
             registry.Register(id, entry.Descriptor.Version, handle.Definitions);
             _handles[id] = handle;
             catalog.SetState(id, ModuleState.Running);
@@ -332,6 +367,8 @@ public sealed class ModuleLifecycleManager(
         {
             logger.LogError(ex, "Module load failed. Id={Id}", id);
             registry.Remove(id);
+            hostServices.GetService<EventBus>()?.UnsubscribeModule(id);
+            handle.EventHandlers = null;
             await SafeDisposeAsync(handle, cancellationToken);
             handle.Clear();
             alc.Unload();
@@ -371,6 +408,11 @@ public sealed class ModuleLifecycleManager(
             catalog.SetState(id, ModuleState.Unloading);
             await handle.Module.DrainAsync(cancellationToken);
             await handle.Module.StopAsync(cancellationToken);
+
+            // 停止接收该模块的新事件，并释放 handler 强引用。
+            hostServices.GetService<EventBus>()?.UnsubscribeModule(id);
+            handle.EventHandlers = null;
+
             await handle.Module.DisposeAsync();
             await handle.Services!.DisposeAsync();
 
@@ -390,6 +432,8 @@ public sealed class ModuleLifecycleManager(
         {
             catalog.SetState(id, ModuleState.Failed, ex.Message);
             registry.Remove(id);
+            hostServices.GetService<EventBus>()?.UnsubscribeModule(id);
+            handle.EventHandlers = null;
             await SafeDisposeAsync(handle, cancellationToken);
             throw;
         }

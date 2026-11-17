@@ -37,7 +37,13 @@
 - 遗留：真实 PG 实例 MigrateAsync、基础设施连通性测试、动态模块**前端**路由自动发现、模块包签名/远程仓库、docker-compose 实机验证。
 - **登录鉴权与菜单权限过滤已实现（2026-11-17 核实，勿再说"没做"）**：自签 JWT HS256（`ApiHost/Auth/JwtTokenService.cs`，密钥持久化 `data/auth.key`，access 2 分钟 / refresh 7 天）+ 自研 `AppBearerHandler`；claims 内嵌 roles/perms/tid/sid；`UseEndpointPermissionGuard` 统一校验动态模块端点与 Minimal API 权限码，MVC 用 `[Authorize]` + `[RequirePermission]`；WebHost 侧 Cookie `bb_auth`（HttpOnly/Lax）+ `CookieAuthSession` 无感刷新 + `PermissionGate.razor` 按钮级权限；`CurrentUserFactory` 实时聚合角色/权限码/菜单路径，首个用户隐式全权。提交见 `2a85aef`、`e77f580`。剩余真缺口：第三方登录按钮是占位、`SignIn` 未挂 `auth-sensitive` 限流（注册/重置有）、refresh_token 故意不轮换。
 
-## 缓存（2026-11-17 实现，生产级底座）
+## 事件总线（2026-11-17 实现，ADR 0006）
+- 三层分层，与 Smartstore 一致：**进程内强类型管本地、字符串只管跨节点、EF 写后发布**。契约在 `Domain/Events/EventBusContracts.cs`（宿主与模块 ALC 共用类型身份）。
+- 第一层 `EventBus`（Infrastructure/Events）：`IEventPublisher`/`IEventHandler<T>`/`[Subscribe]`；进程内事件**一律走它**。ALC 安全核心：registry 只存 handler 的 `WeakReference<object>` + 静态桥接委托，卸载时 `UnsubscribeModule(id)`，弱引用兜底不钉住 ALC。串行分发，单 handler 异常记日志不重抛。跨模块强类型事件的事件类必须放 Domain。
+- 第二层 `ChannelBus`（唯一实现，类名中性不绑定技术，单例 + IAsyncDisposable，同时作 IChannelBus）：**默认纯进程内收发，不依赖 Redis**；配置 Redis 时首次使用惰性建立一次跨节点订阅（复用 `RedisConnectionProvider`，pattern 订阅 `bb:evt:*`，envelope `{nodeId,message}` + nodeId 过滤自身回投避免重复）。Publish 先本地分发再 PUBLISH，Redis 失败只记日志。**不继承 BackgroundService、无后台轮询**（用户明确要求去掉），Redis 配置实例生命周期内固定，运行期变更需重启；`Lazy<Task<ISubscriber?>>` + ExecutionAndPublication 保证并发首次只订阅一次，释放时退订。**无 InProcessChannelBus / RedisChannelBus**。模块私有事件序列化成 JSON 字符串走此层。
+- 第三层 EF 写后发布：`Persistence/DomainEventPublishingInterceptor` 在 `SavedChangesAsync` 提交后收集 `IDomainEventProducer.DomainEvents`，反射调泛型 Publish，先 Clear 再发，异常记日志不重抛；在 `UsePlatformDbProvider` 注册。Entity<T> 已实现 IDomainEventProducer。
+- 生命周期：`ModuleLifecycleManager` 加载时把宿主 `IEventPublisher`/`IChannelBus` 注入模块 DI，扫描 `[Subscribe]` handler（`ActivatorUtilities.CreateInstance`）注册；卸载时摘订阅+清强引用。已删无用的 `IntegrationEvent`/`PlaceholderIntegrationEventBus`。
+- 测试 `EventBusTests` + `ChannelBusTests`，全量 45/45。真 Redis 跨节点测试用 `BB_TEST_REDIS` 开关（本机无 redis-server 时跳过）。可靠性 at-most-once，无 Outbox/Stream/重试/顺序保证（ADR 0006 已写明依据），需可靠投递另开 ADR。未提交。
 - 契约在 `Application/Abstractions.cs`：`ICacheService` + `CacheEntryOptions`（绝对/滑动过期 + Tag + `CacheNullValues`）+ `ICacheKeyBuilder`（`Global/Tenant/User` 隔离租户/用户 key），宿主与模块 ALC 共用类型身份。
 - 生产注册入口是 `AddBlazorBoilerplateCaching(configuration, contentRootPath)`；`HybridCacheService` = L1 `IMemoryCache` + L2 Redis。**默认 Redis = `localhost:6379`**（`RedisCacheState.DefaultConnectionString` + appsettings + Setup 页预填）。Redis 未配置（显式留空或 `not-configured`）时 L2 no-op，等价于纯内存缓存；旧 `AddBlazorBoilerplateMemoryCache()` 仅兼容/测试用。
 - 连接串优先级：安装向导写出的 `data/blazorboilerplate.settings.json` > 配置节/环境变量 > 默认值。向导里显式留空会禁用 L2，不会被 appsettings 默认值覆盖。`RedisCacheState.ConnectionChanged` 通知宿主：`RedisConnectionProvider` 立即释放旧 multiplexer、`RedisCacheInvalidationSubscriber` 退订重订阅，无需重启。
