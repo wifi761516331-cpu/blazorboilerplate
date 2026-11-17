@@ -51,7 +51,7 @@ else
 
         <BitTextField Label="Redis 连接字符串" @bind-Value="_redis"
                       Placeholder="localhost:6379"
-                      HelpText="支持标准格式，例如 localhost:6379 或 localhost:6379,password=你的密码（StackExchange.Redis 格式）。" />
+                      HelpText="默认 localhost:6379；留空则只用内存缓存。支持 localhost:6379 或 localhost:6379,password=你的密码（StackExchange.Redis 格式）。" />
     </div>
 
     @if (_error is not null)
@@ -78,7 +78,7 @@ else
     private string? _mySql;
     private string? _mssql;
     private string? _sqlite;
-    private string? _redis;
+    private string? _redis = "localhost:6379";
     private bool _submitting;
     private string? _error;
 

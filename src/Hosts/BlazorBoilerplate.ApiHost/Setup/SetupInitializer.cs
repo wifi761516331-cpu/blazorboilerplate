@@ -1,4 +1,5 @@
 using System.Text.Json;
+using BlazorBoilerplate.Infrastructure.Caching;
 using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.Modules.Identity.Domain;
 using BlazorBoilerplate.Modules.Identity.Persistence;
@@ -56,6 +57,7 @@ public sealed class DefaultSetupInitializer(
         };
 
         // 1) 持久化配置（appsettings 之外的运行时配置文件），并同步平台连接状态供模块读取。
+        RedisCacheState.Configure(configuration.Redis);
         PersistSettings(configuration, provider, conn, sqliteConn);
         PlatformConnectionState.Set(provider, configuration.PostgreSQL, sqliteConn, configuration.MySQL, configuration.MSSQL);
 

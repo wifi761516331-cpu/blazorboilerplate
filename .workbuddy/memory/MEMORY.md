@@ -34,4 +34,15 @@
 - Bit.BlazorUI 10.7.0：`BitNav`/`BitIconName` 分别在 Extras/Icons 包（核心包没有）；`BitNavItem.IsDisabled`（非 IsEnabled）；`BitNav.OnSelectItem` 是 `EventCallback<TItem>`，Razor 里要用显式 lambda；`BitCallout` 无 `Color` 参数（未知参数会被静默当 HTML 属性）。
 - `ModuleLoadContext.SharedAssemblies` 需包含 Npgsql / Npgsql.EF / Bit.* 等 Host 已静态引用的程序集，避免模块 ALC 加载第二份造成类型身份冲突。
 - 文档/部署：`README.md`、`docs/ROADMAP.md`、`docs/adr/0001~0005`、`docs/spikes/2026-11-14-ef-migrations-e2e.md`、`deploy/docker-compose.yml`+Dockerfile（Docker 本机不可用，未实测）。测试 13/13。
-- 遗留：真实 PG 实例 MigrateAsync、登录鉴权与菜单权限过滤、基础设施连通性测试、动态模块**前端**路由自动发现、模块包签名/远程仓库、docker-compose 实机验证。
+- 遗留：真实 PG 实例 MigrateAsync、基础设施连通性测试、动态模块**前端**路由自动发现、模块包签名/远程仓库、docker-compose 实机验证。
+- **登录鉴权与菜单权限过滤已实现（2026-11-17 核实，勿再说"没做"）**：自签 JWT HS256（`ApiHost/Auth/JwtTokenService.cs`，密钥持久化 `data/auth.key`，access 2 分钟 / refresh 7 天）+ 自研 `AppBearerHandler`；claims 内嵌 roles/perms/tid/sid；`UseEndpointPermissionGuard` 统一校验动态模块端点与 Minimal API 权限码，MVC 用 `[Authorize]` + `[RequirePermission]`；WebHost 侧 Cookie `bb_auth`（HttpOnly/Lax）+ `CookieAuthSession` 无感刷新 + `PermissionGate.razor` 按钮级权限；`CurrentUserFactory` 实时聚合角色/权限码/菜单路径，首个用户隐式全权。提交见 `2a85aef`、`e77f580`。剩余真缺口：第三方登录按钮是占位、`SignIn` 未挂 `auth-sensitive` 限流（注册/重置有）、refresh_token 故意不轮换。
+
+## 缓存（2026-11-17 实现，生产级底座）
+- 契约在 `Application/Abstractions.cs`：`ICacheService` + `CacheEntryOptions`（绝对/滑动过期 + Tag + `CacheNullValues`）+ `ICacheKeyBuilder`（`Global/Tenant/User` 隔离租户/用户 key），宿主与模块 ALC 共用类型身份。
+- 生产注册入口是 `AddBlazorBoilerplateCaching(configuration, contentRootPath)`；`HybridCacheService` = L1 `IMemoryCache` + L2 Redis。**默认 Redis = `localhost:6379`**（`RedisCacheState.DefaultConnectionString` + appsettings + Setup 页预填）。Redis 未配置（显式留空或 `not-configured`）时 L2 no-op，等价于纯内存缓存；旧 `AddBlazorBoilerplateMemoryCache()` 仅兼容/测试用。
+- 连接串优先级：安装向导写出的 `data/blazorboilerplate.settings.json` > 配置节/环境变量 > 默认值。向导里显式留空会禁用 L2，不会被 appsettings 默认值覆盖。`RedisCacheState.ConnectionChanged` 通知宿主：`RedisConnectionProvider` 立即释放旧 multiplexer、`RedisCacheInvalidationSubscriber` 退订重订阅，无需重启。
+- Redis key：`bb:cache:v:{logicalKey}`（JSON envelope）、`bb:cache:t:{tag}`（SET 索引）；set/remove/tag 失效全部 Lua 原子化；`RedisCacheTagIndexCleaner` 每 10 分钟清理 TTL 过期残留索引；pub/sub `bb:cache:invalidate` 只传 key/tag 字符串并跳过自身节点，用于清各节点 L1。Redis 异常 fail-open，不拖垮 API。
+- `KeyedLockPool`：全局短锁 + 引用计数，归零即释放 SemaphoreSlim，替换永久锁字典，支持动态 key 不泄漏。仅限进程内 single-flight；跨进程 single-flight 未实现。
+- `/health` 接入 `redis` 检查：未启用 Healthy、PING >1s Degraded、异常按失败状态。真 Redis 集成测试用环境变量 `BB_TEST_REDIS` 开启。
+- ALC 红线：L1 宿主单例不能缓存模块 ALC 内部对象；L2 JSON 天然只承载 DTO/共享契约/基础类型。
+- 测试位置 `tests/BlazorBoilerplate.ModuleRuntime.Tests/CacheServiceTests.cs`，全量 37/37。设计文档 `docs/CACHING.md`。未做：跨进程 single-flight、L2 EF 查询缓存、命中率/耗时指标。

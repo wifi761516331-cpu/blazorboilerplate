@@ -1,6 +1,6 @@
 namespace BlazorBoilerplate.ModuleAbstractions;
 
-/// <summary>支持的数据库类型（参考 Smartstore DbSystemType）。</summary>
+/// <summary>支持的数据库类型。</summary>
 public enum DbSystemType
 {
     PostgreSql,

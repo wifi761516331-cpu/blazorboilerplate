@@ -103,4 +103,4 @@ Identity API 前缀 `/api/identity/`，业务规则冲突返回 409、找不到�
 - `deploy/docker-compose.yml` 与 Dockerfile 未在本机运行验证（Docker 不可用）。
 - 模块包签名 / 仓库、ALC 卸载 WeakReference 自动化断言、OData 完整语法、管理端审计日志。
 
-详见 `docs/ROADMAP.md` 与 `docs/adr/`。
+详见 `docs/ROADMAP.md`、`docs/adr/` 与 `docs/CACHING.md`（内存 L1 + Redis L2 缓存设计：per-key 防击穿、tag 失效、跨节点失效、ALC 安全约定）。

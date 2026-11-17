@@ -5,8 +5,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace BlazorBoilerplate.Persistence;
 
 /// <summary>
-/// 参考 Smartstore DbFactory 架构：按 DbSystemType 统一封装
-/// PostgreSQL / MySQL / MSSQL (SQL Server) / SQLite 四种 EF Core 提供程序配置。
+/// 按 DbSystemType 统一封装 PostgreSQL / MySQL / MSSQL (SQL Server) / SQLite
+/// 四种 EF Core 提供程序配置。
 /// </summary>
 public abstract class DbFactory
 {

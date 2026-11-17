@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\BuildingBlocks\BlazorBoilerplate.ModuleRuntime\BlazorBoilerplate.ModuleRuntime.csproj" />
     <ProjectReference Include="..\..\src\BuildingBlocks\BlazorBoilerplate.ModuleAbstractions\BlazorBoilerplate.ModuleAbstractions.csproj" />
+    <ProjectReference Include="..\..\src\BuildingBlocks\BlazorBoilerplate.Infrastructure\BlazorBoilerplate.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

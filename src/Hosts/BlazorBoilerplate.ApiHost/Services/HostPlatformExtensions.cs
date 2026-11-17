@@ -3,6 +3,7 @@ using BlazorBoilerplate.ApiHost.Auth;
 using BlazorBoilerplate.ApiHost.HealthChecks;
 using BlazorBoilerplate.ApiHost.Setup;
 using BlazorBoilerplate.Infrastructure;
+using BlazorBoilerplate.Infrastructure.Caching;
 using BlazorBoilerplate.Infrastructure.Email;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -22,6 +23,7 @@ public static class HostPlatformExtensions
 
         services.Configure<SetupOptions>(configuration.GetSection(SetupOptions.SectionName));
         services.AddBlazorBoilerplateInfrastructurePlaceholders();
+        services.AddBlazorBoilerplateCaching(configuration, contentRootPath);
         services.AddBlazorBoilerplateEmail(configuration);
         services.AddBlazorBoilerplateAttachments(configuration, contentRootPath);
         services.AddBlazorBoilerplateModuleStorage(configuration);
@@ -36,7 +38,8 @@ public static class HostPlatformExtensions
 
         services.AddProblemDetails();
         services.AddHealthChecks()
-            .AddCheck<SmtpHealthCheck>("smtp", failureStatus: HealthStatus.Degraded);
+            .AddCheck<SmtpHealthCheck>("smtp", failureStatus: HealthStatus.Degraded)
+            .AddCheck<RedisCacheHealthCheck>("redis", failureStatus: HealthStatus.Degraded);
         services.AddOpenApi();
 
         services.AddCors(options => options.AddPolicy("web", policy =>

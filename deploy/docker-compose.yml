@@ -6,6 +6,7 @@
 # 首次运行：浏览器打开 http://localhost:5200 → /setup 配置页
 #   数据库选 PostgreSQL，连接串填：
 #   Host=postgres;Port=5432;Database=blazorboilerplate;Username=blazorboilerplate;Password=blazorboilerplate_dev_only
+#   Redis 缓存默认 localhost:6379；容器内请在向导里改成 redis:6379
 #   （SQLite 也可，但容器重启后需依赖 blazorboilerplate-data 卷持久化）
 #
 # 注意：本机 Docker 不可用，此编排未实际运行验证；镜像基于

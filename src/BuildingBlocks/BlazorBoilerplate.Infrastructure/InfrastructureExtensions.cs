@@ -1,4 +1,7 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
+using BlazorBoilerplate.Infrastructure.Caching;
+using Microsoft.Extensions.Caching.Memory;
 using BlazorBoilerplate.Application.Abstractions;
 using BlazorBoilerplate.Application.Attachments;
 using BlazorBoilerplate.Infrastructure.Attachments;
@@ -55,6 +58,25 @@ public sealed class PlaceholderCacheService : ICacheService
         foreach (var pair in _store.Where(p => string.Equals(p.Value.Tag, tag, StringComparison.Ordinal)).ToArray())
             _store.TryRemove(pair.Key, out _);
         return Task.CompletedTask;
+    }
+
+    public Task RemoveAsync(string key, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _store.TryRemove(key, out _);
+        return Task.CompletedTask;
+    }
+
+    public async Task<T?> GetOrCreateAsync<T>(string key, Func<CancellationToken, Task<T>> factory,
+        CacheEntryOptions? options, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_store.TryGetValue(key, out var hit) && hit.Value is T typed)
+            return typed;
+        var value = await factory(cancellationToken).ConfigureAwait(false);
+        if (value is not null)
+            _store[key] = new Entry(value, options?.Tag);
+        return value;
     }
 }
 
@@ -119,6 +141,88 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IIntegrationEventBus, PlaceholderIntegrationEventBus>();
         services.AddSingleton<IUseCaseDispatcher, UseCaseDispatcher>();
         return services;
+    }
+
+    /// <summary>
+    /// 仅注册进程内内存缓存（兼容旧调用方）。生产宿主使用 AddBlazorBoilerplateCaching。
+    /// </summary>
+    public static IServiceCollection AddBlazorBoilerplateMemoryCache(this IServiceCollection services)
+    {
+        RemovePlaceholderCache(services);
+        services.AddMemoryCache(options => options.ExpirationScanFrequency = TimeSpan.FromMinutes(1));
+        services.AddSingleton<ICacheKeyBuilder, CacheKeyBuilder>();
+        services.AddSingleton<KeyedLockPool>();
+        services.AddSingleton<MemoryCacheService>();
+        services.AddSingleton<ICacheService>(sp => sp.GetRequiredService<MemoryCacheService>());
+        return services;
+    }
+
+    /// <summary>
+    /// 注册 L1 内存缓存 + L2 Redis。Redis 未配置时 L2 no-op；安装向导在运行时写入 Redis 配置后自动生效。
+    /// </summary>
+    public static IServiceCollection AddBlazorBoilerplateCaching(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        string contentRootPath)
+    {
+        RedisCacheState.Configure(ResolveRedisConnectionString(configuration, contentRootPath));
+
+        RemovePlaceholderCache(services);
+        services.AddMemoryCache(options => options.ExpirationScanFrequency = TimeSpan.FromMinutes(1));
+        services.AddSingleton<ICacheKeyBuilder, CacheKeyBuilder>();
+        services.AddSingleton<KeyedLockPool>();
+        services.AddSingleton<MemoryCacheService>();
+        services.AddSingleton<RedisConnectionProvider>();
+        services.AddSingleton<IRedisCacheStore, RedisCacheStore>();
+        services.AddSingleton<HybridCacheService>();
+        services.AddSingleton<ICacheService>(sp => sp.GetRequiredService<HybridCacheService>());
+        services.AddHostedService<RedisCacheInvalidationSubscriber>();
+        services.AddHostedService<RedisCacheTagIndexCleaner>();
+        return services;
+    }
+
+    private static void RemovePlaceholderCache(IServiceCollection services)
+    {
+        var placeholder = services.FirstOrDefault(d =>
+            d.ServiceType == typeof(ICacheService) && d.ImplementationType == typeof(PlaceholderCacheService));
+        if (placeholder is not null)
+            services.Remove(placeholder);
+    }
+
+    private static string? ResolveRedisConnectionString(IConfiguration configuration, string contentRootPath)
+    {
+        // 安装向导写出的设置优先：用户在向导里显式留空 = 禁用 L2，不能被 appsettings 默认值覆盖。
+        var settingsPath = Path.Combine(contentRootPath, "data", "blazorboilerplate.settings.json");
+        if (File.Exists(settingsPath))
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(File.ReadAllText(settingsPath));
+                var root = document.RootElement;
+                if (root.TryGetProperty("infrastructure", out var infrastructure)
+                    && infrastructure.ValueKind == JsonValueKind.Object
+                    && infrastructure.TryGetProperty("redis", out var redis))
+                {
+                    var persisted = redis.ValueKind == JsonValueKind.String ? redis.GetString() : null;
+                    return string.IsNullOrWhiteSpace(persisted) ? null : persisted!.Trim();
+                }
+            }
+            catch (JsonException)
+            {
+                // 配置文件损坏时继续走 appsettings / 默认值。
+            }
+            catch (IOException)
+            {
+                // 文件被占用时继续走 appsettings / 默认值。
+            }
+        }
+
+        var configured = configuration["Infrastructure:Redis"];
+        if (!string.IsNullOrWhiteSpace(configured)
+            && !string.Equals(configured.Trim(), "not-configured", StringComparison.OrdinalIgnoreCase))
+            return configured.Trim();
+
+        return RedisCacheState.DefaultConnectionString;
     }
 
     /// <summary>
