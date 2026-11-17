@@ -143,6 +143,7 @@ public static class SetupEndpoints
             {
                 var path = context.Request.Path;
                 var allowed = path.StartsWithSegments("/api/setup")
+                              || path.StartsWithSegments("/api/localization")
                               || path.StartsWithSegments("/health")
                               || path.StartsWithSegments("/openapi");
                 if (!allowed)

@@ -5,6 +5,7 @@
 @inject NavigationManager Navigation
 @inject AccountState Account
 @inject IJSRuntime JS
+@inject ILocalizationService L
 
 @* 租户管理：对齐 Bluebird ManageMyTenantsPage（手风琴 + 卡片列表）+ ManageAllTenantsPage（管理员网格）。
    普通用户视图 = 「我的租户」：手风琴（新建租户 / 邀请成员 / 编辑当前租户）+ 卡片列表（切换·接受 / 离开·拒绝）。
@@ -15,7 +16,7 @@
 
 <section class="mytenants-page">
 <div class="mytenants-root">
-<BitText Typography="BitTypography.H4">我的租户</BitText>
+<BitText Typography="BitTypography.H4">@L["platform.nav.myTenant"]</BitText>
 
 @if (_loadError is not null)
 {
@@ -24,7 +25,7 @@
 
 @if (_loading)
 {
-    <div class="mytenants-loading"><span class="blazorboilerplate-spinner"></span> 加载中…</div>
+    <div class="mytenants-loading"><span class="blazorboilerplate-spinner"></span> @L["platform.common.loading"]</div>
 }
 else
 {
@@ -35,7 +36,7 @@ else
             <div class="mt-section @(_expanded == "create" ? "expanded" : "")">
                 <button type="button" class="mt-section-header" @onclick="ToggleCreate">
                     <AppIcon Name="Add" />
-                    <span class="mt-section-title">新建租户</span>
+                    <span class="mt-section-title">@L["platform.tenants.createTitle"]</span>
                     <AppIcon Name="ChevronDown" Class="mt-chevron" />
                 </button>
                 @if (_expanded == "create")
@@ -43,20 +44,20 @@ else
                     <div class="mt-section-body">
                         <div class="mt-form">
                             <div class="auth-field">
-                                <label class="auth-label" for="tn-create-name">名称 *</label>
-                                <input id="tn-create-name" class="auth-input" @bind="_createName" placeholder="唯一名称" />
+                                <label class="auth-label" for="tn-create-name">@L["platform.tenants.field.nameRequired"]</label>
+                                <input id="tn-create-name" class="auth-input" @bind="_createName" placeholder="@L["platform.tenants.field.namePlaceholder"]" />
                             </div>
                             <div class="auth-field">
-                                <label class="auth-label" for="tn-create-title">标题</label>
-                                <input id="tn-create-title" class="auth-input" @bind="_createTitle" placeholder="展示标题" />
+                                <label class="auth-label" for="tn-create-title">@L["platform.tenants.field.title"]</label>
+                                <input id="tn-create-title" class="auth-input" @bind="_createTitle" placeholder="@L["platform.tenants.field.titlePlaceholder"]" />
                             </div>
                             <div class="auth-field">
-                                <label class="auth-label" for="tn-create-domain">域名</label>
+                                <label class="auth-label" for="tn-create-domain">@L["platform.tenants.field.domain"]</label>
                                 <input id="tn-create-domain" class="auth-input" @bind="_createDomain" placeholder="tenant.example.com" />
                             </div>
                         </div>
                         <button type="button" class="blazorboilerplate-btn primary" disabled="@_busy" @onclick="CreateAsync">
-                            @(_busy ? "创建中…" : "保存")
+                            @(_busy ? L["platform.tenants.creating"] : L["platform.common.save"])
                         </button>
                     </div>
                 }
@@ -75,15 +76,15 @@ else
                 @if (_expanded == "invite" && _currentTenant is not null)
                 {
                     <div class="mt-section-body">
-                        <p class="muted">向邮箱发送加入「@(string.IsNullOrWhiteSpace(_currentTenant.Title) ? _currentTenant.Name : _currentTenant.Title)」的邀请。</p>
+                        <p class="muted">@L.GetString("platform.tenants.inviteDesc", string.IsNullOrWhiteSpace(_currentTenant.Title) ? _currentTenant.Name : _currentTenant.Title)</p>
                         <div class="mt-form">
                             <div class="auth-field">
-                                <label class="auth-label" for="tn-invite-email">成员邮箱 *</label>
+                                <label class="auth-label" for="tn-invite-email">@L["platform.tenants.field.memberEmail"]</label>
                                 <input id="tn-invite-email" class="auth-input" type="email" @bind="_inviteEmail" placeholder="member@example.com" />
                             </div>
                         </div>
                         <button type="button" class="blazorboilerplate-btn primary" disabled="@_busy" @onclick="InviteAsync">
-                            @(_busy ? "发送中…" : "发送邀请")
+                            @(_busy ? L["platform.notifications.sending"] : L["platform.tenants.sendInvite"])
                         </button>
                     </div>
                 }
@@ -96,7 +97,7 @@ else
                 <button type="button" class="mt-section-header" disabled="@(_currentTenant is null)"
                         @onclick="ToggleUpdate">
                     <AppIcon Name="Edit" />
-                    <span class="mt-section-title">编辑当前租户</span>
+                    <span class="mt-section-title">@L["platform.tenants.editCurrentTitle"]</span>
                     <AppIcon Name="ChevronDown" Class="mt-chevron" />
                 </button>
                 @if (_expanded == "update" && _currentTenant is not null)
@@ -104,20 +105,20 @@ else
                     <div class="mt-section-body">
                         <div class="mt-form">
                             <div class="auth-field">
-                                <label class="auth-label" for="tn-edit-name">名称 *</label>
-                                <input id="tn-edit-name" class="auth-input" @bind="_editName" placeholder="唯一名称" />
+                                <label class="auth-label" for="tn-edit-name">@L["platform.tenants.field.nameRequired"]</label>
+                                <input id="tn-edit-name" class="auth-input" @bind="_editName" placeholder="@L["platform.tenants.field.namePlaceholder"]" />
                             </div>
                             <div class="auth-field">
-                                <label class="auth-label" for="tn-edit-title">标题</label>
-                                <input id="tn-edit-title" class="auth-input" @bind="_editTitle" placeholder="展示标题" />
+                                <label class="auth-label" for="tn-edit-title">@L["platform.tenants.field.title"]</label>
+                                <input id="tn-edit-title" class="auth-input" @bind="_editTitle" placeholder="@L["platform.tenants.field.titlePlaceholder"]" />
                             </div>
                             <div class="auth-field">
-                                <label class="auth-label" for="tn-edit-domain">域名</label>
+                                <label class="auth-label" for="tn-edit-domain">@L["platform.tenants.field.domain"]</label>
                                 <input id="tn-edit-domain" class="auth-input" @bind="_editDomain" placeholder="tenant.example.com" />
                             </div>
                         </div>
                         <button type="button" class="blazorboilerplate-btn primary" disabled="@_busy" @onclick="UpdateAsync">
-                            @(_busy ? "保存中…" : "保存")
+                            @(_busy ? L["platform.profile.saving"] : L["platform.common.save"])
                         </button>
                     </div>
                 }
@@ -131,7 +132,7 @@ else
         {
             <div class="tenant-empty">
                 <AppIcon Name="Org" Class="tenant-empty-icon" />
-                <p>你还没有加入任何租户。</p>
+                <p>@L["platform.tenants.empty"]</p>
             </div>
         }
         else
@@ -154,7 +155,7 @@ else
                         <BitTag Variant="BitVariant.Outline"
                                 Style="flex-shrink:0"
                                 Color="@(tenant.IsActive ? BitColor.Success : BitColor.Error)"
-                                Text="@(tenant.IsActive ? "启用" : "停用")" />
+                                Text="@(tenant.IsActive ? L["platform.tenants.active"] : L["platform.tenants.inactive"])" />
                     </div>
                     <div class="tenant-card-actions">
                         @if (!IsCurrent(tenant))
@@ -163,7 +164,7 @@ else
                                        IconName="@(tenant.Accepted ? BitIconName.Switch : BitIconName.Accept)"
                                        IsLoading="_busy"
                                        OnClick="() => SwitchOrAcceptAsync(tenant)">
-                                @(tenant.Accepted ? "切换" : "接受邀请")
+                                @(tenant.Accepted ? L["platform.tenants.switch"] : L["platform.tenants.acceptInvite"])
                             </BitButton>
                         }
                         <BitButton Color="BitColor.Error"
@@ -171,7 +172,7 @@ else
                                    IconName="@BitIconName.Leave"
                                    IsLoading="_busy"
                                    OnClick="() => AskLeave(tenant)">
-                            @(tenant.Accepted ? "离开" : "拒绝邀请")
+                            @(tenant.Accepted ? L["platform.tenants.leave"] : L["platform.tenants.declineInvite"])
                         </BitButton>
                     </div>
                 </div>
@@ -182,17 +183,17 @@ else
 
 @* 离开 / 拒绝邀请确认框 *@
 <BlazorBoilerplateModal @bind-IsOpen="_confirmLeaveOpen"
-                        Title="@(_leavingTenant is not null && !_leavingTenant.Accepted ? "拒绝邀请" : "离开租户")"
-                        OkText="@(_leavingTenant is not null && !_leavingTenant.Accepted ? "拒绝邀请" : "离开")"
+                        Title="@(_leavingTenant is not null && !_leavingTenant.Accepted ? L["platform.tenants.declineInvite"] : L["platform.tenants.leaveTitle"])"
+                        OkText="@(_leavingTenant is not null && !_leavingTenant.Accepted ? L["platform.tenants.declineInvite"] : L["platform.tenants.leave"])"
                         Danger ShowCancel="true" OnOk="ConfirmLeaveAsync">
     <p class="muted">
         @if (_leavingTenant is not null && !_leavingTenant.Accepted)
         {
-            @($"确定要拒绝「{(string.IsNullOrWhiteSpace(_leavingTenant.Title) ? _leavingTenant.Name : _leavingTenant.Title)}」的邀请吗？拒绝后需重新邀请才能加入。")
+            @L.GetString("platform.tenants.confirmDecline", string.IsNullOrWhiteSpace(_leavingTenant.Title) ? _leavingTenant.Name : _leavingTenant.Title)
         }
         else if (_leavingTenant is not null)
         {
-            @($"确定要离开租户「{(string.IsNullOrWhiteSpace(_leavingTenant.Title) ? _leavingTenant.Name : _leavingTenant.Title)}」吗？")
+            @L.GetString("platform.tenants.confirmLeave", string.IsNullOrWhiteSpace(_leavingTenant.Title) ? _leavingTenant.Name : _leavingTenant.Title)
         }
     </p>
 </BlazorBoilerplateModal>
@@ -203,24 +204,24 @@ else
     {
         <div class="admin-tenants-section">
             <div class="admin-section-head">
-                <BitText Typography="BitTypography.H5">管理所有租户</BitText>
-                <BitButton IconPlacement="BitPlacement.End" IconName="@BitIconName.Add" OnClick="OpenAdminCreate">添加租户</BitButton>
+                <BitText Typography="BitTypography.H5">@L["platform.tenants.adminTitle"]</BitText>
+                <BitButton IconPlacement="BitPlacement.End" IconName="@BitIconName.Add" OnClick="OpenAdminCreate">@L["platform.tenants.addTenant"]</BitButton>
             </div>
 
             <div class="grid-container">
                 <table class="data-grid">
                     <thead>
                         <tr>
-                            <th>名称</th>
-                            <th>标题</th>
-                            <th>域名</th>
-                            <th style="text-align:center; width:150px;">启用</th>
+                            <th>@L["platform.tenants.field.name"]</th>
+                            <th>@L["platform.tenants.field.title"]</th>
+                            <th>@L["platform.tenants.field.domain"]</th>
+                            <th style="text-align:center; width:150px;">@L["platform.tenants.active"]</th>
                         </tr>
                     </thead>
                     <tbody>
                         @if (_allTenants.Count == 0)
                         {
-                            <tr><td colspan="4" class="muted">暂无租户。</td></tr>
+                            <tr><td colspan="4" class="muted">@L["platform.tenants.adminEmpty"]</td></tr>
                         }
                         @foreach (var t in _allTenants)
                         {
@@ -231,13 +232,13 @@ else
                                 <td>
                                     <div class="admin-tenant-actions">
                                         <BitToggle Value="t.IsActive"
-                                                   AriaLabel="启用"
+                                                   AriaLabel="@L["platform.tenants.active"]"
                                                    OnChange="@(async (bool _) => await ToggleActiveAsync(t))" />
                                         <PermissionView Code="tenant.update">
                                             <BitButton Variant="BitVariant.Text"
                                                        IconName="@BitIconName.Edit"
-                                                       Title="编辑"
-                                                       AriaLabel="编辑"
+                                                       Title="@L["platform.common.edit"]"
+                                                       AriaLabel="@L["platform.common.edit"]"
                                                        OnClick="() => OpenAdminEdit(t)" />
                                         </PermissionView>
                                     </div>
@@ -255,22 +256,22 @@ else
 
 @* 管理员新增 / 编辑租户 *@
 <BlazorBoilerplateModal @bind-IsOpen="_adminEditOpen"
-                        Title="@(_adminEditing is null ? "添加租户" : "编辑租户")" OkText="保存" OnOk="SaveAdminEditAsync">
+                        Title="@(_adminEditing is null ? L["platform.tenants.addTenant"] : L["platform.tenants.editTenant"])" OkText="@L["platform.common.save"]" OnOk="SaveAdminEditAsync">
     <div class="id-form">
         <div class="auth-field">
-            <label class="auth-label" for="tn-adm-name">名称 *</label>
-            <input id="tn-adm-name" class="auth-input" @bind="_adminName" placeholder="唯一名称" />
+            <label class="auth-label" for="tn-adm-name">@L["platform.tenants.field.nameRequired"]</label>
+            <input id="tn-adm-name" class="auth-input" @bind="_adminName" placeholder="@L["platform.tenants.field.namePlaceholder"]" />
         </div>
         <div class="auth-field">
-            <label class="auth-label" for="tn-adm-title">标题</label>
-            <input id="tn-adm-title" class="auth-input" @bind="_adminTitle" placeholder="展示标题" />
+            <label class="auth-label" for="tn-adm-title">@L["platform.tenants.field.title"]</label>
+            <input id="tn-adm-title" class="auth-input" @bind="_adminTitle" placeholder="@L["platform.tenants.field.titlePlaceholder"]" />
         </div>
         <div class="auth-field">
-            <label class="auth-label" for="tn-adm-domain">域名</label>
+            <label class="auth-label" for="tn-adm-domain">@L["platform.tenants.field.domain"]</label>
             <input id="tn-adm-domain" class="auth-input" @bind="_adminDomain" placeholder="tenant.example.com" />
         </div>
         <label class="account-check">
-            <input type="checkbox" @bind="_adminActive" /> 启用
+            <input type="checkbox" @bind="_adminActive" /> @L["platform.tenants.active"]
         </label>
     </div>
 </BlazorBoilerplateModal>
@@ -339,7 +340,7 @@ else
         }
         catch (Exception ex)
         {
-            _loadError = $"读取租户列表失败：{ex.Message}";
+            _loadError = L.GetString("platform.tenants.error.loadFailed", ex.Message);
             Toast.Error(_loadError);
         }
         finally
@@ -351,7 +352,7 @@ else
     private async Task LoadAllAsync()
     {
         try { _allTenants = (await Api.GetAllTenantsAsync()).ToList(); }
-        catch (Exception ex) { Toast.Error($"读取全部租户失败：{ex.Message}"); }
+        catch (Exception ex) { Toast.Error(L.GetString("platform.tenants.error.loadAllFailed", ex.Message)); }
     }
 
     private bool IsCurrent(TenantDto tenant) =>
@@ -359,8 +360,8 @@ else
 
     // 手风琴分区标题用属性计算，事件处理器用方法组（规避 Razor 属性内字符串字面量 lambda 的引号解析问题）。
     private string InviteSectionTitle => _currentTenant is null
-        ? "邀请成员"
-        : $"邀请成员加入「{(string.IsNullOrWhiteSpace(_currentTenant.Title) ? _currentTenant.Name : _currentTenant.Title)}」";
+        ? L["platform.tenants.inviteMembers"]
+        : L.GetString("platform.tenants.inviteMembersTo", string.IsNullOrWhiteSpace(_currentTenant.Title) ? _currentTenant.Name : _currentTenant.Title);
 
     private void ToggleCreate() => ToggleSection("create");
     private void ToggleInvite() => ToggleSection("invite");
@@ -389,7 +390,7 @@ else
         }
         catch (Exception ex)
         {
-            Toast.Error($"切换租户失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.tenants.toast.switchFailed", ex.Message));
         }
         finally
         {
@@ -404,10 +405,10 @@ else
         var result = await JS.InvokeAsync<JsonElement>("blazorAuth.switchTenant", tenantId.ToString());
         if (!Ok(result))
         {
-            Toast.Error(Err(result) ?? "切换租户失败。");
+            Toast.Error(Err(result) ?? L["platform.tenants.toast.switchFailedSimple"]);
             return;
         }
-        Toast.Success($"正在切换到租户「{tenantName}」…");
+        Toast.Success(L.GetString("platform.tenants.toast.switching", tenantName));
         await Redirect("/");
     }
 
@@ -416,7 +417,7 @@ else
         if (_busy) return;
         if (string.IsNullOrWhiteSpace(_createName))
         {
-            Toast.Warning("租户名称不能为空。");
+            Toast.Warning(L["platform.tenants.toast.nameRequired"]);
             return;
         }
         _busy = true;
@@ -427,13 +428,13 @@ else
             var domain = string.IsNullOrWhiteSpace(_createDomain) ? null : _createDomain.Trim();
             var created = await Api.CreateTenantAsync(
                 new TenantDto(Guid.Empty, name, title, domain, true, true, false));
-            Toast.Success($"租户「{created.Name}」已创建，正在进入…");
+            Toast.Success(L.GetString("platform.tenants.toast.createdEntering", created.Name));
             // 创建者即成为该租户管理员，直接切入（与 Bluebird 一致）。
             await SwitchTenantCoreAsync(created.Id, created.Name);
         }
         catch (Exception ex)
         {
-            Toast.Error($"创建租户失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.tenants.toast.createFailed", ex.Message));
         }
         finally
         {
@@ -446,20 +447,20 @@ else
         if (_busy || _currentTenant is null) return;
         if (string.IsNullOrWhiteSpace(_inviteEmail))
         {
-            Toast.Warning("请填写成员邮箱。");
+            Toast.Warning(L["platform.tenants.toast.inviteEmailRequired"]);
             return;
         }
         _busy = true;
         try
         {
             await Api.InviteTenantUserAsync(new InviteUserToTenantRequestDto(_currentTenant.Id, _inviteEmail.Trim()));
-            Toast.Success($"已向 {_inviteEmail.Trim()} 发送邀请。");
+            Toast.Success(L.GetString("platform.tenants.toast.invited", _inviteEmail.Trim()));
             _inviteEmail = string.Empty;
             _expanded = null;
         }
         catch (Exception ex)
         {
-            Toast.Error($"邀请成员失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.tenants.toast.inviteFailed", ex.Message));
         }
         finally
         {
@@ -472,7 +473,7 @@ else
         if (_busy || _currentTenant is null) return;
         if (string.IsNullOrWhiteSpace(_editName))
         {
-            Toast.Warning("租户名称不能为空。");
+            Toast.Warning(L["platform.tenants.toast.nameRequired"]);
             return;
         }
         _busy = true;
@@ -482,13 +483,13 @@ else
             var title = string.IsNullOrWhiteSpace(_editTitle) ? null : _editTitle.Trim();
             var domain = string.IsNullOrWhiteSpace(_editDomain) ? null : _editDomain.Trim();
             await Api.UpdateTenantAsync(_currentTenant with { Name = name, Title = title, Domain = domain });
-            Toast.Success($"租户「{name}」已更新。");
+            Toast.Success(L.GetString("platform.tenants.toast.updated", name));
             _expanded = null;
             await Redirect(Navigation.Uri); // 整页刷新以反映新名称/标题
         }
         catch (Exception ex)
         {
-            Toast.Error($"更新租户失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.tenants.toast.updateFailed", ex.Message));
         }
         finally
         {
@@ -512,8 +513,8 @@ else
         {
             await Api.LeaveTenantAsync(tenant.Id);
             Toast.Success(tenant.Accepted
-                ? $"已离开租户「{tenant.Name}」。"
-                : $"已拒绝「{tenant.Name}」的邀请。");
+                ? L.GetString("platform.tenants.toast.left", tenant.Name)
+                : L.GetString("platform.tenants.toast.declined", tenant.Name));
             _confirmLeaveOpen = false;
             _leavingTenant = null;
 
@@ -532,7 +533,7 @@ else
         }
         catch (Exception ex)
         {
-            Toast.Error($"离开租户失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.tenants.toast.leaveFailed", ex.Message));
         }
         finally
         {
@@ -549,11 +550,13 @@ else
             var updated = await Api.UpdateTenantAsync(tenant with { IsActive = !tenant.IsActive });
             var idx = _allTenants.FindIndex(t => t.Id == updated.Id);
             if (idx >= 0) _allTenants[idx] = updated;
-            Toast.Success(updated.IsActive ? $"已启用「{updated.Name}」。" : $"已停用「{updated.Name}」。");
+            Toast.Success(updated.IsActive
+                ? L.GetString("platform.tenants.toast.activated", updated.Name)
+                : L.GetString("platform.tenants.toast.deactivated", updated.Name));
         }
         catch (Exception ex)
         {
-            Toast.Error($"切换租户状态失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.tenants.toast.toggleFailed", ex.Message));
         }
         finally
         {
@@ -585,7 +588,7 @@ else
     {
         if (string.IsNullOrWhiteSpace(_adminName))
         {
-            Toast.Warning("租户名称不能为空。");
+            Toast.Warning(L["platform.tenants.toast.nameRequired"]);
             return;
         }
         try
@@ -596,7 +599,7 @@ else
             if (_adminEditing is null)
             {
                 var created = await Api.CreateTenantAsync(new TenantDto(Guid.Empty, name, title, domain, _adminActive, true, false));
-                Toast.Success($"已创建租户「{created.Name}」。");
+                Toast.Success(L.GetString("platform.tenants.toast.adminCreated", created.Name));
             }
             else
             {
@@ -607,7 +610,7 @@ else
                     Domain = domain,
                     IsActive = _adminActive
                 });
-                Toast.Success($"租户「{updated.Name}」已更新。");
+                Toast.Success(L.GetString("platform.tenants.toast.updated", updated.Name));
             }
             _adminEditOpen = false;
             await LoadAsync();
@@ -615,7 +618,7 @@ else
         }
         catch (Exception ex)
         {
-            Toast.Error($"保存租户失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.tenants.toast.saveFailed", ex.Message));
         }
     }
 

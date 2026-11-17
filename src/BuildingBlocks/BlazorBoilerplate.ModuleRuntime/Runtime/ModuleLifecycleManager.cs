@@ -1,4 +1,7 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
+using BlazorBoilerplate.Application.Abstractions;
+using BlazorBoilerplate.Application.Localization;
 using BlazorBoilerplate.Domain.Events;
 using BlazorBoilerplate.Infrastructure.Events;
 using BlazorBoilerplate.ModuleAbstractions;
@@ -333,6 +336,8 @@ public sealed class ModuleLifecycleManager(
 
             await module.StartAsync(cancellationToken);
 
+            await RegisterModuleLocalizationAsync(id, entry.Descriptor.PackagePath, provider, cancellationToken);
+
             // 扫描模块程序集中标记 [Subscribe] 的处理器，注册到宿主 EventBus 的弱引用表。
             // 强引用由 handle.EventHandlers 持有（生命周期跟随模块）；卸载时显式摘除订阅。
             var eventBus = hostServices.GetService<EventBus>();
@@ -413,6 +418,11 @@ public sealed class ModuleLifecycleManager(
             hostServices.GetService<EventBus>()?.UnsubscribeModule(id);
             handle.EventHandlers = null;
 
+            // 注销该模块的多语言资源并清理缓存 Tag，防止 ALC 卸载泄漏。
+            hostServices.GetService<ILocalizationRegistry>()?.UnregisterModule(id);
+            if (hostServices.GetService<ICacheService>() is { } cache)
+                await cache.RemoveByTagAsync($"localization:{id}", cancellationToken);
+
             await handle.Module.DisposeAsync();
             await handle.Services!.DisposeAsync();
 
@@ -476,5 +486,62 @@ public sealed class ModuleLifecycleManager(
             handle.LoggerFactory.CreateLogger(nameof(ModuleLifecycleManager))
                 .LogError(ex, "Module cleanup failed. Id={Id}", handle.ModuleId);
         }
+    }
+
+    private async Task RegisterModuleLocalizationAsync(
+        string moduleId,
+        string packagePath,
+        IServiceProvider moduleProvider,
+        CancellationToken cancellationToken)
+    {
+        var registry = hostServices.GetService<ILocalizationRegistry>();
+        if (registry is null)
+            return;
+
+        var collected = new List<LocaleResourceEntry>();
+
+        // 1) 扫描模块包 localization/{culture}.json
+        var locDir = Path.Combine(packagePath, ModulePackageLayout.LocalizationFolder);
+        if (Directory.Exists(locDir))
+        {
+            foreach (var file in Directory.EnumerateFiles(locDir, "*.json"))
+            {
+                var culture = Path.GetFileNameWithoutExtension(file);
+                if (string.IsNullOrWhiteSpace(culture))
+                    continue;
+
+                try
+                {
+                    await using var stream = File.OpenRead(file);
+                    var dict = await JsonSerializer.DeserializeAsync<Dictionary<string, string>>(stream, cancellationToken: cancellationToken);
+                    if (dict is { Count: > 0 })
+                    {
+                        registry.RegisterModuleResources(moduleId, culture, dict);
+                        foreach (var (key, value) in dict)
+                            collected.Add(new LocaleResourceEntry(moduleId, culture, key, value));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "读取模块 {ModuleId} 多语言文件失败：{File}", moduleId, file);
+                }
+            }
+        }
+
+        // 2) 收集模块 DI 中注册的 IModuleLocalizationProvider
+        foreach (var provider in moduleProvider.GetServices<IModuleLocalizationProvider>())
+        {
+            var byCulture = provider.GetResources();
+            registry.RegisterModuleResources(moduleId, byCulture);
+            foreach (var (culture, entries) in byCulture)
+            {
+                foreach (var (key, value) in entries)
+                    collected.Add(new LocaleResourceEntry(moduleId, culture, key, value));
+            }
+        }
+
+        // 3) 若宿主已接入持久化 ILocalizationStore（Localization 管理模块），同步入库
+        if (collected.Count > 0 && hostServices.GetService<ILocalizationStore>() is { } store)
+            await store.SyncModuleResourcesAsync(moduleId, collected, cancellationToken);
     }
 }

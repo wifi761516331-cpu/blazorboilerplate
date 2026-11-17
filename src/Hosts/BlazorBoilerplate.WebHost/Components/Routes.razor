@@ -3,6 +3,7 @@
 @using BlazorBoilerplate.Web.Shared.Components.Layout
 @inject ModuleAssemblyCatalog ModuleCatalog
 @inject NavigationManager Navigation
+@inject ILocalizationService L
 
 <Router AppAssembly="@typeof(Program).Assembly" AdditionalAssemblies="@ModuleCatalog.Assemblies">
     <Found Context="routeData">
@@ -12,7 +13,7 @@
     <NotFound>
         <LayoutView Layout="@typeof(MainLayout)">
             <BitCallout Class="page-callout">
-                你访问的地址没有匹配到任何页面。
+                @L["platform.error.routeNotFound"]
             </BitCallout>
         </LayoutView>
     </NotFound>

@@ -1,4 +1,5 @@
 using BlazorBoilerplate.ApiHost.Auth;
+using BlazorBoilerplate.ApiHost.Localization;
 using BlazorBoilerplate.ApiHost.Modules;
 using BlazorBoilerplate.ApiHost.Services;
 using BlazorBoilerplate.ApiHost.Setup;
@@ -24,6 +25,7 @@ app.UseHttpLogging();
 app.UseCors("web");
 app.UseRateLimiter();
 app.UseSetupBootstrapGate();
+app.UsePlatformRequestLocalization();
 
 app.UseRouting();
 app.UseAuthentication();

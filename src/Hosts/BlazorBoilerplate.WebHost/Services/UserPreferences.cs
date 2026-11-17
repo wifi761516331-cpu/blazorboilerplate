@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using BlazorBoilerplate.Shared.Features.Account;
 using BlazorBoilerplate.Shared.Features.Identity;
+using BlazorBoilerplate.Web.Shared.Localization;
 using BlazorBoilerplate.Web.Shared.Services;
 using Microsoft.JSInterop;
 
@@ -14,7 +15,8 @@ namespace BlazorBoilerplate.WebHost.Services;
 public sealed class UserPreferences(
     IJSRuntime js,
     BlazorBoilerplateApiClient api,
-    SystemSettingsState sysSettings)
+    SystemSettingsState sysSettings,
+    FrontendLocalizationService localization)
 {
     private const string DeviceInfo = "browser";
 
@@ -29,22 +31,37 @@ public sealed class UserPreferences(
     /// <summary>最近一次服务端同步失败的原因（本地仍生效）；null 表示成功或尚未同步。</summary>
     public string? LastServerError { get; private set; }
 
-    /// <summary>读取偏好：blazorPrefs.get() → Api.GetPreferencesAsync() → 系统默认设置。</summary>
+    /// <summary>
+    /// 读取偏好：blazorPrefs.get() → Api.GetPreferencesAsync() → 系统默认设置。
+    /// 首次访问（本机无 culture 偏好）时以浏览器 culture 为准，见方法内注释。
+    /// </summary>
     public async Task<UserPreferenceDto> GetAsync()
     {
         if (_cached is not null) return _cached;
 
         await sysSettings.EnsureLoadedAsync();
+
+        // 当前 culture 由 WebHost 中间件按浏览器 Accept-Language 解析并固化到 bb_culture cookie；
+        // SSR 首屏与 Blazor 线路的 CultureInfo 都据此设置，FrontendLoc.CurrentCulture 即为浏览器语言。
+        // 首次访问若回落系统默认语言，MainLayout 会用默认值 SetCultureAsync，
+        // 把首屏已按浏览器渲染好的语言又拉回默认（用户看到语言跳变）。
+        var browserCulture = localization.CurrentCulture;
         var fallbackDefaults = new UserPreferenceDto(
-            Culture: string.IsNullOrWhiteSpace(sysSettings.Public.DefaultCulture) ? Defaults.Culture : sysSettings.Public.DefaultCulture,
+            Culture: string.IsNullOrWhiteSpace(browserCulture)
+                ? (string.IsNullOrWhiteSpace(sysSettings.Public.DefaultCulture) ? Defaults.Culture : sysSettings.Public.DefaultCulture)
+                : browserCulture,
             TimeZone: string.IsNullOrWhiteSpace(sysSettings.Public.DefaultTimeZone) ? Defaults.TimeZone : sysSettings.Public.DefaultTimeZone);
 
         UserPreferenceDto? value = null;
+        var hasLocalCulture = false;
         try
         {
             var payload = await js.InvokeAsync<PrefsPayload?>("blazorPrefs.get");
             if (payload is not null && HasAny(payload))
+            {
+                hasLocalCulture = !string.IsNullOrWhiteSpace(payload.Culture);
                 value = Merge(fallbackDefaults, payload);
+            }
         }
         catch
         {
@@ -62,6 +79,17 @@ public sealed class UserPreferences(
                 // 服务端不可用：使用系统默认设置。
             }
         }
+
+        // 服务端在用户从未保存过偏好时也会返回一个「默认 culture」的 DTO（非 null）。
+        // 折中：本机无 culture 偏好时——
+        //   服务端仍是默认 culture ⇒ 说明从未显式保存过 ⇒ 让浏览器 culture 作为首次默认值；
+        //   服务端是非默认 culture（如跨设备保存的 en-US）⇒ 尊重它，不被浏览器语言覆盖。
+        var effectiveDefault = string.IsNullOrWhiteSpace(sysSettings.Public.DefaultCulture)
+            ? Defaults.Culture
+            : sysSettings.Public.DefaultCulture;
+        if (!hasLocalCulture && value is not null && !string.IsNullOrWhiteSpace(browserCulture) &&
+            string.Equals(value.Culture, effectiveDefault, StringComparison.OrdinalIgnoreCase))
+            value = value with { Culture = browserCulture };
 
         _cached = value ?? fallbackDefaults;
         return _cached;
@@ -111,6 +139,7 @@ public sealed class UserPreferences(
     /// <summary>即时把主题 / 强调色 / 语言应用到 DOM 与 culture cookie。</summary>
     public async Task ApplyAsync(string theme, string? accentColor, string culture)
     {
+        await localization.SetCultureAsync(culture);
         try
         {
             await js.InvokeVoidAsync("blazorPrefs.apply", theme, accentColor, culture);

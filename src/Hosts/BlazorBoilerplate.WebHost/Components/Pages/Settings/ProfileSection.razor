@@ -4,6 +4,7 @@
 @inject AccountState Account
 @inject SystemSettingsState SysState
 @inject ToastService Toast
+@inject ILocalizationService L
 
 <section style="padding: 1rem 0;">
     <BitStack HorizontalAlign="BitAlignment.Center" Gap="1rem">
@@ -16,15 +17,15 @@
         }
         else if (Account.CurrentUser is null)
         {
-            <BitCallout Class="page-callout error">无法读取当前用户信息，请确认已登录。</BitCallout>
+            <BitCallout Class="page-callout error">@L["platform.profile.error.noUser"]</BitCallout>
         }
         else
         {
-            <div class="settings-avatar-wrap" title="点击更换头像">
+            <div class="settings-avatar-wrap" title="@L["platform.settings.profile.clickChangeAvatar"]">
                 @if (_uploadingAvatar)
                 {
                     <BitShimmer Height="4.5rem" Circle />
-                    <BitText Typography="BitTypography.Caption1" Color="BitColor.SecondaryForeground">正在上传…</BitText>
+                    <BitText Typography="BitTypography.Caption1" Color="BitColor.SecondaryForeground">@L["platform.settings.profile.uploading"]</BitText>
                 }
                 else
                 {
@@ -33,7 +34,7 @@
                                 PrimaryText="@_displayName"
                                 Size="BitPersonaSize.Size72"
                                 Presence="BitPersonaPresence.Online" />
-                    <BitText Typography="BitTypography.Body2" Color="BitColor.Primary">上传新头像</BitText>
+                    <BitText Typography="BitTypography.Body2" Color="BitColor.Primary">@L["platform.settings.profile.uploadAvatar"]</BitText>
                     <InputFile @key="_avatarInputKey"
                                class="settings-avatar-input"
                                OnChange="UploadAvatarAsync"
@@ -49,32 +50,32 @@
                            Size="BitSize.Small"
                            IsLoading="_uploadingAvatar"
                            OnClick="DeleteAvatarAsync">
-                    移除头像
+                    @L["platform.profile.removeAvatar"]
                 </BitButton>
             }
 
             <div class="settings-form">
                 <BitStack FillContent Gap="0.85rem">
                     <BitTextField @bind-Value="_displayName"
-                                  Label="显示名"
-                                  Placeholder="请输入显示名"
+                                  Label="@L["platform.profile.displayName"]"
+                                  Placeholder="@L["platform.settings.profile.displayNamePlaceholder"]"
                                   Required />
 
                     <BitTextField @bind-Value="_email"
-                                  Label="邮箱"
+                                  Label="@L["platform.profile.email"]"
                                   Type="BitInputType.Email"
-                                  Placeholder="请输入邮箱"
+                                  Placeholder="@L["platform.settings.profile.emailPlaceholder"]"
                                   Required />
 
                     <BitTextField Value="@Account.CurrentUser.UserName"
-                                  Label="用户名"
+                                  Label="@L["platform.settings.profile.userName"]"
                                   ReadOnly />
 
                     <PermissionView Code="identity.user.update">
                         <BitButton IsLoading="_saving"
                                    Color="BitColor.Primary"
                                    OnClick="SaveProfileAsync">
-                            保存
+                            @L["platform.common.save"]
                         </BitButton>
                     </PermissionView>
                 </BitStack>
@@ -130,7 +131,7 @@
         var maxBytes = (long)maxMb * 1024 * 1024;
         if (file.Size > maxBytes)
         {
-            Toast.Warning($"头像大小不能超过 {maxMb} MB。");
+            Toast.Warning(L.GetString("platform.profile.toast.avatarTooLarge", maxMb));
             _avatarInputKey++;
             return;
         }
@@ -146,11 +147,11 @@
             var uploaded = await Api.UploadUserProfilePictureAsync(ms, file.Name, file.ContentType);
             _avatarUrl = Api.GetAttachmentUrl(uploaded.Id, uploaded.Kind, cacheBust: uploaded.CreatedAtUtc.ToUnixTimeMilliseconds().ToString());
             Account.SetAvatarUrl(_avatarUrl);
-            Toast.Success("头像已更新。");
+            Toast.Success(L["platform.profile.toast.avatarUpdated"]);
         }
         catch (Exception ex)
         {
-            Toast.Error($"上传头像失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.profile.toast.avatarUploadFailed", ex.Message));
         }
         finally
         {
@@ -167,11 +168,11 @@
             await Api.DeleteUserProfilePictureAsync();
             _avatarUrl = null;
             Account.SetAvatarUrl(null);
-            Toast.Success("头像已移除。");
+            Toast.Success(L["platform.profile.toast.avatarRemoved"]);
         }
         catch (Exception ex)
         {
-            Toast.Error($"移除头像失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.profile.toast.avatarRemoveFailed", ex.Message));
         }
         finally
         {
@@ -183,7 +184,7 @@
     {
         if (string.IsNullOrWhiteSpace(_displayName) || string.IsNullOrWhiteSpace(_email))
         {
-            Toast.Warning("显示名与邮箱不能为空。");
+            Toast.Warning(L["platform.profile.toast.nameEmailRequired"]);
             return;
         }
 
@@ -194,11 +195,11 @@
             _displayName = updated.DisplayName;
             _email = updated.Email;
             Account.UpdateCurrentUser(updated);
-            Toast.Success("个人资料已保存。");
+            Toast.Success(L["platform.profile.toast.profileSaved"]);
         }
         catch (Exception ex)
         {
-            Toast.Error($"保存资料失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.profile.toast.profileSaveFailed", ex.Message));
         }
         finally
         {

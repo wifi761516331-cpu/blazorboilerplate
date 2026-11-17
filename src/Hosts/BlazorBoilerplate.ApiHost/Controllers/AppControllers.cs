@@ -167,8 +167,13 @@ public sealed class IdentityController(
     }
 
     [HttpGet]
-    public Task<IReadOnlyList<string>> GetSupportedCultures(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<string>>(Cultures);
+    public async Task<IReadOnlyList<string>> GetSupportedCultures(
+        [FromServices] BlazorBoilerplate.Application.Localization.ILocalizationService localization,
+        CancellationToken cancellationToken)
+    {
+        var languages = await localization.GetSupportedLanguagesAsync(cancellationToken);
+        return languages.Where(l => l.IsEnabled).Select(l => l.Culture).ToArray();
+    }
 }
 
 /// <summary>当前用户 / 资料 / 会话 / 通知开关 / 租户成员 / 按钮级权限码。</summary>

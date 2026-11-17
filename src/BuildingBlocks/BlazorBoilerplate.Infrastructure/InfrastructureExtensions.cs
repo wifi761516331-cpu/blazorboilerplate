@@ -4,10 +4,12 @@ using BlazorBoilerplate.Infrastructure.Caching;
 using Microsoft.Extensions.Caching.Memory;
 using BlazorBoilerplate.Application.Abstractions;
 using BlazorBoilerplate.Application.Attachments;
+using BlazorBoilerplate.Application.Localization;
 using BlazorBoilerplate.Domain.Events;
 using BlazorBoilerplate.Infrastructure.Attachments;
 using BlazorBoilerplate.Infrastructure.Events;
 using BlazorBoilerplate.Infrastructure.Email;
+using BlazorBoilerplate.Infrastructure.Localization;
 using BlazorBoilerplate.Infrastructure.S3;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -126,6 +128,19 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IFileStorage, PlaceholderFileStorage>();
         services.AddSingleton<IEmailSender, PlaceholderEmailSender>();
         services.AddSingleton<IUseCaseDispatcher, UseCaseDispatcher>();
+        services.AddBlazorBoilerplateLocalization();
+        return services;
+    }
+
+    public static IServiceCollection AddBlazorBoilerplateLocalization(this IServiceCollection services)
+    {
+        services.AddSingleton<ILocalizationRegistry>(_ =>
+        {
+            var registry = new InMemoryLocalizationRegistry();
+            PlatformBuiltInResources.Register(registry);
+            return registry;
+        });
+        services.AddScoped<ILocalizationService, PlatformLocalizationService>();
         return services;
     }
 

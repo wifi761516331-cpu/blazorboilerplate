@@ -2,6 +2,7 @@
 @page "/settings/{Section?}"
 @rendermode RenderMode.InteractiveServer
 @inject NavigationManager Navigation
+@inject ILocalizationService L
 
 <style>
     .settings-shell {
@@ -64,9 +65,9 @@
 
 <div class="settings-shell">
     <div class="settings-header">
-        <BitText Typography="BitTypography.H5">设置</BitText>
+        <BitText Typography="BitTypography.H5">@L["platform.settings.title"]</BitText>
         <BitText Typography="BitTypography.Body2" Color="BitColor.SecondaryForeground">
-            管理您的个人资料、账户安全与多设备活动会话
+            @L["platform.settings.subtitle"]
         </BitText>
     </div>
 
@@ -81,20 +82,20 @@
                           Border="BitColorKind.Transparent">
 
             <BitAccordionListOption Key="profile"
-                                    Title="个人资料"
-                                    Description="编辑您的个人资料数据">
+                                    Title="@L["platform.header.profile.title"]"
+                                    Description="@L["platform.settings.profileDesc"]">
                 <ProfileSection />
             </BitAccordionListOption>
 
             <BitAccordionListOption Key="account"
-                                    Title="账户"
-                                    Description="更改您的账户电子邮件或登录密码">
+                                    Title="@L["platform.settings.accountTitle"]"
+                                    Description="@L["platform.settings.accountDesc"]">
                 <AccountSection />
             </BitAccordionListOption>
 
             <BitAccordionListOption Key="sessions"
-                                    Title="会话"
-                                    Description="您在多个设备上的活动会话">
+                                    Title="@L["platform.settings.sessionsTitle"]"
+                                    Description="@L["platform.settings.sessionsDesc"]">
                 <SessionsSection />
             </BitAccordionListOption>
 

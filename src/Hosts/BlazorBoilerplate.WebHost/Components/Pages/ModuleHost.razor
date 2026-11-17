@@ -1,6 +1,8 @@
 @page "/{**path}"
 @rendermode RenderMode.InteractiveServer
+@using BlazorBoilerplate.Application.Localization
 @inject BlazorBoilerplate.WebHost.Services.ModuleAssemblyCatalog ModuleCatalog
+@inject ILocalizationService L
 
 @* 动态模块页面兜底：SSR endpoint 固定为本 catch-all，组件在运行时从模块程序集解析。
    线路建立后 Router（AdditionalAssemblies = ModuleCatalog.Assemblies）接管客户端导航。 *@
@@ -8,7 +10,7 @@
 {
     <div class="page-callout error">
         <AppIcon Name="Alert" />
-        <span>没有找到与「@(Path ?? "/")」匹配的模块页面。模块可能尚未加载，或路由不存在。</span>
+        <span>@L.GetString("platform.error.notFound", Path ?? "/")</span>
     </div>
 }
 else

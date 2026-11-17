@@ -4,6 +4,8 @@
 @inject BlazorBoilerplateApiClient Api
 @inject ToastService Toast
 @inject IJSRuntime JS
+@inject ILocalizationService L
+@inject FrontendLocalizationService FrontendLoc
 
 <style>
     .att-modal-form {
@@ -252,35 +254,35 @@
 </style>
 
 <BitCallout Class="page-callout">
-    <BitText Element="h1" Class="page-title">附件管理</BitText>
-    <BitText Class="muted">支持多文件拖拽上传、按文件名检索、页内大图预览、链接复制与安全删除（当前存储：@_storageLabel，单文件上限 @_maxUploadSizeMb MB）。</BitText>
+    <BitText Element="h1" Class="page-title">@L["attachments.title"]</BitText>
+    <BitText Class="muted">@L.GetString("attachments.subtitle", _storageLabel, _maxUploadSizeMb)</BitText>
 </BitCallout>
 
 <div class="bb-toolbar">
     <div class="bb-search">
-        <BitSearchBox @bind-Value="_searchText" Immediate DebounceTime="200" Placeholder="搜索文件名…" />
+        <BitSearchBox @bind-Value="_searchText" Immediate DebounceTime="200" Placeholder="@L["attachments.searchPlaceholder"]" />
     </div>
     <div class="bb-spacer"></div>
     <select class="auth-input" style="width:auto;" @bind="_filterKind" @bind:after="LoadAsync">
-        <option value="">全部类型</option>
-        <option value="@AttachmentKind.General">通用附件</option>
-        <option value="@AttachmentKind.UserProfileImage">用户头像</option>
-        <option value="@AttachmentKind.ProductPrimaryImage">商品主图</option>
+        <option value="">@L["attachments.filter.all"]</option>
+        <option value="@AttachmentKind.General">@L["attachments.kind.general"]</option>
+        <option value="@AttachmentKind.UserProfileImage">@L["attachments.kind.userAvatar"]</option>
+        <option value="@AttachmentKind.ProductPrimaryImage">@L["attachments.kind.productImage"]</option>
     </select>
     <PermissionGate Code="attachments.upload">
         <BitButton Color="BitColor.Primary" IconName="CloudUpload" OnClick="OpenUploadModal">
-            上传附件
+            @L["attachments.upload"]
         </BitButton>
     </PermissionGate>
     <BitButton Variant="BitVariant.Outline" IconName="Refresh" OnClick="LoadAsync" IsEnabled="!_loading">
-        @(_loading ? "加载中…" : "刷新")
+        @(_loading ? L["platform.common.loading"] : L["platform.common.refresh"])
     </BitButton>
 </div>
 
 <div class="module-summary">
     <div class="module-summary-item att-kpi-item">
         <div class="att-kpi-meta">
-            <span class="module-summary-label">附件总数</span>
+            <span class="module-summary-label">@L["attachments.kpi.total"]</span>
             <strong>@FilteredItems.Count</strong>
         </div>
         <span class="att-kpi-icon is-total" aria-hidden="true">
@@ -289,7 +291,7 @@
     </div>
     <div class="module-summary-item att-kpi-item">
         <div class="att-kpi-meta">
-            <span class="module-summary-label">图片</span>
+            <span class="module-summary-label">@L["attachments.kpi.images"]</span>
             <strong class="ok">@FilteredItems.Count(IsImage)</strong>
         </div>
         <span class="att-kpi-icon is-image" aria-hidden="true">
@@ -298,7 +300,7 @@
     </div>
     <div class="module-summary-item att-kpi-item">
         <div class="att-kpi-meta">
-            <span class="module-summary-label">其他文件</span>
+            <span class="module-summary-label">@L["attachments.kpi.others"]</span>
             <strong>@FilteredItems.Count(x => !IsImage(x))</strong>
         </div>
         <span class="att-kpi-icon is-other" aria-hidden="true">
@@ -307,7 +309,7 @@
     </div>
     <div class="module-summary-item att-kpi-item">
         <div class="att-kpi-meta">
-            <span class="module-summary-label">总占用空间</span>
+            <span class="module-summary-label">@L["attachments.kpi.totalSize"]</span>
             <strong>@FormatSize(FilteredItems.Sum(x => x.SizeBytes))</strong>
         </div>
         <span class="att-kpi-icon is-size" aria-hidden="true">
@@ -325,7 +327,7 @@
 {
     <div class="module-empty" style="margin-top: 1rem;">
         <AppIcon Name="Attach" />
-        <span>@(_items.Count == 0 ? "暂无附件记录，请在上方选择或拖拽文件上传。" : "没有匹配当前筛选条件的附件。")</span>
+        <span>@(_items.Count == 0 ? L["attachments.empty.none"] : L["attachments.empty.filtered"])</span>
     </div>
 }
 else
@@ -365,16 +367,16 @@ else
                 <div class="att-card-actions">
                     @if (isImage)
                     {
-                        <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick="() => OpenPreview(item, previewUrl)">预览</BitButton>
+                        <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick="() => OpenPreview(item, previewUrl)">@L["attachments.action.preview"]</BitButton>
                     }
                     else
                     {
-                        <a class="bb-link-btn" href="@previewUrl" target="_blank" rel="noopener noreferrer">打开</a>
+                        <a class="bb-link-btn" href="@previewUrl" target="_blank" rel="noopener noreferrer">@L["attachments.action.open"]</a>
                     }
-                    <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick="() => CopyUrlAsync(previewUrl)">复制链接</BitButton>
-                    <a class="bb-link-btn" href="@downloadUrl" download="@item.FileName">下载</a>
+                    <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick="() => CopyUrlAsync(previewUrl)">@L["attachments.action.copyUrl"]</BitButton>
+                    <a class="bb-link-btn" href="@downloadUrl" download="@item.FileName">@L["attachments.action.download"]</a>
                     <PermissionGate Code="attachments.delete">
-                        <BitButton Size="BitSize.Small" Variant="BitVariant.Text" Color="BitColor.Error" OnClick="() => ConfirmDelete(item)">删除</BitButton>
+                        <BitButton Size="BitSize.Small" Variant="BitVariant.Text" Color="BitColor.Error" OnClick="() => ConfirmDelete(item)">@L["platform.common.delete"]</BitButton>
                     </PermissionGate>
                 </div>
             </BitCard>
@@ -383,26 +385,26 @@ else
 }
 
 <BlazorBoilerplateModal @bind-IsOpen="_uploadOpen"
-                        Title="上传附件"
-                        OkText="@(_uploading ? $"上传中 ({_uploadDone}/{_uploadTotal})…" : "开始上传")"
-                        CancelText="取消"
+                        Title="@L["attachments.modal.uploadTitle"]"
+                        OkText="@(_uploading ? L.GetString("attachments.modal.uploading", _uploadDone, _uploadTotal) : L["attachments.modal.startUpload"])"
+                        CancelText="@L["platform.common.cancel"]"
                         ShowCancel="true"
                         Disabled="@(_pendingFiles.Count == 0 || _uploading)"
                         OnOk="StartUploadAsync">
     <div class="att-modal-form">
         <div class="auth-field">
-            <label class="auth-label" for="att-kind">附件类型</label>
+            <label class="auth-label" for="att-kind">@L["attachments.modal.kindLabel"]</label>
             <select id="att-kind" class="auth-input" @bind="_uploadKind" disabled="@_uploading">
-                <option value="@AttachmentKind.General">通用附件</option>
-                <option value="@AttachmentKind.UserProfileImage">当前用户头像</option>
-                <option value="@AttachmentKind.ProductPrimaryImage">商品主图</option>
+                <option value="@AttachmentKind.General">@L["attachments.kind.general"]</option>
+                <option value="@AttachmentKind.UserProfileImage">@L["attachments.kind.userAvatarSelf"]</option>
+                <option value="@AttachmentKind.ProductPrimaryImage">@L["attachments.kind.productImage"]</option>
             </select>
         </div>
         @if (_uploadKind == AttachmentKind.ProductPrimaryImage)
         {
             <div class="auth-field">
-                <label class="auth-label" for="att-owner">关联商品 ID（可选）</label>
-                <input id="att-owner" class="auth-input" @bind="_ownerIdText" placeholder="输入商品 Guid（留空自动生成）" disabled="@_uploading" />
+                <label class="auth-label" for="att-owner">@L["attachments.modal.ownerLabel"]</label>
+                <input id="att-owner" class="auth-input" @bind="_ownerIdText" placeholder="@L["attachments.modal.ownerPlaceholder"]" disabled="@_uploading" />
             </div>
         }
         <label class="att-dropzone @(_uploading ? "is-uploading" : "")" for="att-file-input">
@@ -414,8 +416,8 @@ else
                        disabled="@_uploading" />
             <div class="att-dropzone-content">
                 <BitIcon IconName="CloudUpload" Size="BitSize.Large" Color="BitColor.Primary" />
-                <BitText Typography="BitTypography.Subtitle1">点击选择或拖拽文件到此处</BitText>
-                <BitText Typography="BitTypography.Caption1" Class="muted">支持多选（最多 10 个）· 允许格式：@AllowedExtensionsDisplay · 单文件最大 @_maxUploadSizeMb MB</BitText>
+                <BitText Typography="BitTypography.Subtitle1">@L["attachments.dropzone.title"]</BitText>
+                <BitText Typography="BitTypography.Caption1" Class="muted">@L.GetString("attachments.dropzone.hint", AllowedExtensionsDisplay, _maxUploadSizeMb)</BitText>
             </div>
         </label>
 
@@ -429,9 +431,9 @@ else
                         <span class="muted">@FormatSize(file.Size)</span>
                         @if (file.TooLarge)
                         {
-                            <BitTag Size="BitSize.Small" Color="BitColor.Error">超限</BitTag>
+                            <BitTag Size="BitSize.Small" Color="BitColor.Error">@L["attachments.dropzone.tooLarge"]</BitTag>
                         }
-                        <button type="button" class="bb-link-btn danger" @onclick="() => RemovePendingFile(file)" disabled="@_uploading">移除</button>
+                        <button type="button" class="bb-link-btn danger" @onclick="() => RemovePendingFile(file)" disabled="@_uploading">@L["attachments.dropzone.remove"]</button>
                     </div>
                 }
             </div>
@@ -440,8 +442,8 @@ else
 </BlazorBoilerplateModal>
 
 <BlazorBoilerplateModal @bind-IsOpen="_previewOpen"
-                        Title="@(_previewItem?.FileName ?? "附件预览")"
-                        OkText="关闭"
+                        Title="@(_previewItem?.FileName ?? L["attachments.preview.title"])"
+                        OkText="@L["platform.common.close"]"
                         ShowCancel="false"
                         OnOk="ClosePreviewAsync">
     @if (_previewItem is not null && _previewUrl is not null)
@@ -450,16 +452,16 @@ else
             <img src="@_previewUrl" alt="@_previewItem.FileName" />
             <BitText Typography="BitTypography.Caption1" Class="muted">
                 @GetKindLabel(_previewItem.Kind) · @FormatSize(_previewItem.SizeBytes) ·
-                <a class="bb-link-btn" href="@Api.GetAttachmentUrl(_previewItem.Id, _previewItem.Kind, download: true)" download="@_previewItem.FileName">下载原图</a>
+                <a class="bb-link-btn" href="@Api.GetAttachmentUrl(_previewItem.Id, _previewItem.Kind, download: true)" download="@_previewItem.FileName">@L["attachments.preview.downloadOriginal"]</a>
             </BitText>
         </div>
     }
 </BlazorBoilerplateModal>
 
 <BlazorBoilerplateModal @bind-IsOpen="_deleteOpen"
-                        Title="确认删除附件"
-                        Message="@($"确定要永久删除附件“{_deleteTarget?.FileName}”吗？此操作不可恢复。")"
-                        OkText="确认删除"
+                        Title="@L["attachments.delete.title"]"
+                        Message="@L.GetString("attachments.delete.message", _deleteTarget?.FileName ?? string.Empty)"
+                        OkText="@L["attachments.delete.confirm"]"
                         ShowCancel="true"
                         Danger="true"
                         OnOk="ExecuteDeleteAsync" />
@@ -470,12 +472,14 @@ else
     private string _allowedExtensions = ".jpg,.jpeg,.png,.webp,.gif,.bmp,.pdf,.txt,.md,.json,.csv,.zip,.doc,.docx,.xls,.xlsx";
     private string _storageProvider = "Local";
     private long MaxUploadSizeBytes => (long)_maxUploadSizeMb * 1024 * 1024;
-    private string _storageLabel => string.Equals(_storageProvider, "S3", StringComparison.OrdinalIgnoreCase) ? "S3 / MinIO" : "本地磁盘";
+    private string _storageLabel => string.Equals(_storageProvider, "S3", StringComparison.OrdinalIgnoreCase)
+        ? L["attachments.storage.s3"]
+        : L["attachments.storage.local"];
     private string AcceptExtensions => _uploadKind is AttachmentKind.UserProfileImage or AttachmentKind.ProductPrimaryImage
         ? ".jpg,.jpeg,.png,.webp,.gif,.bmp"
         : _allowedExtensions;
     private string AllowedExtensionsDisplay => string.IsNullOrWhiteSpace(_allowedExtensions)
-        ? "图片 / PDF / 文档 / ZIP"
+        ? L["attachments.dropzone.allowedFallback"]
         : string.Join(", ", AcceptExtensions.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 
     private sealed record PendingUploadFile(string Name, string ContentType, long Size, byte[]? Bytes, bool TooLarge);
@@ -507,6 +511,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        await FrontendLoc.EnsureLoadedAsync();
         await RefreshUploadLimitAsync();
         await LoadAsync();
     }
@@ -540,7 +545,7 @@ else
         }
         catch (Exception ex)
         {
-            _loadError = $"读取附件列表失败：{ex.Message}";
+            _loadError = L.GetString("attachments.error.loadFailed", ex.Message);
             Toast.Error(_loadError);
         }
         finally
@@ -555,7 +560,7 @@ else
         {
             if (_pendingFiles.Count >= MaxFilesPerBatch)
             {
-                Toast.Warning($"单次最多选择 {MaxFilesPerBatch} 个文件。");
+                Toast.Warning(L.GetString("attachments.error.maxFiles", MaxFilesPerBatch));
                 break;
             }
             if (_pendingFiles.Any(x => x.Name == file.Name && x.Size == file.Size))
@@ -576,7 +581,7 @@ else
             }
             catch (Exception ex)
             {
-                Toast.Error($"读取“{file.Name}”失败：{ex.Message}");
+                Toast.Error(L.GetString("attachments.error.readFile", file.Name, ex.Message));
             }
         }
         _inputKey++;
@@ -594,7 +599,7 @@ else
         {
             if (!Guid.TryParse(_ownerIdText.Trim(), out var parsedOwner))
             {
-                Toast.Warning("关联商品 ID 必须是有效的 Guid 格式。");
+                Toast.Warning(L["attachments.error.invalidGuid"]);
                 return;
             }
             ownerId = parsedOwner;
@@ -611,7 +616,7 @@ else
             {
                 if (file.TooLarge || file.Bytes is null)
                 {
-                    Toast.Warning($"“{file.Name}”超过 {_maxUploadSizeMb} MB 上限，已跳过。");
+                    Toast.Warning(L.GetString("attachments.warning.skippedTooLarge", file.Name, _maxUploadSizeMb));
                     _uploadDone++;
                     continue;
                 }
@@ -625,7 +630,7 @@ else
                 }
                 catch (Exception ex)
                 {
-                    Toast.Error($"“{file.Name}”上传失败：{ex.Message}");
+                    Toast.Error(L.GetString("attachments.error.uploadFailed", file.Name, ex.Message));
                 }
                 finally
                 {
@@ -636,7 +641,7 @@ else
 
             if (successCount > 0)
             {
-                Toast.Success($"成功上传 {successCount} 个附件。");
+                Toast.Success(L.GetString("attachments.success.uploaded", successCount));
                 await LoadAsync();
                 if (_pendingFiles.Count == 0)
                     _uploadOpen = false;
@@ -680,11 +685,11 @@ else
         try
         {
             await JS.InvokeVoidAsync("navigator.clipboard.writeText", url);
-            Toast.Success("已复制附件链接到剪贴板。");
+            Toast.Success(L["attachments.success.copied"]);
         }
         catch
         {
-            Toast.Info($"附件链接：{url}");
+            Toast.Info(L.GetString("attachments.info.link", url));
         }
     }
 
@@ -701,7 +706,7 @@ else
 
         await Api.DeleteAttachmentAsync(_deleteTarget.Id, _deleteTarget.Kind);
         _items.RemoveAll(x => x.Id == _deleteTarget.Id && x.Kind == _deleteTarget.Kind);
-        Toast.Success($"已删除附件“{_deleteTarget.FileName}”。");
+        Toast.Success(L.GetString("attachments.success.deleted", _deleteTarget.FileName));
         _deleteOpen = false;
         _deleteTarget = null;
     }
@@ -709,11 +714,11 @@ else
     private static bool IsImage(AttachmentDto item) =>
         item.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
 
-    private static string GetKindLabel(AttachmentKind kind) => kind switch
+    private string GetKindLabel(AttachmentKind kind) => kind switch
     {
-        AttachmentKind.UserProfileImage => "用户头像",
-        AttachmentKind.ProductPrimaryImage => "商品主图",
-        _ => "通用附件"
+        AttachmentKind.UserProfileImage => L["attachments.kind.userAvatar"],
+        AttachmentKind.ProductPrimaryImage => L["attachments.kind.productImage"],
+        _ => L["attachments.kind.general"]
     };
 
     private static string GetExtensionLabel(string fileName)

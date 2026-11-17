@@ -2,10 +2,12 @@
 @rendermode RenderMode.InteractiveServer
 @inject HttpClient Http
 @inject ILogger<Catalog> Logger
+@inject ILocalizationService L
+@inject FrontendLocalizationService FrontendLoc
 
 <BitCallout Class="page-callout">
-    <BitText Element="h1" Class="page-title">商品目录 (OData)</BitText>
-    <BitText Class="muted">Catalog 模块自带的页面：通过统一 OData 适配层查询本模块的 /api/catalog/products 端点。</BitText>
+    <BitText Element="h1" Class="page-title">@L["catalog.title"]</BitText>
+    <BitText Class="muted">@L["catalog.subtitle"]</BitText>
 </BitCallout>
 
 @if (_loadError is not null)
@@ -17,17 +19,17 @@ else
     @* Bluebird ProductsPage 风格：筛选工具栏 + 带边框的表格容器 *@
     <div class="bb-toolbar bb-filters">
         <div class="filter-row">
-            <BitTextField Label="名称包含" Placeholder="如：键盘" @bind-Value="_search" OnInput="OnFilterChanged" />
-            <BitTextField Label="最低价格" Placeholder="如：500" @bind-Value="_minPrice" OnInput="OnFilterChanged" />
-            <BitTextField Label="分类包含" Placeholder="如：外设" @bind-Value="_category" OnInput="OnFilterChanged" />
+            <BitTextField Label="@L["catalog.filter.name"]" Placeholder="@L["catalog.filter.namePlaceholder"]" @bind-Value="_search" OnInput="OnFilterChanged" />
+            <BitTextField Label="@L["catalog.filter.minPrice"]" Placeholder="@L["catalog.filter.minPricePlaceholder"]" @bind-Value="_minPrice" OnInput="OnFilterChanged" />
+            <BitTextField Label="@L["catalog.filter.category"]" Placeholder="@L["catalog.filter.categoryPlaceholder"]" @bind-Value="_category" OnInput="OnFilterChanged" />
             <div class="filter-sort">
-                <BitText Class="muted">排序</BitText>
+                <BitText Class="muted">@L["catalog.filter.sort"]</BitText>
                 <select class="bit-select" @bind="_sortField">
-                    <option value="price">价格</option>
-                    <option value="name">名称</option>
-                    <option value="category">分类</option>
+                    <option value="price">@L["catalog.filter.sortPrice"]</option>
+                    <option value="name">@L["catalog.filter.sortName"]</option>
+                    <option value="category">@L["catalog.filter.sortCategory"]</option>
                 </select>
-                <BitCheckbox Label="降序" @bind-Value="_sortDesc" OnChange="OnFilterChanged" />
+                <BitCheckbox Label="@L["catalog.filter.desc"]" @bind-Value="_sortDesc" OnChange="OnFilterChanged" />
             </div>
         </div>
     </div>
@@ -35,21 +37,21 @@ else
     <div class="grid-container">
         @if (_loading)
         {
-            <BitText Class="muted">查询中…</BitText>
+            <BitText Class="muted">@L["catalog.loading"]</BitText>
         }
         else if (_items.Count == 0)
         {
-            <BitText Class="muted">没有符合条件的商品。请先在「模块管理」加载 Catalog 模块（后端端点）。</BitText>
+            <BitText Class="muted">@L["catalog.empty"]</BitText>
         }
         else
         {
             <table class="data-grid">
                 <thead>
                     <tr>
-                        <th>名称</th>
-                        <th class="num">价格</th>
-                        <th>分类</th>
-                        <th>Id</th>
+                        <th>@L["catalog.col.name"]</th>
+                        <th class="num">@L["catalog.col.price"]</th>
+                        <th>@L["catalog.col.category"]</th>
+                        <th>@L["catalog.col.id"]</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -71,10 +73,10 @@ else
     @if (!_loading && _items.Count > 0)
     {
         <div class="pager">
-            <BitText Class="muted">共 @_total 条</BitText>
-            <BitButton Color="BitColor.Secondary" OnClick="PrevAsync" Disabled="@(_page <= 1 || _loading)">上一页</BitButton>
-            <BitText>第 @_page 页</BitText>
-            <BitButton Color="BitColor.Secondary" OnClick="NextAsync" Disabled="@(_loading || (_total > 0 && _page * PageSize >= _total))">下一页</BitButton>
+            <BitText Class="muted">@L.GetString("catalog.pager.total", _total)</BitText>
+            <BitButton Color="BitColor.Secondary" OnClick="PrevAsync" Disabled="@(_page <= 1 || _loading)">@L["catalog.pager.prev"]</BitButton>
+            <BitText>@L.GetString("catalog.pager.page", _page)</BitText>
+            <BitButton Color="BitColor.Secondary" OnClick="NextAsync" Disabled="@(_loading || (_total > 0 && _page * PageSize >= _total))">@L["catalog.pager.next"]</BitButton>
         </div>
     }
 }
@@ -100,7 +102,11 @@ else
         PropertyNameCaseInsensitive = true
     };
 
-    protected override async Task OnInitializedAsync() => await QueryAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        await FrontendLoc.EnsureLoadedAsync();
+        await QueryAsync();
+    }
 
     private async Task OnFilterChanged() => await QueryAsync(resetPage: true);
 
@@ -135,7 +141,7 @@ else
             var response = await Http.GetAsync($"api/catalog/products{qs}");
             if (!response.IsSuccessStatusCode)
             {
-                _loadError = $"查询失败 ({(int)response.StatusCode})：{await response.Content.ReadAsStringAsync()}";
+                _loadError = L.GetString("catalog.error.queryFailedStatus", (int)response.StatusCode, await response.Content.ReadAsStringAsync());
                 _items = [];
                 _total = 0;
                 return;
@@ -147,7 +153,7 @@ else
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "OData 查询失败");
-            _loadError = "查询失败：" + ex.Message;
+            _loadError = L.GetString("catalog.error.queryFailed", ex.Message);
             _items = [];
             _total = 0;
         }

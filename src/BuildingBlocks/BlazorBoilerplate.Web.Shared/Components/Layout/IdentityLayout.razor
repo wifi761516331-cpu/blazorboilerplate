@@ -3,22 +3,28 @@
    完全不经过 MainLayout —— 没有侧栏、顶栏、底部导航，也不依赖 MainLayout 的任何分支判断。
    左 30% 表单 / 右 70% 渐变插画，与 Bluebird AppShell.razor.scss 的 &.identity 一致。 *@
 @inherits LayoutComponentBase
+@implements IDisposable
+@using BlazorBoilerplate.Application.Localization
+@using BlazorBoilerplate.Web.Shared.Localization
+@inject ILocalizationService L
+@inject FrontendLocalizationService FrontendLoc
 
 <div class="identity-shell @(_dark ? "bb-dark" : "")">
     <div class="identity-header">
         <a href="/" class="home-link">
-            <AppIcon Name="Home" /> 返回首页
+            <AppIcon Name="Home" /> @L["platform.nav.backHome"]
         </a>
         <div class="spacer"></div>
-        <span class="identity-brand"><span class="nav-brand-mark">L</span> BlazorBoilerplate</span>
-        <button type="button" class="icon-btn" title="切换明暗主题" @onclick="() => _dark = !_dark">
+        <span class="identity-brand"><span class="nav-brand-mark">L</span> @L["platform.app.name"]</span>
+        <button type="button" class="icon-btn" title="@L["platform.common.themeToggle"]" @onclick="() => _dark = !_dark">
             <AppIcon Name="@(_dark ? "Sunny" : "ClearNight")" />
         </button>
     </div>
 
     <main class="identity-main">
         <div class="identity-body">
-            <div class="identity-form">
+            @* culture 或词典版本变化时重建登录/向导页，使 L[...] 就地重新求值（线路不断）。 *@
+            <div class="identity-form" @key="FrontendLoc.CurrentCulture + ':' + FrontendLoc.Version.ToString()">
                 @Body
             </div>
         </div>
@@ -44,8 +50,8 @@
                 <text x="160" y="116" text-anchor="middle" fill="rgba(255,255,255,.9)"
                       font-size="15" font-weight="600" font-family="Segoe UI, sans-serif">BlazorBoilerplate</text>
             </svg>
-            <h2 class="panel-title">BlazorBoilerplate 动态模块化平台</h2>
-            <p class="panel-sub">按加载顺序动态装配业务模块，前后端同体、即插即用。完成初始化后即可进入控制台，开始管理平台。</p>
+            <h2 class="panel-title">@L["platform.identityPanel.title"]</h2>
+            <p class="panel-sub">@L["platform.identityPanel.subtitle"]</p>
             <div class="panel-badges">
                 <span class="panel-badge">.NET 10</span>
                 <span class="panel-badge">EF Core Migrations</span>
@@ -61,4 +67,21 @@
 
 @code {
     private bool _dark;
+
+    protected override void OnInitialized()
+    {
+        FrontendLoc.Changed += HandleLocalizationChanged;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FrontendLoc.EnsureLoadedAsync();
+    }
+
+    private void HandleLocalizationChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        FrontendLoc.Changed -= HandleLocalizationChanged;
+    }
 }

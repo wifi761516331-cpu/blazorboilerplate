@@ -11,6 +11,8 @@
 @inject AccountState Account
 @inject SystemSettingsState SysState
 @inject UserPreferences Preferences
+@inject ILocalizationService L
+@inject FrontendLocalizationService FrontendLoc
 
 <div class="app-shell @(_dark ? "bb-dark" : "") @(_navToggled ? "nav-toggled" : "") @(_navOpen ? "nav-open" : "")"
      data-accent="@_accent" style="@AccentStyle">
@@ -32,8 +34,8 @@
                     {
                         var tenantLabel = !string.IsNullOrWhiteSpace(Account.CurrentUser?.TenantName)
                             ? Account.CurrentUser!.TenantName
-                            : "我的租户";
-                        <a href="/tenants" class="nav-item" title="管理我的租户" @onclick="CloseNav">
+                            : L["platform.nav.myTenant"];
+                        <a href="/tenants" class="nav-item" title="@L["platform.nav.manageTenant"]" @onclick="CloseNav">
                             <AppIcon Name="Org" />
                             <span class="nav-text">@tenantLabel</span>
                         </a>
@@ -41,13 +43,13 @@
                     else
                     {
                         var returnUrl = Uri.EscapeDataString("/" + Navigation.ToBaseRelativePath(Navigation.Uri));
-                        <a href="@($"/sign-in?return-url={returnUrl}")" class="nav-item" title="登录" @onclick="CloseNav">
+                        <a href="@($"/sign-in?return-url={returnUrl}")" class="nav-item" title="@L["platform.auth.signIn"]" @onclick="CloseNav">
                             <AppIcon Name="Signin" />
-                            <span class="nav-text">登录</span>
+                            <span class="nav-text">@L["platform.auth.signIn"]</span>
                         </a>
-                        <a href="@($"/sign-up?return-url={returnUrl}")" class="nav-item" title="注册" @onclick="CloseNav">
+                        <a href="@($"/sign-up?return-url={returnUrl}")" class="nav-item" title="@L["platform.auth.signUp"]" @onclick="CloseNav">
                             <AppIcon Name="AddFriend" />
-                            <span class="nav-text">注册</span>
+                            <span class="nav-text">@L["platform.auth.signUp"]</span>
                         </a>
                     }
                 </div>
@@ -56,10 +58,10 @@
 
             <div class="main-body">
                 <header class="app-header">
-                    <button type="button" class="icon-btn menu-btn" title="打开导航" @onclick="OpenNav">
+                    <button type="button" class="icon-btn menu-btn" title="@L["platform.nav.open"]" @onclick="OpenNav">
                         <AppIcon Name="CollapseMenu" />
                     </button>
-                    <button type="button" class="icon-btn toggle-btn" title="折叠 / 展开侧边栏" @onclick="() => _navToggled = !_navToggled">
+                    <button type="button" class="icon-btn toggle-btn" title="@L["platform.nav.toggleSidebar"]" @onclick="() => _navToggled = !_navToggled">
                         <AppIcon Name="CollapseMenu" />
                     </button>
                     <div class="header-titles">
@@ -72,7 +74,7 @@
                     <div class="header-spacer"></div>
                     <div class="header-actions">
                         @* 通知铃铛：未读数来自 GetUnreadCountAsync，失败隐藏徽标 *@
-                        <a href="/notifications" class="icon-btn header-bell" title="通知">
+                        <a href="/notifications" class="icon-btn header-bell" title="@L["platform.nav.notifications"]">
                             <AppIcon Name="Bell" />
                             @if (_unreadCount > 0)
                             {
@@ -83,7 +85,11 @@
                     </div>
                 </header>
 
-                <div class="body">
+                @* 以 culture + 词典版本为 key 重建整个内容子树：页面组件（含运行时加载的模块页）
+                   未订阅 FrontendLoc.Changed，父布局 StateHasChanged 会被 Blazor 参数比较跳过。
+                   切语言（culture 变）或管理模块改词（版本变）都强制销毁重建，所有 L[...] 重新求值；
+                   SignalR 线路不断、无整页刷新。 *@
+                <div class="body" @key="FrontendLoc.CurrentCulture + ':' + FrontendLoc.Version.ToString()">
                     @if (!string.IsNullOrWhiteSpace(SysState.Public.Notice))
                     {
                         <BitCallout Class="page-callout" Style="margin-bottom: 1rem;">
@@ -94,10 +100,10 @@
                     {
                         <div class="page-callout error" style="max-width: 36rem;">
                             <BitStack Gap="0.75rem">
-                                <BitText Typography="BitTypography.H6">无权访问</BitText>
-                                <BitText>当前账号未获授权访问此菜单或页面，请联系管理员在「角色管理」中分配对应菜单与按钮权限。</BitText>
+                                <BitText Typography="BitTypography.H6">@L["platform.error.accessDeniedTitle"]</BitText>
+                                <BitText>@L["platform.error.accessDeniedMessage"]</BitText>
                                 <div>
-                                    <BitButton Href="/">返回首页</BitButton>
+                                    <BitButton Href="/">@L["platform.nav.backHome"]</BitButton>
                                 </div>
                             </BitStack>
                         </div>
@@ -110,7 +116,7 @@
             </div>
         </div>
 
-        <button type="button" class="nav-overlay" aria-label="关闭导航" @onclick="CloseNav"></button>
+        <button type="button" class="nav-overlay" aria-label="@L["platform.nav.close"]" @onclick="CloseNav"></button>
 
         <section class="nav-bar">
             @foreach (var item in FlattenLeafNodes(_navTree).Take(5))
@@ -147,7 +153,7 @@
                 {
                     <button type="button"
                             class="nav-chevron"
-                            title="@(isExpanded ? "收起" : "展开")"
+                            title="@(isExpanded ? L["platform.nav.collapse"] : L["platform.nav.expand"])"
                             @onclick="() => ToggleExpand(node.Id)">
                         <AppIcon Name="@(isExpanded ? "ChevronDown" : "ChevronRight")" />
                     </button>
@@ -184,20 +190,20 @@
     };
 
     /// <summary>页面标题交给顶栏（对应 Bluebird 的 AppPageData → Header）。</summary>
-    private static readonly Dictionary<string, (string Title, string Subtitle)> Headers = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, (string TitleKey, string SubtitleKey)> Headers = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["Home"] = ("概览", "平台运行状况、模块状态与快捷入口"),
-        ["Dashboard"] = ("仪表盘", "可拖拽的数据看板"),
-        ["Modules"] = ("模块管理", "动态加载 / 卸载业务模块，端点随模块上线或下线"),
-        ["Catalog"] = ("商品目录", "通过统一 OData 适配层查询本模块的商品数据"),
-        ["Users"] = ("用户管理", "创建用户、分配角色、重置密码、启用停用"),
-        ["Roles"] = ("角色管理", "维护角色与菜单授权"),
-        ["Menus"] = ("菜单管理", "维护导航菜单树、排序与可见性"),
-        ["Profile"] = ("个人资料", "账户信息、密码与登录会话"),
-        ["Tenants"] = ("租户管理", "我的租户、成员邀请与切换"),
-        ["Notifications"] = ("通知中心", "查看站内通知并标记已读"),
-        ["Attachments"] = ("附件管理", "上传、预览、下载与管理平台附件"),
-        ["SystemSettings"] = ("系统设置", "站点信息、安全策略、邮件 SMTP、存储与模块运行时配置")
+        ["Home"] = ("platform.header.home.title", "platform.header.home.subtitle"),
+        ["Dashboard"] = ("platform.header.dashboard.title", "platform.header.dashboard.subtitle"),
+        ["Modules"] = ("platform.header.modules.title", "platform.header.modules.subtitle"),
+        ["Catalog"] = ("platform.header.catalog.title", "platform.header.catalog.subtitle"),
+        ["Users"] = ("platform.header.users.title", "platform.header.users.subtitle"),
+        ["Roles"] = ("platform.header.roles.title", "platform.header.roles.subtitle"),
+        ["Menus"] = ("platform.header.menus.title", "platform.header.menus.subtitle"),
+        ["Profile"] = ("platform.header.profile.title", "platform.header.profile.subtitle"),
+        ["Tenants"] = ("platform.header.tenants.title", "platform.header.tenants.subtitle"),
+        ["Notifications"] = ("platform.header.notifications.title", "platform.header.notifications.subtitle"),
+        ["Attachments"] = ("platform.header.attachments.title", "platform.header.attachments.subtitle"),
+        ["SystemSettings"] = ("platform.header.systemSettings.title", "platform.header.systemSettings.subtitle")
     };
 
     private List<NavNode> _navTree = [];
@@ -210,9 +216,9 @@
     private bool _dark;
     private string? _accent;
     private int _unreadCount;
-    private (string Title, string Subtitle)? _pageHeader;
-    private string HeaderTitle => _pageHeader?.Title ?? SysState.Public.SystemName;
-    private string HeaderSubtitle => _pageHeader?.Subtitle ?? string.Empty;
+    private (string TitleKey, string SubtitleKey)? _pageHeader;
+    private string HeaderTitle => _pageHeader is { } h ? L[h.TitleKey] : SysState.Public.SystemName;
+    private string HeaderSubtitle => _pageHeader is { } h ? L[h.SubtitleKey] : string.Empty;
 
     /// <summary>账号菜单选中的强调色；null = Fluent2 默认蓝（不渲染 data-accent）。</summary>
     private string AccentStyle => _accent is null ? string.Empty : $"--bb-accent: {_accent};";
@@ -292,6 +298,7 @@
         NavRefresh.OnChanged += HandleNavRefresh;
         Account.Changed += HandleAccountChanged;
         SysState.Changed += HandleSysChanged;
+        FrontendLoc.Changed += HandleLocalizationChanged;
     }
 
     private void HandleNavRefresh() => _ = InvokeAsync(RefreshNavAsync);
@@ -309,11 +316,14 @@
 
     private void HandleSysChanged() => _ = InvokeAsync(StateHasChanged);
 
+    private void HandleLocalizationChanged() => _ = InvokeAsync(StateHasChanged);
+
     public void Dispose()
     {
         NavRefresh.OnChanged -= HandleNavRefresh;
         Account.Changed -= HandleAccountChanged;
         SysState.Changed -= HandleSysChanged;
+        FrontendLoc.Changed -= HandleLocalizationChanged;
     }
 
     /// <summary>公共（匿名）路由：登录页与安装向导使用独立的 IdentityLayout，绝不能被本布局的登录守卫重复跳转。</summary>
@@ -328,12 +338,21 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // 首屏语言恢复：bb_culture cookie 已由中间件还原到 CultureInfo（见 Program.cs），
+        // 但偏好可能来自服务端（跨设备同步）或与 cookie 不一致，这里以偏好为准再校准一次。
+        // SetCultureAsync 内部会 EnsureLoadedAsync 并触发 Changed，无需再单独加载。
+        var prefs = await Preferences.GetAsync();
+        if (!string.IsNullOrWhiteSpace(prefs.Culture) &&
+            !string.Equals(FrontendLoc.CurrentCulture, prefs.Culture, StringComparison.OrdinalIgnoreCase))
+            await FrontendLoc.SetCultureAsync(prefs.Culture);
+        else
+            await FrontendLoc.EnsureLoadedAsync();
+
         // 账户状态先就绪，IsMenuVisible 的菜单授权过滤才能生效。
         await Account.EnsureLoadedAsync();
         await SysState.EnsureLoadedAsync();
 
         // 首屏主题 / 强调色恢复：await 后写回并请求重渲染（App.razor 首屏 cookie 由主代理处理）。
-        var prefs = await Preferences.GetAsync();
         _dark = string.Equals(prefs.Theme, "dark", StringComparison.OrdinalIgnoreCase);
         _accent = prefs.AccentColor;
         StateHasChanged();

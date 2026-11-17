@@ -1,17 +1,18 @@
 @inject BlazorBoilerplateApiClient Api
 @inject ToastService Toast
+@inject ILocalizationService L
 
 <section style="padding: 0.75rem 0 1.25rem;">
     <BitStack Gap="0.85rem">
         <BitStack Horizontal VerticalAlign="BitAlignment.Center">
-            <BitText Typography="BitTypography.Subtitle2">当前会话</BitText>
+            <BitText Typography="BitTypography.Subtitle2">@L["platform.profile.currentSession"]</BitText>
             <BitSpacer />
             <BitButton Variant="BitVariant.Outline"
                        Size="BitSize.Small"
                        IconName="@BitIconName.Refresh"
                        IsLoading="_loading"
                        OnClick="LoadSessionsAsync">
-                刷新
+                @L["platform.common.refresh"]
             </BitButton>
         </BitStack>
 
@@ -31,16 +32,16 @@
             {
                 <BitCard FullWidth>
                     <div class="settings-session-card">
-                        <BitPersona PrimaryText="@(string.IsNullOrWhiteSpace(_currentSession.DeviceInfo) ? "当前设备" : _currentSession.DeviceInfo)"
+                        <BitPersona PrimaryText="@(string.IsNullOrWhiteSpace(_currentSession.DeviceInfo) ? L["platform.settings.sessions.currentDevice"] : _currentSession.DeviceInfo)"
                                     SecondaryText="@($"IP: {(_currentSession.IP ?? "—")} · {FormatTime(_currentSession)}")"
-                                    TertiaryText="@($"时区: {(_currentSession.TimeZone ?? "—")} · 语言: {(_currentSession.CultureName ?? "—")}")"
+                                    TertiaryText="@L.GetString("platform.settings.sessions.localeMeta", _currentSession.TimeZone ?? "—", _currentSession.CultureName ?? "—")"
                                     Size="BitPersonaSize.Size56"
                                     ImageInitials="✓"
                                     CoinVariant="BitVariant.Fill"
                                     Presence="BitPersonaPresence.Online" />
                         <div class="settings-session-actions">
-                            <BitTag Color="BitColor.Success" Variant="BitVariant.Outline" Size="BitSize.Small">当前会话</BitTag>
-                            <BitIcon Title="@(_currentSession.NotificationsEnabled ? "已开启通知" : "未开启通知")"
+                            <BitTag Color="BitColor.Success" Variant="BitVariant.Outline" Size="BitSize.Small">@L["platform.profile.currentSession"]</BitTag>
+                            <BitIcon Title="@(_currentSession.NotificationsEnabled ? L["platform.settings.sessions.notifOn"] : L["platform.settings.sessions.notifOff"])"
                                      IconName="@(_currentSession.NotificationsEnabled ? BitIconName.Ringer : BitIconName.RingerOff)"
                                      Color="@(_currentSession.NotificationsEnabled ? BitColor.Success : BitColor.TertiaryForeground)" />
                         </div>
@@ -48,13 +49,13 @@
                 </BitCard>
             }
 
-            <BitText Typography="BitTypography.Subtitle2" Style="margin-top: 0.5rem;">其他活动会话</BitText>
+            <BitText Typography="BitTypography.Subtitle2" Style="margin-top: 0.5rem;">@L["platform.settings.sessions.otherTitle"]</BitText>
 
             @if (_otherSessions.Count == 0)
             {
                 <BitCard FullWidth>
                     <BitText Typography="BitTypography.Body2" Color="BitColor.SecondaryForeground">
-                        暂无其他设备上的活动会话。
+                        @L["platform.settings.sessions.otherEmpty"]
                     </BitText>
                 </BitCard>
             }
@@ -64,15 +65,15 @@
                 {
                     <BitCard FullWidth>
                         <div class="settings-session-card">
-                            <BitPersona PrimaryText="@(string.IsNullOrWhiteSpace(session.DeviceInfo) ? "未知设备" : session.DeviceInfo)"
+                            <BitPersona PrimaryText="@(string.IsNullOrWhiteSpace(session.DeviceInfo) ? L["platform.settings.sessions.unknownDevice"] : session.DeviceInfo)"
                                         SecondaryText="@($"IP: {(session.IP ?? "—")} · {FormatTime(session)}")"
-                                        TertiaryText="@($"时区: {(session.TimeZone ?? "—")} · 语言: {(session.CultureName ?? "—")}")"
+                                        TertiaryText="@L.GetString("platform.settings.sessions.localeMeta", session.TimeZone ?? "—", session.CultureName ?? "—")"
                                         Size="BitPersonaSize.Size56"
                                         ImageInitials="•"
                                         CoinVariant="BitVariant.Outline"
                                         Presence="BitPersonaPresence.None" />
                             <div class="settings-session-actions">
-                                <BitIcon Title="@(session.NotificationsEnabled ? "已开启通知" : "未开启通知")"
+                                <BitIcon Title="@(session.NotificationsEnabled ? L["platform.settings.sessions.notifOn"] : L["platform.settings.sessions.notifOff"])"
                                          IconName="@(session.NotificationsEnabled ? BitIconName.Ringer : BitIconName.RingerOff)"
                                          Color="@(session.NotificationsEnabled ? BitColor.Success : BitColor.TertiaryForeground)" />
                                 <PermissionView Code="identity.user.revoke-session">
@@ -81,8 +82,8 @@
                                                Variant="BitVariant.Text"
                                                IconName="@BitIconName.Delete"
                                                IsLoading="@_revoking.Contains(session.Id)"
-                                               Title="撤销此会话"
-                                               AriaLabel="撤销此会话"
+                                               Title="@L["platform.settings.sessions.revokeThis"]"
+                                               AriaLabel="@L["platform.settings.sessions.revokeThis"]"
                                                OnClick="@(() => RevokeAsync(session))" />
                                 </PermissionView>
                             </div>
@@ -113,7 +114,7 @@
         }
         catch (Exception ex)
         {
-            Toast.Error($"读取会话列表失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.profile.toast.loadSessionsFailed", ex.Message));
         }
         finally
         {
@@ -128,11 +129,11 @@
         {
             await Api.RevokeSessionAsync(session.Id);
             _otherSessions.RemoveAll(s => s.Id == session.Id);
-            Toast.Success("会话已撤销。");
+            Toast.Success(L["platform.profile.toast.sessionRevoked"]);
         }
         catch (Exception ex)
         {
-            Toast.Error($"撤销会话失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.profile.toast.sessionRevokeFailed", ex.Message));
         }
         finally
         {
@@ -140,7 +141,7 @@
         }
     }
 
-    private static string FormatTime(UserSessionDto s) =>
-        $"登录于 {s.StartedOnUtc.ToLocalTime():yyyy-MM-dd HH:mm}";
+    private string FormatTime(UserSessionDto s) =>
+        L.GetString("platform.settings.sessions.signedInAt", s.StartedOnUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm"));
 }
 

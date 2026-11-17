@@ -5,53 +5,56 @@
 @rendermode RenderMode.InteractiveServer
 @inject BlazorBoilerplateApiClient Api
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 @inject ILogger<Setup> Logger
+@inject ILocalizationService L
+@inject FrontendLocalizationService FrontendLoc
 
 @* 独立的启动配置页：通过 @layout 使用 IdentityLayout，不挂在 MainLayout / AppShell 之下。 *@
 <div class="auth-head">
-    <h1 class="auth-title">平台初始化</h1>
-    <p class="auth-sub">首次运行需要完成基础配置。提交后将自动建库建表（EF Core Migrations），初始化管理员、角色与菜单，并按加载顺序激活全部模块。</p>
+    <h1 class="auth-title">@L["platform.setup.title"]</h1>
+    <p class="auth-sub">@L["platform.setup.subtitle"]</p>
 </div>
 
 @if (_status is { Installed: true })
 {
-    <div class="auth-msg">平台已完成初始化，正在进入控制台…</div>
+    <div class="auth-msg">@L["platform.setup.alreadyInstalled"]</div>
 }
 else
 {
     <div class="setup-form">
-        <BitTextField Label="管理员邮箱 *" @bind-Value="_email" Placeholder="admin@example.com" />
-        <BitTextField Label="管理员密码 *" @bind-Value="_password" Placeholder="至少 6 位" />
-        <BitTextField Label="系统名称" @bind-Value="_systemName" Placeholder="BlazorBoilerplate Platform" />
+        <BitTextField Label="@L["platform.setup.adminEmail"]" @bind-Value="_email" Placeholder="admin@example.com" />
+        <BitTextField Label="@L["platform.setup.adminPassword"]" @bind-Value="_password" Placeholder="@L["platform.setup.passwordPlaceholder"]" />
+        <BitTextField Label="@L["platform.setup.systemName"]" @bind-Value="_systemName" Placeholder="BlazorBoilerplate Platform" />
 
-        <BitDropdown Label="数据库类型 *"
+        <BitDropdown Label="@L["platform.setup.dbProvider"]"
                      @bind-Value="_provider"
-                     Items="_providerItems" />
+                     Items="ProviderItems" />
 
         @if (_provider == "PostgreSQL")
         {
-            <BitTextField Label="PostgreSQL 连接字符串" @bind-Value="_postgreSql"
+            <BitTextField Label="@L["platform.setup.pgConn"]" @bind-Value="_postgreSql"
                           Placeholder="Host=localhost;Port=5432;Database=blazorboilerplate;Username=...;Password=..." />
         }
         else if (_provider == "MySQL")
         {
-            <BitTextField Label="MySQL 连接字符串" @bind-Value="_mySql"
+            <BitTextField Label="@L["platform.setup.mysqlConn"]" @bind-Value="_mySql"
                           Placeholder="Server=localhost;Port=3306;Database=blazorboilerplate;Uid=root;Pwd=...;" />
         }
         else if (_provider == "MSSQL")
         {
-            <BitTextField Label="MSSQL (SQL Server) 连接字符串" @bind-Value="_mssql"
+            <BitTextField Label="@L["platform.setup.mssqlConn"]" @bind-Value="_mssql"
                           Placeholder="Server=localhost;Database=blazorboilerplate;User Id=sa;Password=...;MultipleActiveResultSets=True;Encrypt=False;" />
         }
         else
         {
-            <BitTextField Label="SQLite 连接串（留空 = data/blazorboilerplate.db）" @bind-Value="_sqlite"
+            <BitTextField Label="@L["platform.setup.sqliteConn"]" @bind-Value="_sqlite"
                           Placeholder="Data Source=data/blazorboilerplate.db" />
         }
 
-        <BitTextField Label="Redis 连接字符串" @bind-Value="_redis"
+        <BitTextField Label="@L["platform.setup.redisConn"]" @bind-Value="_redis"
                       Placeholder="localhost:6379"
-                      HelpText="默认 localhost:6379；留空则只用内存缓存。支持 localhost:6379 或 localhost:6379,password=你的密码（StackExchange.Redis 格式）。" />
+                      HelpText="@L["platform.setup.redisHelp"]" />
     </div>
 
     @if (_error is not null)
@@ -61,11 +64,11 @@ else
 
     <div style="margin-top:1.25rem">
         <BitButton Color="BitColor.Primary" OnClick="SubmitAsync" Disabled="@_submitting">
-            @(_submitting ? "初始化中…" : "完成初始化并进入平台")
+            @(_submitting ? L["platform.setup.submitting"] : L["platform.setup.submit"])
         </BitButton>
     </div>
 
-    <p class="auth-foot">已经初始化过？<a class="auth-link" href="/">返回控制台</a></p>
+    <p class="auth-foot">@L["platform.setup.alreadyDone"] <a class="auth-link" href="/">@L["platform.setup.backToConsole"]</a></p>
 }
 
 @code {
@@ -82,16 +85,17 @@ else
     private bool _submitting;
     private string? _error;
 
-    private static readonly List<BitDropdownItem<string>> _providerItems =
+    private List<BitDropdownItem<string>> ProviderItems =>
     [
-        new() { Text = "PostgreSQL（生产推荐）", Value = "PostgreSQL" },
+        new() { Text = L["platform.setup.provider.pg"], Value = "PostgreSQL" },
         new() { Text = "MySQL", Value = "MySQL" },
         new() { Text = "MSSQL (SQL Server)", Value = "MSSQL" },
-        new() { Text = "SQLite（开发/演示）", Value = "SQLite" }
+        new() { Text = L["platform.setup.provider.sqlite"], Value = "SQLite" }
     ];
 
     protected override async Task OnInitializedAsync()
     {
+        await FrontendLoc.EnsureLoadedAsync();
         // NavigateTo 置于 try/catch 之外：预渲染阶段 NavigationException 是重定向信号，不能被吞。
         SetupStatus? status;
         try
@@ -101,13 +105,15 @@ else
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "读取安装状态失败");
-            _error = "无法连接 ApiHost：" + ex.Message;
+            _error = L.GetString("platform.setup.error.apiHost", ex.Message);
             return;
         }
 
         _status = status;
         if (status.Installed)
-            Navigation.NavigateTo("/");
+            // 已安装时直接去登录页：跳 "/" 会先渲染后台首页，再被 MainLayout 的
+            // 未登录守卫踢回 /sign-in，用户看到「先闪首页再退回登录页」。
+            Navigation.NavigateTo("/sign-in");
     }
 
     private async Task SubmitAsync()
@@ -118,12 +124,12 @@ else
         {
             if (string.IsNullOrWhiteSpace(_email))
             {
-                _error = "管理员邮箱为必填项。";
+                _error = L["platform.setup.error.emailRequired"];
                 return;
             }
             if (_password.Length < 6)
             {
-                _error = "管理员密码至少 6 位。";
+                _error = L["platform.setup.error.passwordMin"];
                 return;
             }
 
@@ -149,9 +155,44 @@ else
             _submitting = false;
         }
 
-        if (_status.Installed)
-            Navigation.NavigateTo("/");
-        else
-            _error = "初始化未完成，请重试。";
+        if (!_status.Installed)
+        {
+            _error = L["platform.setup.error.incomplete"];
+            return;
+        }
+
+        // 初始化完成后直接用向导里填写的管理员账号登录，再整页跳首页。
+        // 旧逻辑 NavigateTo("/") 时浏览器还没有认证 Cookie，首页必然被 MainLayout
+        // 的未登录守卫踢回 /sign-in?return-url=...，形成「先闪后台首页再退回登录页」。
+        // SetupInitializer 创建的管理员 UserName 固定为 "admin"（邮箱是另一个字段）。
+        try
+        {
+            var result = await JS.InvokeAsync<LoginResult>("blazorAuth.login", new
+            {
+                userName = "admin",
+                password = _password,
+                rememberMe = true,
+                tenantId = (string?)null
+            });
+
+            if (result is { Ok: true })
+            {
+                await JS.InvokeVoidAsync("blazorAuth.redirect", "/");
+                return;
+            }
+        }
+        catch
+        {
+            // 自动登录失败不阻断安装结果，回落到登录页让用户手动登录。
+        }
+
+        Navigation.NavigateTo("/sign-in");
+    }
+
+    /// <summary>blazorAuth.login 的返回结果（camelCase JSON 由 JS interop 默认值反序列化）。</summary>
+    private sealed class LoginResult
+    {
+        public bool Ok { get; set; }
+        public string? Error { get; set; }
     }
 }

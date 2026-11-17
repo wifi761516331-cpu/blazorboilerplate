@@ -3,17 +3,19 @@
 @inject BlazorBoilerplateApiClient Api
 @inject ILogger<Users> Logger
 @inject ToastService Toast
+@inject ILocalizationService L
+@inject FrontendLocalizationService FrontendLoc
 
 <div class="page-callout">
-    <BitText Element="h1" Class="page-title">用户管理</BitText>
-    <BitText Class="muted">创建用户、分配角色、重置密码、启用停用。布局参考 bitplatform Boilerplate 管理页。</BitText>
+    <BitText Element="h1" Class="page-title">@L["identity.users.title"]</BitText>
+    <BitText Class="muted">@L["identity.users.subtitle"]</BitText>
 </div>
 
 <div class="id-page">
     <div class="id-toolbar">
-        <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="RefreshAsync" Disabled="@_loading">刷新</BitButton>
+        <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="RefreshAsync" Disabled="@_loading">@L["platform.common.refresh"]</BitButton>
         <PermissionGate Code="identity.user.create">
-            <BitButton IconName="@BitIconName.Add" OnClick="@(() => ResetCreateForm())" Disabled="@_loading">新建用户</BitButton>
+            <BitButton IconName="@BitIconName.Add" OnClick="@(() => ResetCreateForm())" Disabled="@_loading">@L["identity.users.create"]</BitButton>
         </PermissionGate>
     </div>
 
@@ -24,14 +26,14 @@
 
     <div class="id-columns">
         <BitCard Class="id-list-card">
-            <BitSearchBox @bind-Value="_search" Immediate DebounceTime="300" Placeholder="搜索用户名 / 邮箱 / 显示名" />
+            <BitSearchBox @bind-Value="_search" Immediate DebounceTime="300" Placeholder="@L["identity.users.searchPlaceholder"]" />
             @if (_loading)
             {
-                <BitText Class="muted">加载中…</BitText>
+                <BitText Class="muted">@L["platform.common.loading"]</BitText>
             }
             else if (_userNavItems.Count == 0)
             {
-                <BitText Class="muted">暂无用户</BitText>
+                <BitText Class="muted">@L["identity.users.empty"]</BitText>
             }
             else
             {
@@ -45,10 +47,10 @@
 
         <BitCard Class="id-detail-card">
             <BitPivot>
-                <BitPivotItem HeaderText="常规">
+                <BitPivotItem HeaderText="@L["identity.common.tab.general"]">
                     @if (_selected is null)
                     {
-                        <BitText Class="muted">请从左侧选择一个用户。</BitText>
+                        <BitText Class="muted">@L["identity.users.selectPrompt"]</BitText>
                     }
                     else
                     {
@@ -57,34 +59,34 @@
                                 <BitText Typography="BitTypography.H6">Id:</BitText>
                                 <BitTag Color="BitColor.TertiaryBackground">@_selected.Id</BitTag>
                             </BitStack>
-                            <BitTextField ReadOnly Value="@_selected.UserName" Label="用户名" />
-                            <BitTextField ReadOnly Value="@_selected.Email" Label="邮箱" />
-                            <BitTextField ReadOnly Value="@_selected.DisplayName" Label="显示名" />
+                            <BitTextField ReadOnly Value="@_selected.UserName" Label="@L["identity.users.field.userName"]" />
+                            <BitTextField ReadOnly Value="@_selected.Email" Label="@L["identity.users.field.email"]" />
+                            <BitTextField ReadOnly Value="@_selected.DisplayName" Label="@L["identity.users.field.displayName"]" />
                             <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.75rem">
                                 <BitBadge Color="@(_selected.IsActive ? BitColor.Success : BitColor.Error)">
-                                    @(_selected.IsActive ? "已启用" : "已停用")
+                                    @(_selected.IsActive ? L["identity.users.status.active"] : L["identity.users.status.disabled"])
                                 </BitBadge>
                                 <BitSpacer />
                                 <PermissionGate Code="identity.user.update">
-                                    <BitButton Variant="BitVariant.Outline" OnClick="@(() => OpenEditDialogAsync())">编辑资料</BitButton>
-                                    <BitButton Variant="BitVariant.Outline" OnClick="@(() => { ResetPw = string.Empty; _resetPwDialogOpen = true; })">重置密码</BitButton>
+                                    <BitButton Variant="BitVariant.Outline" OnClick="@(() => OpenEditDialogAsync())">@L["identity.users.action.editProfile"]</BitButton>
+                                    <BitButton Variant="BitVariant.Outline" OnClick="@(() => { ResetPw = string.Empty; _resetPwDialogOpen = true; })">@L["identity.users.action.resetPassword"]</BitButton>
                                     <BitButton Variant="BitVariant.Outline"
                                                OnClick="ToggleActiveAsync"
                                                Disabled="_busy.Contains(_selected.Id.ToString())">
-                                        @(_selected.IsActive ? "停用" : "启用")
+                                        @(_selected.IsActive ? L["identity.users.action.disable"] : L["identity.users.action.enable"])
                                     </BitButton>
                                 </PermissionGate>
                                 <PermissionGate Code="identity.user.delete">
-                                    <BitButton Color="BitColor.Error" OnClick="@(() => _deleteDialogOpen = true)">删除</BitButton>
+                                    <BitButton Color="BitColor.Error" OnClick="@(() => _deleteDialogOpen = true)">@L["platform.common.delete"]</BitButton>
                                 </PermissionGate>
                             </BitStack>
                         </div>
                     }
                 </BitPivotItem>
-                <BitPivotItem HeaderText="角色" ItemCount="@(_selectedRoleIds.Count == 0 ? null : _selectedRoleIds.Count)">
+                <BitPivotItem HeaderText="@L["identity.users.tab.roles"]" ItemCount="@(_selectedRoleIds.Count == 0 ? null : _selectedRoleIds.Count)">
                     @if (_selected is null)
                     {
-                        <BitText Class="muted">请从左侧选择一个用户。</BitText>
+                        <BitText Class="muted">@L["identity.users.selectPrompt"]</BitText>
                     }
                     else
                     {
@@ -98,9 +100,9 @@
                         </div>
                         <div class="row">
                             <PermissionGate Code="identity.user.update">
-                                <BitButton OnClick="SaveRolesAsync" Disabled="@(!_roleDirty || _busy.Contains(_selected.Id.ToString()))">保存角色分配</BitButton>
+                                <BitButton OnClick="SaveRolesAsync" Disabled="@(!_roleDirty || _busy.Contains(_selected.Id.ToString()))">@L["identity.users.action.saveRoles"]</BitButton>
                             </PermissionGate>
-                            <BitText Class="muted id-tree-hint">保存后立即生效。</BitText>
+                            <BitText Class="muted id-tree-hint">@L["identity.users.rolesHint"]</BitText>
                         </div>
                     }
                 </BitPivotItem>
@@ -110,33 +112,33 @@
 </div>
 
 <BlazorBoilerplateModal @bind-IsOpen="_createDialogOpen"
-            Title="新建用户" OkText="创建" OnOk="CreateUserAsync">
+            Title="@L["identity.users.modal.createTitle"]" OkText="@L["platform.common.create"]" OnOk="CreateUserAsync">
     <div class="id-form">
-        <BitTextField @bind-Value="NewUserName" Label="用户名 *" />
-        <BitTextField @bind-Value="NewEmail" Label="邮箱 *" />
-        <BitTextField @bind-Value="NewDisplayName" Label="显示名" />
-        <BitTextField @bind-Value="NewPassword" Label="初始密码 *" />
+        <BitTextField @bind-Value="NewUserName" Label="@L["identity.users.field.userNameRequired"]" />
+        <BitTextField @bind-Value="NewEmail" Label="@L["identity.users.field.emailRequired"]" />
+        <BitTextField @bind-Value="NewDisplayName" Label="@L["identity.users.field.displayName"]" />
+        <BitTextField @bind-Value="NewPassword" Label="@L["identity.users.field.initialPasswordRequired"]" />
     </div>
 </BlazorBoilerplateModal>
 
 <BlazorBoilerplateModal @bind-IsOpen="_editDialogOpen"
-            Title="编辑资料" OkText="保存" OnOk="SaveProfileAsync">
+            Title="@L["identity.users.modal.editTitle"]" OkText="@L["platform.common.save"]" OnOk="SaveProfileAsync">
     <div class="id-form">
-        <BitTextField @bind-Value="EditEmail" Label="邮箱 *" />
-        <BitTextField @bind-Value="EditDisplayName" Label="显示名" />
+        <BitTextField @bind-Value="EditEmail" Label="@L["identity.users.field.emailRequired"]" />
+        <BitTextField @bind-Value="EditDisplayName" Label="@L["identity.users.field.displayName"]" />
     </div>
 </BlazorBoilerplateModal>
 
 <BlazorBoilerplateModal @bind-IsOpen="_resetPwDialogOpen"
-            Title="重置密码" OkText="重置" OnOk="ResetPasswordAsync">
+            Title="@L["identity.users.modal.resetPasswordTitle"]" OkText="@L["identity.users.action.reset"]" OnOk="ResetPasswordAsync">
     <div class="id-form">
-        <BitTextField @bind-Value="ResetPw" Label="@($"新密码（至少 {_passwordMinLength} 位）*")" />
+        <BitTextField @bind-Value="ResetPw" Label="@L.GetString("identity.users.field.newPasswordMinLength", _passwordMinLength)" />
     </div>
 </BlazorBoilerplateModal>
 
 <BlazorBoilerplateModal @bind-IsOpen="_deleteDialogOpen"
-            Title="删除用户" Danger OkText="删除"
-            Message="@($"确定要删除用户 {_selected?.DisplayName ?? ""} 吗？该操作不可恢复。")"
+            Title="@L["identity.users.modal.deleteTitle"]" Danger OkText="@L["platform.common.delete"]"
+            Message="@L.GetString("identity.users.modal.deleteConfirm", _selected?.DisplayName ?? "")"
             OnOk="DeleteUserAsync" />
 
 @code {
@@ -168,6 +170,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await FrontendLoc.EnsureLoadedAsync();
         try
         {
             var pub = await Api.GetPublicSystemSettingsAsync();
@@ -219,7 +222,7 @@
         {
             Key = u.Id.ToString(),
             Text = u.DisplayName,
-            Description = $"{u.UserName} · {u.Email}" + (u.IsActive ? "" : " · 已停用"),
+            Description = $"{u.UserName} · {u.Email}" + (u.IsActive ? "" : $" · {L["identity.users.status.disabled"]}"),
             Data = u
         })];
     }
@@ -242,7 +245,7 @@
         }
     }
 
-    private static string GetRoleLabel(IdentityRoleDto role) => role.IsSystem ? $"{role.Name}（内置）" : role.Name;
+    private string GetRoleLabel(IdentityRoleDto role) => role.IsSystem ? L.GetString("identity.roles.builtInSuffix", role.Name) : role.Name;
 
     private void OnRoleSelectionChanged(Guid roleId, bool selected)
     {
@@ -259,12 +262,12 @@
             var response = await Api.PostAsync("api/identity/users", body);
             EnsureOk(response);
             _createDialogOpen = false;
-            Toast.Success($"用户「{NewUserName}」已创建。");
+            Toast.Success(L.GetString("identity.users.toast.created", NewUserName));
             NewUserName = NewEmail = NewPassword = string.Empty;
             NewDisplayName = null;
             await RefreshAsync();
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error($"创建用户失败：{ex.Message}"); }
+        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.users.toast.createFailed", ex.Message)); }
     }
 
     private Task OpenEditDialogAsync()
@@ -286,10 +289,10 @@
             var response = await Api.PutAsync($"api/identity/users/{_selected.Id}", body);
             EnsureOk(response);
             _editDialogOpen = false;
-            Toast.Success($"用户「{_selected.DisplayName}」资料已保存。");
+            Toast.Success(L.GetString("identity.users.toast.profileSaved", _selected.DisplayName));
             await RefreshAsync();
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error($"保存资料失败：{ex.Message}"); }
+        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.users.toast.saveProfileFailed", ex.Message)); }
     }
 
     private async Task ResetPasswordAsync()
@@ -301,9 +304,9 @@
             var response = await Api.PutAsync($"api/identity/users/{_selected.Id}/password", new { Password = ResetPw });
             EnsureOk(response);
             _resetPwDialogOpen = false;
-            Toast.Success($"用户「{_selected.DisplayName}」的密码已重置。");
+            Toast.Success(L.GetString("identity.users.toast.passwordReset", _selected.DisplayName));
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error($"重置密码失败：{ex.Message}"); }
+        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.users.toast.resetPasswordFailed", ex.Message)); }
     }
 
     private async Task ToggleActiveAsync()
@@ -318,10 +321,10 @@
             var name = _selected.DisplayName;
             var response = await Api.PutAsync($"api/identity/users/{_selected.Id}/active", new { IsActive = !_selected.IsActive });
             EnsureOk(response);
-            Toast.Success($"用户「{name}」已{(enabling ? "启用" : "停用")}。");
+            Toast.Success(L.GetString(enabling ? "identity.users.toast.enabled" : "identity.users.toast.disabled", name));
             await RefreshAsync();
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error($"切换启用状态失败：{ex.Message}"); }
+        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.users.toast.toggleActiveFailed", ex.Message)); }
         finally { _busy.Remove(key); }
     }
 
@@ -335,11 +338,11 @@
             var response = await Api.DeleteAsync($"api/identity/users/{_selected.Id}");
             EnsureOk(response);
             _deleteDialogOpen = false;
-            Toast.Success($"用户「{name}」已删除。");
+            Toast.Success(L.GetString("identity.users.toast.deleted", name));
             _selected = null;
             await RefreshAsync();
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error($"删除用户失败：{ex.Message}"); }
+        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.users.toast.deleteFailed", ex.Message)); }
     }
 
     private async Task SaveRolesAsync()
@@ -354,9 +357,9 @@
             var response = await Api.PutAsync($"api/identity/users/{_selected.Id}/roles", new { Ids = ids });
             EnsureOk(response);
             _roleDirty = false;
-            Toast.Success($"用户「{_selected.DisplayName}」的角色分配已保存。");
+            Toast.Success(L.GetString("identity.users.toast.rolesSaved", _selected.DisplayName));
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error($"保存角色分配失败：{ex.Message}"); }
+        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.users.toast.saveRolesFailed", ex.Message)); }
         finally { _busy.Remove(key); }
     }
 

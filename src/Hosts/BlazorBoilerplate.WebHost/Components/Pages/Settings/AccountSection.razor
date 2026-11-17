@@ -2,29 +2,30 @@
 @inject AccountState Account
 @inject SystemSettingsState SysState
 @inject ToastService Toast
+@inject ILocalizationService L
 
 <section style="padding: 0.75rem 0 1.25rem;">
     <BitPivot Alignment="BitAlignment.Center"
               OverflowBehavior="BitPivotOverflowBehavior.Menu"
               DefaultSelectedKey="password">
-        <BitPivotItem Key="email" HeaderText="邮箱">
+        <BitPivotItem Key="email" HeaderText="@L["platform.profile.email"]">
             <div style="display:flex;justify-content:center;padding-top:1rem;width:100%;">
                 <div class="settings-form">
                     <BitStack FillContent Gap="0.85rem">
                         <BitTextField Value="@_currentEmail"
-                                      Label="当前邮箱"
+                                      Label="@L["platform.settings.account.currentEmail"]"
                                       ReadOnly />
 
                         <BitTextField @bind-Value="_newEmail"
-                                      Label="新邮箱"
+                                      Label="@L["platform.settings.account.newEmail"]"
                                       Type="BitInputType.Email"
-                                      Placeholder="请输入新的电子邮箱地址" />
+                                      Placeholder="@L["platform.settings.account.newEmailPlaceholder"]" />
 
                         <PermissionView Code="identity.user.update">
                             <BitButton IsLoading="_savingEmail"
                                        Color="BitColor.Primary"
                                        OnClick="SaveEmailAsync">
-                                更改邮箱
+                                @L["platform.settings.account.changeEmail"]
                             </BitButton>
                         </PermissionView>
                     </BitStack>
@@ -32,33 +33,33 @@
             </div>
         </BitPivotItem>
 
-        <BitPivotItem Key="password" HeaderText="密码">
+        <BitPivotItem Key="password" HeaderText="@L["platform.settings.account.password"]">
             <div style="display:flex;justify-content:center;padding-top:1rem;width:100%;">
                 <div class="settings-form">
                     <BitStack FillContent Gap="0.85rem">
                         <BitTextField @bind-Value="_oldPassword"
-                                      Label="当前密码"
+                                      Label="@L["platform.profile.oldPassword"]"
                                       Type="BitInputType.Password"
                                       CanRevealPassword
-                                      Placeholder="请输入当前密码" />
+                                      Placeholder="@L["platform.settings.account.currentPasswordPlaceholder"]" />
 
                         <BitTextField @bind-Value="_newPassword"
-                                      Label="新密码"
+                                      Label="@L["platform.profile.newPassword"]"
                                       Type="BitInputType.Password"
                                       CanRevealPassword
-                                      Placeholder="@($"至少 {_passwordMinLength} 位字符")" />
+                                      Placeholder="@L.GetString("platform.settings.account.minCharsPlaceholder", _passwordMinLength)" />
 
                         <BitTextField @bind-Value="_confirmPassword"
-                                      Label="确认新密码"
+                                      Label="@L["platform.settings.account.confirmPassword"]"
                                       Type="BitInputType.Password"
                                       CanRevealPassword
-                                      Placeholder="请再次输入新密码" />
+                                      Placeholder="@L["platform.settings.account.confirmPasswordPlaceholder"]" />
 
                         <PermissionView Code="identity.user.change-password">
                             <BitButton IsLoading="_savingPassword"
                                        Color="BitColor.Primary"
                                        OnClick="ChangePasswordAsync">
-                                修改密码
+                                @L["platform.profile.changePassword"]
                             </BitButton>
                         </PermissionView>
                     </BitStack>
@@ -97,12 +98,12 @@
         var email = _newEmail.Trim();
         if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
         {
-            Toast.Warning("请输入有效的电子邮箱地址。");
+            Toast.Warning(L["platform.settings.account.toast.invalidEmail"]);
             return;
         }
         if (string.Equals(email, _currentEmail, StringComparison.OrdinalIgnoreCase))
         {
-            Toast.Info("新邮箱与当前邮箱相同。");
+            Toast.Info(L["platform.settings.account.toast.sameEmail"]);
             return;
         }
 
@@ -113,11 +114,11 @@
             _currentEmail = updated.Email;
             _newEmail = string.Empty;
             Account.UpdateCurrentUser(updated);
-            Toast.Success("账户邮箱已更新。");
+            Toast.Success(L["platform.settings.account.toast.emailUpdated"]);
         }
         catch (Exception ex)
         {
-            Toast.Error($"更改邮箱失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.settings.account.toast.emailUpdateFailed", ex.Message));
         }
         finally
         {
@@ -129,7 +130,7 @@
     {
         if (string.IsNullOrWhiteSpace(_oldPassword) || string.IsNullOrWhiteSpace(_newPassword))
         {
-            Toast.Warning("请填写当前密码与新密码。");
+            Toast.Warning(L["platform.profile.toast.passwordsRequired"]);
             return;
         }
         await SysState.RefreshAsync();
@@ -137,12 +138,12 @@
             _passwordMinLength = SysState.Public.PasswordMinLength;
         if (_newPassword.Length < _passwordMinLength)
         {
-            Toast.Warning($"新密码至少需要 {_passwordMinLength} 位字符。");
+            Toast.Warning(L.GetString("platform.settings.account.toast.passwordTooShort", _passwordMinLength));
             return;
         }
         if (!string.Equals(_newPassword, _confirmPassword, StringComparison.Ordinal))
         {
-            Toast.Warning("两次输入的新密码不一致。");
+            Toast.Warning(L["platform.settings.account.toast.passwordMismatch"]);
             return;
         }
 
@@ -153,11 +154,11 @@
             _oldPassword = string.Empty;
             _newPassword = string.Empty;
             _confirmPassword = string.Empty;
-            Toast.Success("密码已修改，其他设备可能需要重新登录。");
+            Toast.Success(L["platform.profile.toast.passwordChanged"]);
         }
         catch (Exception ex)
         {
-            Toast.Error($"修改密码失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.profile.toast.passwordChangeFailed", ex.Message));
         }
         finally
         {

@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using BlazorBoilerplate.Application.Localization;
 using BlazorBoilerplate.Application.OData;
 using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.Shared.Features.Account;
@@ -42,6 +43,24 @@ public sealed class BlazorBoilerplateApiClient(HttpClient http)
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             return null;
         return await ReadOrThrowAsync<ModuleDescriptor>(response, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<LanguageInfo>> GetLanguagesAsync(CancellationToken cancellationToken = default)
+    {
+        var response = await http.GetAsync("api/localization/languages", cancellationToken);
+        var list = await ReadOrThrowAsync<List<LanguageInfo>>(response, cancellationToken);
+        return list ?? [];
+    }
+
+    public async Task<Dictionary<string, string>> GetLocalizationResourcesAsync(
+        string? culture = null,
+        CancellationToken cancellationToken = default)
+    {
+        var url = string.IsNullOrWhiteSpace(culture)
+            ? "api/localization/resources"
+            : $"api/localization/resources?culture={Uri.EscapeDataString(culture)}";
+        var response = await http.GetAsync(url, cancellationToken);
+        return await ReadOrThrowAsync<Dictionary<string, string>>(response, cancellationToken);
     }
 
     /// <summary>加载模块；version 为空时加载当前激活版本，否则切换到指定版本。</summary>

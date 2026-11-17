@@ -6,6 +6,8 @@
    </BlazorBoilerplateModal>
    OnOk 返回 Task；执行期间「确定」按钮显示 loading 并禁用；OnOk 抛异常不会自动关闭（便于重试）。
    调用方在 OnOk 成功后自行把绑定字段置 false 即可关闭。 *@
+@inject ILocalizationService L
+
 @if (IsOpen)
 {
     <div class="blazorboilerplate-modal-backdrop" @onclick="OnBackdropClick">
@@ -14,7 +16,7 @@
                 <h3 class="blazorboilerplate-modal-title">@Title</h3>
                 @if (ShowClose)
                 {
-                    <button type="button" class="blazorboilerplate-modal-close" aria-label="关闭" @onclick="Cancel">✕</button>
+                    <button type="button" class="blazorboilerplate-modal-close" aria-label="@L["platform.common.close"]" @onclick="Cancel">✕</button>
                 }
             </header>
             <div class="blazorboilerplate-modal-body">
@@ -27,7 +29,7 @@
             <footer class="blazorboilerplate-modal-footer">
                 @if (ShowCancel)
                 {
-                    <button type="button" class="blazorboilerplate-btn ghost" @onclick="Cancel" disabled="@_busy">@(CancelText ?? "取消")</button>
+                    <button type="button" class="blazorboilerplate-btn ghost" @onclick="Cancel" disabled="@_busy">@(CancelText ?? L["platform.common.cancel"])</button>
                 }
                 <button type="button" class="blazorboilerplate-btn @(Danger ? "danger" : "primary")"
                         @onclick="HandleOk" disabled="@(_busy || Disabled)">
@@ -35,7 +37,7 @@
                     {
                         <span class="blazorboilerplate-spinner"></span>
                     }
-                    <span>@(OkText ?? "确定")</span>
+                    <span>@(OkText ?? L["platform.common.confirm"])</span>
                 </button>
             </footer>
         </div>

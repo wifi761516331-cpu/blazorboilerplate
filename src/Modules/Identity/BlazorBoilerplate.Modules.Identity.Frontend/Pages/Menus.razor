@@ -8,6 +8,8 @@
 @inject INavRefreshService NavRefresh
 @inject ILogger<Menus> Logger
 @inject ToastService Toast
+@inject ILocalizationService L
+@inject FrontendLocalizationService FrontendLoc
 
 <style>
     .menu-icon-row {
@@ -155,26 +157,26 @@
 </style>
 
 <div class="page-callout">
-    <BitText Element="h1" Class="page-title">菜单管理</BitText>
-    <BitText Class="muted">维护平台侧边栏菜单树（存于数据库）。保存或删除后侧边栏将即时刷新；角色授权见「角色管理」。</BitText>
+    <BitText Element="h1" Class="page-title">@L["identity.menus.title"]</BitText>
+    <BitText Class="muted">@L["identity.menus.subtitle"]</BitText>
 </div>
 
 <div class="id-page">
     <div class="id-toolbar">
-        <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="RefreshAsync" Disabled="@_loading">刷新</BitButton>
+        <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="RefreshAsync" Disabled="@_loading">@L["platform.common.refresh"]</BitButton>
         <PermissionGate Code="identity.menu.create">
-            <BitButton IconName="@BitIconName.Add" OnClick="@(() => OpenCreate(null))">新建顶级菜单</BitButton>
+            <BitButton IconName="@BitIconName.Add" OnClick="@(() => OpenCreate(null))">@L["identity.menus.createTop"]</BitButton>
             @if (_selected is not null && !_creating)
             {
-                <BitButton IconName="@BitIconName.AddTo" OnClick="@(() => OpenCreate(_selected.Id))">新建子菜单</BitButton>
+                <BitButton IconName="@BitIconName.AddTo" OnClick="@(() => OpenCreate(_selected.Id))">@L["identity.menus.createChild"]</BitButton>
             }
         </PermissionGate>
         <BitTextField @bind-Value="_searchText"
                       @bind-Value:after="RebuildNavAndParents"
                       Immediate
-                      Placeholder="搜索名称或路由…"
+                      Placeholder="@L["identity.menus.searchPlaceholder"]"
                       Style="min-width: 200px;" />
-        <BitCheckbox @bind-Value="_showHidden" @bind-Value:after="RebuildNavAndParents" Label="显示已隐藏菜单" />
+        <BitCheckbox @bind-Value="_showHidden" @bind-Value:after="RebuildNavAndParents" Label="@L["identity.menus.showHidden"]" />
     </div>
 
     @if (_error is not null)
@@ -185,16 +187,16 @@
     <div class="id-columns">
         <BitCard Class="id-list-card">
             <div class="menu-tree-header">
-                <span>菜单结构</span>
-                <span>共 @_menus.Count 项</span>
+                <span>@L["identity.menus.treeTitle"]</span>
+                <span>@L.GetString("identity.menus.totalCount", _menus.Count)</span>
             </div>
             @if (_loading)
             {
-                <BitText Class="muted">加载中…</BitText>
+                <BitText Class="muted">@L["platform.common.loading"]</BitText>
             }
             else if (_menuNavItems.Count == 0)
             {
-                <BitText Class="muted">暂无匹配的菜单</BitText>
+                <BitText Class="muted">@L["identity.menus.empty"]</BitText>
             }
             else
             {
@@ -211,11 +213,11 @@
                             <span class="menu-tree-text">@item.Text</span>
                             @if (menu is not null && !menu.IsVisible)
                             {
-                                <span class="menu-tree-tag">已隐藏</span>
+                                <span class="menu-tree-tag">@L["identity.menus.status.hidden"]</span>
                             }
                             @if (menu is not null && menu.Kind == "group")
                             {
-                                <span class="menu-tree-tag">分组</span>
+                                <span class="menu-tree-tag">@L["identity.menus.kind.groupShort"]</span>
                             }
                         </span>
                     </ItemTemplate>
@@ -226,14 +228,14 @@
         <BitCard Class="id-detail-card">
             @if (_selected is null && !_creating)
             {
-                <BitText Class="muted">请从左侧选择一个菜单，或点击上方「新建顶级菜单」。</BitText>
+                <BitText Class="muted">@L["identity.menus.selectPrompt"]</BitText>
             }
             else
             {
                 <div class="id-form">
                     <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.5rem" Wrap>
                         <BitText Typography="BitTypography.H6">
-                            @(_creating ? (EditParentId is null ? "新建顶级菜单" : "新建子菜单") : "编辑菜单")
+                            @(_creating ? (EditParentId is null ? L["identity.menus.createTop"] : L["identity.menus.createChild"]) : L["identity.menus.editTitle"])
                         </BitText>
                         @if (!_creating && _selected is not null)
                         {
@@ -242,34 +244,34 @@
                             </span>
                         }
                         <BitBadge Color="@(EditIsVisible ? BitColor.Success : BitColor.Tertiary)">
-                            @(EditIsVisible ? "可见" : "已隐藏")
+                            @(EditIsVisible ? L["identity.menus.status.visible"] : L["identity.menus.status.hidden"])
                         </BitBadge>
                         <BitTag Color="@(string.IsNullOrWhiteSpace(EditModuleId) ? BitColor.SecondaryBackground : BitColor.PrimaryBackground)">
-                            @(string.IsNullOrWhiteSpace(EditModuleId) ? "系统内置" : $"模块：{EditModuleId}")
+                            @(string.IsNullOrWhiteSpace(EditModuleId) ? L["identity.menus.systemBuiltIn"] : L.GetString("identity.menus.modulePrefix", EditModuleId))
                         </BitTag>
                     </BitStack>
 
-                    <BitTextField @bind-Value="EditName" Label="名称 *" Placeholder="例如：系统设置" Required />
-                    <BitTextField @bind-Value="EditPath" Label="路由 *" Placeholder="例如：/system/settings" Required />
+                    <BitTextField @bind-Value="EditName" Label="@L["identity.menus.field.nameRequired"]" Placeholder="@L["identity.menus.placeholder.name"]" Required />
+                    <BitTextField @bind-Value="EditPath" Label="@L["identity.menus.field.pathRequired"]" Placeholder="@L["identity.menus.placeholder.path"]" Required />
 
                     <div class="menu-icon-row">
-                        <BitTextField @bind-Value="EditIcon" Label="图标名称" Placeholder="如 Home / People / Settings" />
+                        <BitTextField @bind-Value="EditIcon" Label="@L["identity.menus.field.icon"]" Placeholder="@L["identity.menus.placeholder.icon"]" />
                         <BitButton Variant="BitVariant.Outline"
-                                   Title="点击选择图标"
+                                   Title="@L["identity.menus.pickIconTitle"]"
                                    OnClick="OpenIconPicker">
                             <span class="menu-icon-picker-btn">
                                 <AppIcon Name="@(string.IsNullOrWhiteSpace(EditIcon) ? "EditList" : EditIcon.Trim())" />
-                                <span>选择图标</span>
+                                <span>@L["identity.menus.pickIcon"]</span>
                             </span>
                         </BitButton>
                     </div>
 
-                    <BitDropdown Label="父菜单" @bind-Value="EditParentId" Items="_parentItems" />
-                    <BitDropdown Label="关联权限码" @bind-Value="EditPermissionCode" Items="_permissionItems" />
-                    <BitDropdown Label="菜单类型" @bind-Value="EditKind" Items="_kindItems" />
+                    <BitDropdown Label="@L["identity.menus.field.parent"]" @bind-Value="EditParentId" Items="_parentItems" />
+                    <BitDropdown Label="@L["identity.menus.field.permissionCode"]" @bind-Value="EditPermissionCode" Items="_permissionItems" />
+                    <BitDropdown Label="@L["identity.menus.field.kind"]" @bind-Value="EditKind" Items="_kindItems" />
 
                     <div class="menu-sort-row">
-                        <BitNumberField @bind-Value="EditSort" Label="排序" />
+                        <BitNumberField @bind-Value="EditSort" Label="@L["identity.menus.field.sort"]" />
                         @if (!_creating && _selected is not null)
                         {
                             <PermissionGate Code="identity.menu.update">
@@ -277,36 +279,36 @@
                                            IconName="@BitIconName.Up"
                                            Disabled="@(_busy || !CanMoveSibling(-1))"
                                            OnClick="@(() => MoveSiblingAsync(-1))">
-                                    上移
+                                    @L["identity.menus.action.moveUp"]
                                 </BitButton>
                                 <BitButton Variant="BitVariant.Outline"
                                            IconName="@BitIconName.Down"
                                            Disabled="@(_busy || !CanMoveSibling(1))"
                                            OnClick="@(() => MoveSiblingAsync(1))">
-                                    下移
+                                    @L["identity.menus.action.moveDown"]
                                 </BitButton>
                             </PermissionGate>
                         }
                     </div>
 
-                    <BitCheckbox @bind-Value="EditIsVisible" Label="在侧边栏可见" />
+                    <BitCheckbox @bind-Value="EditIsVisible" Label="@L["identity.menus.field.isVisible"]" />
 
                     <div class="row">
                         <PermissionGate Code="@(_creating ? "identity.menu.create" : "identity.menu.update")">
                             <BitButton Color="BitColor.Primary" IsLoading="_busy" OnClick="SaveAsync">
-                                @(_creating ? "创建菜单" : "保存修改")
+                                @(_creating ? L["identity.menus.action.create"] : L["identity.common.saveChanges"])
                             </BitButton>
                         </PermissionGate>
                         @if (_creating)
                         {
-                            <BitButton Variant="BitVariant.Outline" Disabled="@_busy" OnClick="CancelCreate">取消</BitButton>
+                            <BitButton Variant="BitVariant.Outline" Disabled="@_busy" OnClick="CancelCreate">@L["platform.common.cancel"]</BitButton>
                         }
                         else if (_selected is not null)
                         {
                             <BitSpacer />
                             <PermissionGate Code="identity.menu.delete">
                                 <BitButton Color="BitColor.Error" Variant="BitVariant.Outline" Disabled="@_busy" OnClick="@(() => _deleteDialogOpen = true)">
-                                    删除
+                                    @L["platform.common.delete"]
                                 </BitButton>
                             </PermissionGate>
                         }
@@ -318,18 +320,18 @@
 </div>
 
 <BlazorBoilerplateModal @bind-IsOpen="_deleteDialogOpen"
-            Title="删除菜单" Danger OkText="删除"
-            Message="@($"确定要删除菜单 {_selected?.Name ?? ""} 吗？其角色授权关联将一并清除。")"
+            Title="@L["identity.menus.modal.deleteTitle"]" Danger OkText="@L["platform.common.delete"]"
+            Message="@L.GetString("identity.menus.modal.deleteConfirm", _selected?.Name ?? "")"
             OnOk="DeleteAsync" />
 
 <BlazorBoilerplateModal @bind-IsOpen="_iconPickerOpen"
-            Title="@($"选择图标（BitIconName 共 {AllIcons.Count} 个）")"
+            Title="@L.GetString("identity.menus.iconPicker.title", AllIcons.Count)"
             ModalClass="wide"
             ShowCancel="false"
-            OkText="关闭">
+            OkText="@L["platform.common.close"]">
     <div class="icon-picker-body">
         <BitSearchBox @bind-Value="_iconSearch"
-                      Placeholder="搜索图标名称，如 Home / User / Settings / Chart..."
+                      Placeholder="@L["identity.menus.iconPicker.searchPlaceholder"]"
                       Immediate
                       OnChange="OnIconSearchChanged"
                       OnClear="@(() => OnIconSearchChanged(string.Empty))" />
@@ -341,7 +343,7 @@
 
         @if (filtered.Count == 0)
         {
-            <BitText Class="muted">未找到匹配的图标。</BitText>
+            <BitText Class="muted">@L["identity.menus.iconPicker.empty"]</BitText>
         }
         else
         {
@@ -367,7 +369,7 @@
         }
 
         <div class="icon-picker-footer">
-            <BitText Class="muted">共 @filtered.Count 个匹配图标（滚动自动加载）</BitText>
+            <BitText Class="muted">@L.GetString("identity.menus.iconPicker.count", filtered.Count)</BitText>
         </div>
     </div>
 </BlazorBoilerplateModal>
@@ -404,16 +406,12 @@
             .ToList();
     }
 
-    private readonly List<BitDropdownItem<string>> _kindItems =
-    [
-        new() { Text = "导航菜单 (menu)", Value = "menu" },
-        new() { Text = "分组节点 (group)", Value = "group" }
-    ];
+    private List<BitDropdownItem<string>> _kindItems = [];
 
     private List<IdentityMenuDto> _menus = [];
     private List<BitNavItem> _menuNavItems = [];
     private List<BitDropdownItem<Guid?>> _parentItems = [];
-    private List<BitDropdownItem<string>> _permissionItems = [new() { Text = "（无权限限制）", Value = string.Empty }];
+    private List<BitDropdownItem<string>> _permissionItems = [];
     private IdentityMenuDto? _selected;
     private bool _loading = true;
     private bool _busy;
@@ -435,7 +433,17 @@
     private string EditPermissionCode = string.Empty;
     private string EditKind = "menu";
 
-    protected override async Task OnInitializedAsync() => await RefreshAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        await FrontendLoc.EnsureLoadedAsync();
+        _kindItems =
+        [
+            new() { Text = L["identity.menus.kind.menu"], Value = "menu" },
+            new() { Text = L["identity.menus.kind.group"], Value = "group" }
+        ];
+        _permissionItems = [new() { Text = L["identity.menus.noPermission"], Value = string.Empty }];
+        await RefreshAsync();
+    }
 
     private async Task RefreshAsync()
     {
@@ -471,7 +479,7 @@
             var perms = await Api.GetPermissionCatalogAsync();
             _permissionItems =
             [
-                new() { Text = "（无权限限制）", Value = string.Empty },
+                new() { Text = L["identity.menus.noPermission"], Value = string.Empty },
                 .. perms.OrderBy(p => p.Code).Select(p => new BitDropdownItem<string>
                 {
                     Text = $"{p.Name} ({p.Code})",
@@ -527,13 +535,13 @@
         var excluded = (!_creating && _selected is not null) ? GetSubtreeIds(_selected.Id) : [];
         _parentItems =
         [
-            new() { Text = "（顶级菜单）", Value = null },
+            new() { Text = L["identity.menus.topLevel"], Value = null },
             .. _menus
                 .Where(m => !excluded.Contains(m.Id))
                 .OrderBy(m => m.Sort).ThenBy(m => m.Name)
                 .Select(m => new BitDropdownItem<Guid?>
                 {
-                    Text = m.IsVisible ? m.Name : $"{m.Name} (已隐藏)",
+                    Text = m.IsVisible ? m.Name : $"{m.Name} ({L["identity.menus.status.hidden"]})",
                     Value = m.Id
                 })
         ];
@@ -692,11 +700,11 @@
             EditSort = newCurrentSort;
             await RefreshAsync();
             NavRefresh.Notify();
-            Toast.Success("菜单排序已更新。");
+            Toast.Success(L["identity.menus.toast.sortUpdated"]);
         }
         catch (Exception ex)
         {
-            Toast.Error($"调整排序失败：{ex.Message}");
+            Toast.Error(L.GetString("identity.menus.toast.sortFailed", ex.Message));
         }
         finally
         {
@@ -727,12 +735,12 @@
         var path = EditPath.Trim();
         if (string.IsNullOrWhiteSpace(name))
         {
-            Toast.Warning("菜单名称不能为空。");
+            Toast.Warning(L["identity.menus.toast.nameRequired"]);
             return;
         }
         if (string.IsNullOrWhiteSpace(path))
         {
-            Toast.Warning("菜单路由不能为空。");
+            Toast.Warning(L["identity.menus.toast.pathRequired"]);
             return;
         }
         if (!path.StartsWith('/') && !path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !path.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
@@ -763,14 +771,14 @@
                 var created = await response.Content.ReadFromJsonAsync<IdentityMenuDto>();
                 _creating = false;
                 _selected = created;
-                Toast.Success($"菜单「{name}」已创建。");
+                Toast.Success(L.GetString("identity.menus.toast.created", name));
             }
             else
             {
                 if (_selected is null) return;
                 var response = await Api.PutAsync($"api/identity/menus/{_selected.Id}", payload);
                 await EnsureOkAsync(response);
-                Toast.Success($"菜单「{name}」已保存。");
+                Toast.Success(L.GetString("identity.menus.toast.saved", name));
             }
 
             await RefreshAsync();
@@ -779,7 +787,7 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            Toast.Error("保存菜单失败：" + ex.Message);
+            Toast.Error(L.GetString("identity.menus.toast.saveFailed", ex.Message));
         }
         finally
         {
@@ -797,7 +805,7 @@
             var response = await Api.DeleteAsync($"api/identity/menus/{_selected.Id}");
             await EnsureOkAsync(response);
             _deleteDialogOpen = false;
-            Toast.Success($"菜单「{name}」已删除。");
+            Toast.Success(L.GetString("identity.menus.toast.deleted", name));
             _selected = null;
             await RefreshAsync();
             NavRefresh.Notify();
@@ -805,7 +813,7 @@
         catch (Exception ex)
         {
             _error = ex.Message;
-            Toast.Error("删除菜单失败：" + ex.Message);
+            Toast.Error(L.GetString("identity.menus.toast.deleteFailed", ex.Message));
         }
     }
 

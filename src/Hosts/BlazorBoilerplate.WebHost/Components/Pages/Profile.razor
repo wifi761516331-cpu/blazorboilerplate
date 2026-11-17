@@ -5,10 +5,11 @@
 @inject BlazorBoilerplateApiClient Api
 @inject ToastService Toast
 @inject AccountState Account
+@inject ILocalizationService L
 
 <div class="page-callout">
-    <h1 class="page-title">个人资料</h1>
-    <p class="muted">管理账户信息、登录密码与已登录会话。</p>
+    <h1 class="page-title">@L["platform.header.profile.title"]</h1>
+    <p class="muted">@L["platform.profile.subtitle"]</p>
 </div>
 
 @if (_loadError is not null)
@@ -18,11 +19,11 @@
 
 <div class="account-page-grid">
     <section class="bb-card">
-        <h2 class="section-title">个人头像</h2>
+        <h2 class="section-title">@L["platform.profile.avatarTitle"]</h2>
         <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
             @if (_avatarUrl is not null)
             {
-                <img src="@_avatarUrl" alt="用户头像"
+                <img src="@_avatarUrl" alt="@L["platform.profile.avatarAlt"]"
                      style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:1px solid var(--bb-border);" />
             }
             else
@@ -34,10 +35,10 @@
             <div style="display:flex;flex-direction:column;gap:.5rem;">
                 <InputFile OnChange="UploadAvatarAsync" accept=".jpg,.jpeg,.png,.webp,.gif,.bmp" disabled="@_uploadingAvatar" />
                 <div style="display:flex;gap:.5rem;align-items:center;">
-                    <span class="muted" style="font-size:.85rem;">支持 jpg/png/webp/gif/bmp，最大 11 MB</span>
+                    <span class="muted" style="font-size:.85rem;">@L["platform.profile.avatarHint"]</span>
                     @if (_avatarUrl is not null)
                     {
-                        <button type="button" class="bb-link-btn danger" @onclick="DeleteAvatarAsync" disabled="@_uploadingAvatar">移除头像</button>
+                        <button type="button" class="bb-link-btn danger" @onclick="DeleteAvatarAsync" disabled="@_uploadingAvatar">@L["platform.profile.removeAvatar"]</button>
                     }
                 </div>
             </div>
@@ -45,20 +46,20 @@
     </section>
 
     <section class="bb-card">
-        <h2 class="section-title">基本信息</h2>
+        <h2 class="section-title">@L["platform.profile.basicInfo"]</h2>
         <div class="id-form">
             <div class="auth-field">
-                <label class="auth-label" for="pf-name">显示名</label>
+                <label class="auth-label" for="pf-name">@L["platform.profile.displayName"]</label>
                 <input id="pf-name" class="auth-input" @bind="_displayName" />
             </div>
             <div class="auth-field">
-                <label class="auth-label" for="pf-email">邮箱</label>
+                <label class="auth-label" for="pf-email">@L["platform.profile.email"]</label>
                 <input id="pf-email" class="auth-input" type="email" @bind="_email" />
             </div>
             <div class="bb-form-actions">
                 <PermissionView Code="identity.user.update">
                     <button type="button" class="blazorboilerplate-btn primary" @onclick="SaveProfileAsync" disabled="@_savingProfile">
-                        @(_savingProfile ? "保存中…" : "保存资料")
+                        @(_savingProfile ? L["platform.profile.saving"] : L["platform.profile.saveProfile"])
                     </button>
                 </PermissionView>
             </div>
@@ -66,20 +67,20 @@
     </section>
 
     <section class="bb-card">
-        <h2 class="section-title">修改密码</h2>
+        <h2 class="section-title">@L["platform.profile.changePassword"]</h2>
         <div class="id-form">
             <div class="auth-field">
-                <label class="auth-label" for="pf-old">旧密码</label>
+                <label class="auth-label" for="pf-old">@L["platform.profile.oldPassword"]</label>
                 <input id="pf-old" class="auth-input" type="password" @bind="_oldPassword" />
             </div>
             <div class="auth-field">
-                <label class="auth-label" for="pf-new">新密码</label>
+                <label class="auth-label" for="pf-new">@L["platform.profile.newPassword"]</label>
                 <input id="pf-new" class="auth-input" type="password" @bind="_newPassword" />
             </div>
             <div class="bb-form-actions">
                 <PermissionView Code="identity.user.change-password">
                     <button type="button" class="blazorboilerplate-btn primary" @onclick="ChangePasswordAsync" disabled="@_savingPassword">
-                        @(_savingPassword ? "提交中…" : "修改密码")
+                        @(_savingPassword ? L["platform.profile.submitting"] : L["platform.profile.changePassword"])
                     </button>
                 </PermissionView>
             </div>
@@ -89,25 +90,25 @@
 
 <section class="bb-card">
     <div class="bb-card-head">
-        <h2 class="section-title">登录会话</h2>
-        <button type="button" class="blazorboilerplate-btn ghost" @onclick="LoadSessionsAsync">刷新</button>
+        <h2 class="section-title">@L["platform.profile.sessionsTitle"]</h2>
+        <button type="button" class="blazorboilerplate-btn ghost" @onclick="LoadSessionsAsync">@L["platform.common.refresh"]</button>
     </div>
     <div class="grid-container">
         <table class="data-grid">
             <thead>
                 <tr>
-                    <th>设备 / 浏览器</th>
+                    <th>@L["platform.profile.col.device"]</th>
                     <th>IP</th>
-                    <th>时区</th>
-                    <th>开始时间</th>
-                    <th>状态</th>
+                    <th>@L["platform.accountMenu.timeZone"]</th>
+                    <th>@L["platform.profile.col.startedAt"]</th>
+                    <th>@L["platform.profile.col.status"]</th>
                     <th></th>
                 </tr>
             </thead>
             <tbody>
                 @if (_sessions.Count == 0)
                 {
-                    <tr><td colspan="6" class="muted">暂无会话记录。</td></tr>
+                    <tr><td colspan="6" class="muted">@L["platform.profile.sessionsEmpty"]</td></tr>
                 }
                 @foreach (var s in _sessions)
                 {
@@ -119,18 +120,18 @@
                         <td>
                             @if (s.Current)
                             {
-                                <span class="module-chip info">当前会话</span>
+                                <span class="module-chip info">@L["platform.profile.currentSession"]</span>
                             }
                             else
                             {
-                                <span class="muted">其他设备</span>
+                                <span class="muted">@L["platform.profile.otherDevice"]</span>
                             }
                         </td>
                         <td>
                             <PermissionView Code="identity.user.revoke-session">
                                 <button type="button" class="bb-link-btn danger" @onclick="() => RevokeAsync(s)"
                                         disabled="@(s.Current || _revoking.Contains(s.Id))">
-                                    @(_revoking.Contains(s.Id) ? "撤销中…" : "撤销")
+                                    @(_revoking.Contains(s.Id) ? L["platform.profile.revoking"] : L["platform.profile.revoke"])
                                 </button>
                             </PermissionView>
                         </td>
@@ -165,7 +166,7 @@
         }
         else
         {
-            _loadError = "无法读取当前用户信息，请确认已登录。";
+            _loadError = L["platform.profile.error.noUser"];
         }
         await LoadSessionsAsync();
     }
@@ -193,7 +194,7 @@
         const long maxBytes = 11 * 1024 * 1024;
         if (file.Size > maxBytes)
         {
-            Toast.Warning("头像大小不能超过 11 MB。");
+            Toast.Warning(L.GetString("platform.profile.toast.avatarTooLarge", 11));
             return;
         }
 
@@ -203,11 +204,11 @@
             await using var stream = file.OpenReadStream(maxBytes);
             var uploaded = await Api.UploadUserProfilePictureAsync(stream, file.Name, file.ContentType);
             _avatarUrl = Api.GetAttachmentUrl(uploaded.Id, uploaded.Kind, cacheBust: uploaded.CreatedAtUtc.ToUnixTimeMilliseconds().ToString());
-            Toast.Success("头像已更新。");
+            Toast.Success(L["platform.profile.toast.avatarUpdated"]);
         }
         catch (Exception ex)
         {
-            Toast.Error($"上传头像失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.profile.toast.avatarUploadFailed", ex.Message));
         }
         finally
         {
@@ -222,11 +223,11 @@
         {
             await Api.DeleteUserProfilePictureAsync();
             _avatarUrl = null;
-            Toast.Success("头像已移除。");
+            Toast.Success(L["platform.profile.toast.avatarRemoved"]);
         }
         catch (Exception ex)
         {
-            Toast.Error($"移除头像失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.profile.toast.avatarRemoveFailed", ex.Message));
         }
         finally
         {
@@ -242,8 +243,8 @@
         }
         catch (Exception ex)
         {
-            _loadError = $"读取会话列表失败：{ex.Message}";
-            Toast.Error($"读取会话列表失败：{ex.Message}");
+            _loadError = L.GetString("platform.profile.toast.loadSessionsFailed", ex.Message);
+            Toast.Error(_loadError);
         }
     }
 
@@ -251,7 +252,7 @@
     {
         if (string.IsNullOrWhiteSpace(_displayName) || string.IsNullOrWhiteSpace(_email))
         {
-            Toast.Warning("显示名与邮箱不能为空。");
+            Toast.Warning(L["platform.profile.toast.nameEmailRequired"]);
             return;
         }
         _savingProfile = true;
@@ -260,11 +261,11 @@
             var updated = await Api.UpdateProfileAsync(new EditUserRequestDto(_email.Trim(), _displayName.Trim()));
             _displayName = updated.DisplayName;
             _email = updated.Email;
-            Toast.Success("个人资料已保存。");
+            Toast.Success(L["platform.profile.toast.profileSaved"]);
         }
         catch (Exception ex)
         {
-            Toast.Error($"保存资料失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.profile.toast.profileSaveFailed", ex.Message));
         }
         finally
         {
@@ -276,7 +277,7 @@
     {
         if (string.IsNullOrWhiteSpace(_oldPassword) || string.IsNullOrWhiteSpace(_newPassword))
         {
-            Toast.Warning("请填写旧密码与新密码。");
+            Toast.Warning(L["platform.profile.toast.passwordsRequired"]);
             return;
         }
         _savingPassword = true;
@@ -285,11 +286,11 @@
             await Api.ChangePasswordAsync(new ChangePasswordRequestDto(_oldPassword, _newPassword));
             _oldPassword = string.Empty;
             _newPassword = string.Empty;
-            Toast.Success("密码已修改，其他设备可能需要重新登录。");
+            Toast.Success(L["platform.profile.toast.passwordChanged"]);
         }
         catch (Exception ex)
         {
-            Toast.Error($"修改密码失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.profile.toast.passwordChangeFailed", ex.Message));
         }
         finally
         {
@@ -304,11 +305,11 @@
         {
             await Api.RevokeSessionAsync(session.Id);
             _sessions.RemoveAll(s => s.Id == session.Id);
-            Toast.Success("会话已撤销。");
+            Toast.Success(L["platform.profile.toast.sessionRevoked"]);
         }
         catch (Exception ex)
         {
-            Toast.Error($"撤销会话失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.profile.toast.sessionRevokeFailed", ex.Message));
         }
         finally
         {

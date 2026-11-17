@@ -9,13 +9,15 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject BlazorBoilerplateApiClient Api
+@inject ILocalizationService L
+@inject FrontendLocalizationService FrontendLoc
 
 @* 邮箱验证码注册界面：参考 Bluebird SignUpPage，沿用 SignIn 的 Fluent2 .auth-* 样式与 IdentityLayout。
    注册成功后通过 blazorAuth.register（POST /auth/register）直接写入认证 Cookie 并跳转 return-url 或首页。 *@
 
 <div class="auth-head">
-    <h1 class="auth-title">创建账号</h1>
-    <p class="auth-sub">注册 @_systemName，开始使用平台服务</p>
+    <h1 class="auth-title">@L["identity.signup.title"]</h1>
+    <p class="auth-sub">@L.GetString("identity.signup.subtitle", _systemName)</p>
 </div>
 
 @if (_message is not null)
@@ -25,29 +27,29 @@
 
 @if (!_registerEnabled)
 {
-    <div class="auth-msg error">当前系统已关闭用户自助注册，请联系管理员创建账号。</div>
-    <button type="button" class="auth-btn" @onclick="GoToSignIn">返回登录</button>
+    <div class="auth-msg error">@L["identity.signup.disabled"]</div>
+    <button type="button" class="auth-btn" @onclick="GoToSignIn">@L["identity.signup.backToSignIn"]</button>
 }
 else
 {
     <div class="auth-field">
-        <label class="auth-label" for="signup-username">用户名</label>
+        <label class="auth-label" for="signup-username">@L["identity.signup.label.userName"]</label>
         <div class="auth-input-wrap">
             <input id="signup-username"
                    class="auth-input @(_userNameInvalid ? "invalid" : "")"
                    type="text"
                    autocomplete="username"
-                   placeholder="至少 2 个字符（如 zhangsan）"
+                   placeholder="@L["identity.signup.placeholder.userName"]"
                    @bind="_userName" @bind:event="oninput" />
         </div>
         @if (_userNameInvalid)
         {
-            <span class="validation-message">用户名至少需要 2 个字符</span>
+            <span class="validation-message">@L["identity.signup.validation.userName"]</span>
         }
     </div>
 
     <div class="auth-field">
-        <label class="auth-label" for="signup-email">邮箱</label>
+        <label class="auth-label" for="signup-email">@L["identity.signin.label.email"]</label>
         <div class="auth-input-wrap">
             <input id="signup-email"
                    class="auth-input @(_emailInvalid ? "invalid" : "")"
@@ -58,12 +60,12 @@ else
         </div>
         @if (_emailInvalid)
         {
-            <span class="validation-message">请输入有效的邮箱地址</span>
+            <span class="validation-message">@L["identity.signin.validation.email"]</span>
         }
     </div>
 
     <div class="auth-field">
-        <label class="auth-label" for="signup-code">邮箱验证码</label>
+        <label class="auth-label" for="signup-code">@L["identity.signup.label.verificationCode"]</label>
         <div class="auth-code-row">
             <div class="auth-input-wrap">
                 <input id="signup-code"
@@ -72,44 +74,44 @@ else
                        inputmode="numeric"
                        maxlength="6"
                        autocomplete="one-time-code"
-                       placeholder="6 位数字验证码"
+                       placeholder="@L["identity.signup.placeholder.verificationCode"]"
                        @bind="_verificationCode" @bind:event="oninput" />
             </div>
             <button type="button"
                     class="auth-code-btn"
                     disabled="@(_sendingCode || _cooldownSeconds > 0)"
                     @onclick="SendCodeAsync">
-                @(_sendingCode ? "发送中…" : _cooldownSeconds > 0 ? $"{_cooldownSeconds}s 后重发" : "发送验证码")
+                @(_sendingCode ? L["identity.signup.sendingCode"] : _cooldownSeconds > 0 ? L.GetString("identity.signup.resendCooldown", _cooldownSeconds) : L["identity.signup.sendCode"])
             </button>
         </div>
         @if (_codeInvalid)
         {
-            <span class="validation-message">请输入 6 位邮箱验证码</span>
+            <span class="validation-message">@L["identity.signup.validation.verificationCode"]</span>
         }
     </div>
 
     <div class="auth-field">
-        <label class="auth-label" for="signup-displayname">显示名称（可选）</label>
+        <label class="auth-label" for="signup-displayname">@L["identity.signup.label.displayName"]</label>
         <div class="auth-input-wrap">
             <input id="signup-displayname"
                    class="auth-input"
                    type="text"
                    autocomplete="name"
-                   placeholder="留空则默认使用用户名"
+                   placeholder="@L["identity.signup.placeholder.displayName"]"
                    @bind="_displayName" @bind:event="oninput" />
         </div>
     </div>
 
     <div class="auth-field">
-        <label class="auth-label" for="signup-password">密码</label>
+        <label class="auth-label" for="signup-password">@L["identity.signin.label.password"]</label>
         <div class="auth-input-wrap">
             <input id="signup-password"
                    class="auth-input has-suffix @(_passwordInvalid ? "invalid" : "")"
                    type="@(_revealPassword ? "text" : "password")"
                    autocomplete="new-password"
-                   placeholder="@($"至少 {_passwordMinLength} 位密码")"
+                   placeholder="@L.GetString("identity.signup.placeholder.password", _passwordMinLength)"
                    @bind="_password" @bind:event="oninput" />
-            <button type="button" class="auth-suffix" title="@(_revealPassword ? "隐藏密码" : "显示密码")" @onclick="ToggleRevealPassword">
+            <button type="button" class="auth-suffix" title="@(_revealPassword ? L["identity.signin.hidePassword"] : L["identity.signin.showPassword"])" @onclick="ToggleRevealPassword">
                 @if (_revealPassword)
                 {
                     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
@@ -128,20 +130,20 @@ else
         </div>
         @if (_passwordInvalid)
         {
-            <span class="validation-message">@($"密码至少需要 {_passwordMinLength} 位")</span>
+            <span class="validation-message">@L.GetString("identity.signup.validation.passwordMinLength", _passwordMinLength)</span>
         }
     </div>
 
     <div class="auth-field">
-        <label class="auth-label" for="signup-confirm">确认密码</label>
+        <label class="auth-label" for="signup-confirm">@L["identity.signup.label.confirmPassword"]</label>
         <div class="auth-input-wrap">
             <input id="signup-confirm"
                    class="auth-input has-suffix @(_confirmInvalid ? "invalid" : "")"
                    type="@(_revealConfirm ? "text" : "password")"
                    autocomplete="new-password"
-                   placeholder="再次输入密码"
+                   placeholder="@L["identity.signup.placeholder.confirmPassword"]"
                    @bind="_confirmPassword" @bind:event="oninput" />
-            <button type="button" class="auth-suffix" title="@(_revealConfirm ? "隐藏密码" : "显示密码")" @onclick="ToggleRevealConfirm">
+            <button type="button" class="auth-suffix" title="@(_revealConfirm ? L["identity.signin.hidePassword"] : L["identity.signin.showPassword"])" @onclick="ToggleRevealConfirm">
                 @if (_revealConfirm)
                 {
                     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
@@ -160,16 +162,16 @@ else
         </div>
         @if (_confirmInvalid)
         {
-            <span class="validation-message">两次输入的密码不一致</span>
+            <span class="validation-message">@L["identity.signup.validation.passwordMismatch"]</span>
         }
     </div>
 
     <button type="button" class="auth-btn" disabled="@_busy" @onclick="RegisterAsync">
-        @(_busy ? "注册中…" : "立即注册")
+        @(_busy ? L["identity.signup.submitting"] : L["identity.signup.submit"])
     </button>
 
     <p class="auth-foot">
-        已有账号？<button type="button" class="auth-link" @onclick="GoToSignIn">立即登录</button>
+        @L["identity.signup.hasAccount"]<button type="button" class="auth-link" @onclick="GoToSignIn">@L["identity.signup.signInNow"]</button>
     </p>
 }
 
@@ -194,12 +196,14 @@ else
     private string? _message;
     private bool _messageIsError;
     private string? _returnUrl;
-    private string _systemName = "BlazorBoilerplate 平台";
+    private string _systemName = "BlazorBoilerplate";
     private bool _registerEnabled = true;
     private int _passwordMinLength = 6;
 
     protected override async Task OnInitializedAsync()
     {
+        await FrontendLoc.EnsureLoadedAsync();
+        _systemName = L["identity.common.defaultSystemName"];
         SetupStatus? status = null;
         try { status = await Api.GetSetupStatusAsync(); }
         catch { /* ApiHost 不可达时不阻断页面 */ }
@@ -237,7 +241,7 @@ else
         _emailInvalid = string.IsNullOrWhiteSpace(email) || !email.Contains('@');
         if (_emailInvalid)
         {
-            _message = "请先填写有效的邮箱地址。";
+            _message = L["identity.signup.error.invalidEmail"];
             _messageIsError = true;
             return;
         }
@@ -247,7 +251,7 @@ else
         try
         {
             await Api.SendEmailCodeAsync(new SendEmailCodeRequestDto(email, "register"));
-            _message = "验证码已发送至您的邮箱，请注意查收（10 分钟内有效）。";
+            _message = L["identity.signup.codeSent"];
             _messageIsError = false;
             StartCooldown(60);
         }
@@ -275,7 +279,7 @@ else
 
         if (_userNameInvalid || _emailInvalid || _codeInvalid || _passwordInvalid || _confirmInvalid)
         {
-            _message = "请检查并修正表单中的填写项。";
+            _message = L["identity.signup.error.checkForm"];
             _messageIsError = true;
             return;
         }
@@ -301,18 +305,18 @@ else
             }
 
             _message = string.IsNullOrWhiteSpace(result?.Error)
-                ? "注册失败，请稍后重试。"
-                : $"注册失败：{result!.Error}";
+                ? L["identity.signup.error.generic"]
+                : L.GetString("identity.signup.error.withReason", result!.Error);
             _messageIsError = true;
         }
         catch (JSException)
         {
-            _message = "注册服务尚未就绪，请稍后重试或检查浏览器脚本。";
+            _message = L["identity.signup.error.serviceUnavailable"];
             _messageIsError = true;
         }
         catch (Exception)
         {
-            _message = "注册失败，请稍后重试。";
+            _message = L["identity.signup.error.generic"];
             _messageIsError = true;
         }
         finally

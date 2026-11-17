@@ -7,26 +7,27 @@
 @inject BlazorBoilerplateApiClient Api
 @inject AccountState Account
 @inject IJSRuntime JS
+@inject ILocalizationService L
 
 <div class="switch-tenant-root">
-    <button type="button" class="switch-tenant-backdrop" hidden="@(!IsOpen)" aria-label="关闭切换租户" @onclick="CloseAsync"></button>
+    <button type="button" class="switch-tenant-backdrop" hidden="@(!IsOpen)" aria-label="@L["platform.tenant.closeSwitch"]" @onclick="CloseAsync"></button>
 
-    <div class="switch-tenant-modal" hidden="@(!IsOpen)" role="dialog" aria-modal="true" aria-label="切换租户">
+    <div class="switch-tenant-modal" hidden="@(!IsOpen)" role="dialog" aria-modal="true" aria-label="@L["platform.tenant.switchTitle"]">
         <header class="switch-tenant-header">
-            <button type="button" class="switch-tenant-back" title="返回" aria-label="返回" @onclick="CloseAsync">
+            <button type="button" class="switch-tenant-back" title="@L["platform.common.back"]" aria-label="@L["platform.common.back"]" @onclick="CloseAsync">
                 <AppIcon Name="ChevronLeft" />
             </button>
-            <span class="switch-tenant-title">切换租户</span>
+            <span class="switch-tenant-title">@L["platform.tenant.switchTitle"]</span>
         </header>
 
         <div class="switch-tenant-body">
             @if (_loading)
             {
-                <div class="switch-tenant-empty">加载中…</div>
+                <div class="switch-tenant-empty">@L["platform.common.loading"]</div>
             }
             else if (_tenants.Count == 0)
             {
-                <div class="switch-tenant-empty">暂无可以切换的租户</div>
+                <div class="switch-tenant-empty">@L["platform.tenant.empty"]</div>
             }
             else
             {
@@ -39,7 +40,7 @@
                         <span class="switch-tenant-name">@(string.IsNullOrWhiteSpace(tenant.Title) ? tenant.Name : tenant.Title)</span>
                         @if (!tenant.Accepted)
                         {
-                            <small class="pending-badge">待接受邀请</small>
+                            <small class="pending-badge">@L["platform.tenant.pendingInvite"]</small>
                         }
                         else if (IsCurrent(tenant))
                         {
@@ -52,7 +53,7 @@
 
         <button type="button" class="switch-tenant-manage" @onclick="ManageTenants">
             <AppIcon Name="Settings" />
-            <span>管理我的租户</span>
+            <span>@L["platform.nav.manageTenant"]</span>
         </button>
     </div>
 </div>

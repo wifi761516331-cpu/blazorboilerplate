@@ -1,6 +1,7 @@
 using Bit.BlazorUI;
 using BlazorBoilerplate.WebHost.Auth;
 using BlazorBoilerplate.WebHost.Components;
+using BlazorBoilerplate.WebHost.Localization;
 using BlazorBoilerplate.WebHost.Services;
 using BlazorBoilerplate.Web.Shared.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -44,11 +45,14 @@ builder.Services.AddWebHostAuth(apiBaseUrl);
 // ---- 全局通知：scoped（每条 Blazor 线路一个实例），BlazorBoilerplateToast 订阅渲染 ----
 builder.Services.AddScoped<ToastService>();
 
-// ---- 登录态 / 设备偏好：scoped，随每条 Blazor 线路 ----
+// ---- 登录态 / 设备偏好 / 多语言：scoped，随每条 Blazor 线路 ----
 builder.Services.AddScoped<AccountState>();
 builder.Services.AddScoped<ICurrentUserPermissionService>(sp => sp.GetRequiredService<AccountState>());
 builder.Services.AddScoped<SystemSettingsState>();
 builder.Services.AddScoped<UserPreferences>();
+builder.Services.AddScoped<BlazorBoilerplate.Web.Shared.Localization.FrontendLocalizationService>();
+builder.Services.AddScoped<BlazorBoilerplate.Application.Localization.ILocalizationService>(sp =>
+    sp.GetRequiredService<BlazorBoilerplate.Web.Shared.Localization.FrontendLocalizationService>());
 
 // ---- 导航刷新事件：模块加载/卸载后通知 MainLayout 重建侧边栏菜单 ----
 builder.Services.AddScoped<BlazorBoilerplate.WebHost.Services.NavRefreshService>();
@@ -73,6 +77,9 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseStaticFiles();
+
+// 多语言：切文化 + 预渲染前预热词典，封装在 FrontendLocalizationExtensions.UseFrontendLocalization
+app.UseFrontendLocalization();
 
 // 必须显式 UseRouting 且放在 UseStaticFiles 之后：ModuleHost.razor 的 /{**path} catch-all
 // 会匹配所有路径，若路由先于静态文件运行，StaticFileMiddleware 因请求已匹配 endpoint 而

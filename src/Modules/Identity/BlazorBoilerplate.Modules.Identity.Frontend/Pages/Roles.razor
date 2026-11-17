@@ -4,19 +4,21 @@
 @inject BlazorBoilerplateApiClient Api
 @inject ILogger<Roles> Logger
 @inject ToastService Toast
+@inject ILocalizationService L
+@inject FrontendLocalizationService FrontendLoc
 
 <div class="page-callout">
-    <BitText Element="h1" Class="page-title">角色管理</BitText>
-    <BitText Class="muted">管理角色与菜单授权。内置角色（管理员/普通用户）受保护，不可删除或改名。</BitText>
+    <BitText Element="h1" Class="page-title">@L["identity.roles.title"]</BitText>
+    <BitText Class="muted">@L["identity.roles.subtitle"]</BitText>
 </div>
 
 <div class="id-page">
     <div class="id-toolbar">
         <PermissionGate Code="identity.role.create">
-            <BitTextField @bind-Value="NewRoleName" Style="width:14rem" Immediate DebounceTime="200" Placeholder="新角色名称" />
-            <BitButton IconName="@BitIconName.AddTo" OnClick="CreateRoleAsync" Disabled="@string.IsNullOrWhiteSpace(NewRoleName)">添加角色</BitButton>
+            <BitTextField @bind-Value="NewRoleName" Style="width:14rem" Immediate DebounceTime="200" Placeholder="@L["identity.roles.newNamePlaceholder"]" />
+            <BitButton IconName="@BitIconName.AddTo" OnClick="CreateRoleAsync" Disabled="@string.IsNullOrWhiteSpace(NewRoleName)">@L["identity.roles.create"]</BitButton>
         </PermissionGate>
-        <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="RefreshAsync" Disabled="@_loading">刷新</BitButton>
+        <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="RefreshAsync" Disabled="@_loading">@L["platform.common.refresh"]</BitButton>
     </div>
 
     @if (_error is not null)
@@ -26,14 +28,14 @@
 
     <div class="id-columns">
         <BitCard Class="id-list-card">
-            <BitSearchBox @bind-Value="_search" Immediate DebounceTime="300" Placeholder="搜索角色" />
+            <BitSearchBox @bind-Value="_search" Immediate DebounceTime="300" Placeholder="@L["identity.roles.searchPlaceholder"]" />
             @if (_loading)
             {
-                <BitText Class="muted">加载中…</BitText>
+                <BitText Class="muted">@L["platform.common.loading"]</BitText>
             }
             else if (_roleNavItems.Count == 0)
             {
-                <BitText Class="muted">暂无角色</BitText>
+                <BitText Class="muted">@L["identity.roles.empty"]</BitText>
             }
             else
             {
@@ -47,10 +49,10 @@
 
         <BitCard Class="id-detail-card">
             <BitPivot>
-                <BitPivotItem HeaderText="常规">
+                <BitPivotItem HeaderText="@L["identity.common.tab.general"]">
                     @if (_selected is null)
                     {
-                        <BitText Class="muted">请从左侧选择一个角色。</BitText>
+                        <BitText Class="muted">@L["identity.roles.selectPrompt"]</BitText>
                     }
                     else
                     {
@@ -60,27 +62,27 @@
                                 <BitTag Color="BitColor.TertiaryBackground">@_selected.Id</BitTag>
                                 @if (_selected.IsSystem)
                                 {
-                                    <BitBadge Color="BitColor.SevereWarning">内置角色 · 受保护</BitBadge>
+                                    <BitBadge Color="BitColor.SevereWarning">@L["identity.roles.builtInProtected"]</BitBadge>
                                 }
                             </BitStack>
-                            <BitTextField @bind-Value="EditName" Label="角色名" Disabled="@_selected.IsSystem" />
-                            <BitTextField @bind-Value="EditDescription" Label="描述" Disabled="@_selected.IsSystem" />
+                            <BitTextField @bind-Value="EditName" Label="@L["identity.roles.field.name"]" Disabled="@_selected.IsSystem" />
+                            <BitTextField @bind-Value="EditDescription" Label="@L["identity.roles.field.description"]" Disabled="@_selected.IsSystem" />
                             <div class="row">
                                 <PermissionGate Code="identity.role.update">
-                                    <BitButton OnClick="SaveRoleAsync" Disabled="@(_selected.IsSystem)">保存修改</BitButton>
+                                    <BitButton OnClick="SaveRoleAsync" Disabled="@(_selected.IsSystem)">@L["identity.common.saveChanges"]</BitButton>
                                 </PermissionGate>
                                 <BitSpacer />
                                 <PermissionGate Code="identity.role.delete">
-                                    <BitButton Color="BitColor.Error" OnClick="@(() => _deleteDialogOpen = true)" Disabled="@_selected.IsSystem">删除角色</BitButton>
+                                    <BitButton Color="BitColor.Error" OnClick="@(() => _deleteDialogOpen = true)" Disabled="@_selected.IsSystem">@L["identity.roles.delete"]</BitButton>
                                 </PermissionGate>
                             </div>
                         </div>
                     }
                 </BitPivotItem>
-                <BitPivotItem HeaderText="菜单权限" ItemCount="@(_selectedMenuCount == 0 ? null : _selectedMenuCount)">
+                <BitPivotItem HeaderText="@L["identity.roles.tab.menus"]" ItemCount="@(_selectedMenuCount == 0 ? null : _selectedMenuCount)">
                     @if (_selected is null)
                     {
-                        <BitText Class="muted">请从左侧选择一个角色。</BitText>
+                        <BitText Class="muted">@L["identity.roles.selectPrompt"]</BitText>
                     }
                     else
                     {
@@ -97,18 +99,18 @@
                         </div>
                         <div class="row">
                             <PermissionGate Code="identity.role.update">
-                                <BitButton OnClick="SaveMenusAsync" Disabled="@(!_menuDirty)">保存授权</BitButton>
+                                <BitButton OnClick="SaveMenusAsync" Disabled="@(!_menuDirty)">@L["identity.roles.action.saveMenus"]</BitButton>
                             </PermissionGate>
-                            <BitButton Variant="BitVariant.Outline" OnClick="@(() => SetAllMenus(true))">全选</BitButton>
-                            <BitButton Variant="BitVariant.Outline" OnClick="@(() => SetAllMenus(false))">清空</BitButton>
-                            <BitText Class="muted id-tree-hint">勾选该角色可访问的菜单（已选 @_selectedMenuCount / @_menus.Count），保存后重新登录或刷新生效。</BitText>
+                            <BitButton Variant="BitVariant.Outline" OnClick="@(() => SetAllMenus(true))">@L["identity.common.selectAll"]</BitButton>
+                            <BitButton Variant="BitVariant.Outline" OnClick="@(() => SetAllMenus(false))">@L["identity.common.clearAll"]</BitButton>
+                            <BitText Class="muted id-tree-hint">@L.GetString("identity.roles.menusHint", _selectedMenuCount, _menus.Count)</BitText>
                         </div>
                     }
                 </BitPivotItem>
-                <BitPivotItem HeaderText="操作权限" ItemCount="@(_selectedPermissionCount == 0 ? null : _selectedPermissionCount)">
+                <BitPivotItem HeaderText="@L["identity.roles.tab.permissions"]" ItemCount="@(_selectedPermissionCount == 0 ? null : _selectedPermissionCount)">
                     @if (_selected is null)
                     {
-                        <BitText Class="muted">请从左侧选择一个角色。</BitText>
+                        <BitText Class="muted">@L["identity.roles.selectPrompt"]</BitText>
                     }
                     else
                     {
@@ -135,16 +137,16 @@
                             }
                             @if (_permissionCatalog.Count == 0)
                             {
-                                <BitText Class="muted">权限目录为空，请先执行模块数据库迁移种子。</BitText>
+                                <BitText Class="muted">@L["identity.roles.permissionsEmpty"]</BitText>
                             }
                         </div>
                         <div class="row">
                             <PermissionGate Codes="@(["identity.permission.write"])">
-                                <BitButton OnClick="SavePermissionsAsync" Disabled="@(!_permissionDirty)">保存操作权限</BitButton>
+                                <BitButton OnClick="SavePermissionsAsync" Disabled="@(!_permissionDirty)">@L["identity.roles.action.savePermissions"]</BitButton>
                             </PermissionGate>
-                            <BitButton Variant="BitVariant.Outline" OnClick="@(() => SetAllPermissions(true))">全选</BitButton>
-                            <BitButton Variant="BitVariant.Outline" OnClick="@(() => SetAllPermissions(false))">清空</BitButton>
-                            <BitText Class="muted id-tree-hint">勾选该角色可执行的操作权限（已选 @_selectedPermissionCount / @_permissionCatalog.Count），保存后生效。</BitText>
+                            <BitButton Variant="BitVariant.Outline" OnClick="@(() => SetAllPermissions(true))">@L["identity.common.selectAll"]</BitButton>
+                            <BitButton Variant="BitVariant.Outline" OnClick="@(() => SetAllPermissions(false))">@L["identity.common.clearAll"]</BitButton>
+                            <BitText Class="muted id-tree-hint">@L.GetString("identity.roles.permissionsHint", _selectedPermissionCount, _permissionCatalog.Count)</BitText>
                         </div>
                     }
                 </BitPivotItem>
@@ -154,8 +156,8 @@
 </div>
 
 <BlazorBoilerplateModal @bind-IsOpen="_deleteDialogOpen"
-            Title="删除角色" Danger OkText="删除"
-            Message="@($"确定要删除角色 {_selected?.Name ?? ""} 吗？其用户与菜单关联将一并清除。")"
+            Title="@L["identity.roles.modal.deleteTitle"]" Danger OkText="@L["platform.common.delete"]"
+            Message="@L.GetString("identity.roles.modal.deleteConfirm", _selected?.Name ?? "")"
             OnOk="DeleteRoleAsync" />
 
 @code {
@@ -177,7 +179,11 @@
     private string? EditDescription;
     private bool _deleteDialogOpen;
 
-    protected override async Task OnInitializedAsync() => await RefreshAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        await FrontendLoc.EnsureLoadedAsync();
+        await RefreshAsync();
+    }
 
     private async Task RefreshAsync()
     {
@@ -276,9 +282,9 @@
             var codes = _permissionSelection.Where(kv => kv.Value).Select(kv => kv.Key).ToArray();
             await Api.SetRolePermissionsAsync(_selected.Id, codes);
             _permissionDirty = false;
-            Toast.Success($"角色「{_selected.Name}」的操作权限已保存。");
+            Toast.Success(L.GetString("identity.roles.toast.permissionsSaved", _selected.Name));
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error($"保存操作权限失败：{ex.Message}"); }
+        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.roles.toast.savePermissionsFailed", ex.Message)); }
     }
 
     private int _selectedMenuCount => _menuSelection.Count(kv => kv.Value);
@@ -371,12 +377,12 @@
         _menuDirty = true;
     }
 
-    private static string GetMenuLabel(IdentityMenuDto menu)
+    private string GetMenuLabel(IdentityMenuDto menu)
     {
         var suffix = string.Equals(menu.Kind, "group", StringComparison.OrdinalIgnoreCase)
-            ? "分组"
+            ? L["identity.menus.kind.groupShort"]
             : (string.IsNullOrEmpty(menu.Path) ? null : menu.Path);
-        return string.IsNullOrEmpty(suffix) ? menu.Name : $"{menu.Name}（{suffix}）";
+        return string.IsNullOrEmpty(suffix) ? menu.Name : $"{menu.Name} ({suffix})";
     }
 
     private void OnMenuSelectionChanged(Guid menuId, bool selected)
@@ -422,11 +428,11 @@
         {
             var response = await Api.PostAsync("api/identity/roles", new { Name = NewRoleName, Description = (string?)null });
             EnsureOk(response);
-            Toast.Success($"角色「{NewRoleName}」已创建。");
+            Toast.Success(L.GetString("identity.roles.toast.created", NewRoleName));
             NewRoleName = string.Empty;
             await RefreshAsync();
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error($"创建角色失败：{ex.Message}"); }
+        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.roles.toast.createFailed", ex.Message)); }
     }
 
     private async Task SaveRoleAsync()
@@ -437,10 +443,10 @@
         {
             var response = await Api.PutAsync($"api/identity/roles/{_selected.Id}", new { Name = EditName, Description = EditDescription });
             EnsureOk(response);
-            Toast.Success($"角色「{EditName}」已保存。");
+            Toast.Success(L.GetString("identity.roles.toast.saved", EditName));
             await RefreshAsync();
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error($"保存角色失败：{ex.Message}"); }
+        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.roles.toast.saveFailed", ex.Message)); }
     }
 
     private async Task DeleteRoleAsync()
@@ -453,11 +459,11 @@
             var response = await Api.DeleteAsync($"api/identity/roles/{_selected.Id}");
             EnsureOk(response);
             _deleteDialogOpen = false;
-            Toast.Success($"角色「{name}」已删除。");
+            Toast.Success(L.GetString("identity.roles.toast.deleted", name));
             _selected = null;
             await RefreshAsync();
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error($"删除角色失败：{ex.Message}"); }
+        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.roles.toast.deleteFailed", ex.Message)); }
     }
 
     private async Task SaveMenusAsync()
@@ -470,9 +476,9 @@
             var response = await Api.PutAsync($"api/identity/roles/{_selected.Id}/menus", new { Ids = ids });
             EnsureOk(response);
             _menuDirty = false;
-            Toast.Success($"角色「{_selected.Name}」的菜单授权已保存。");
+            Toast.Success(L.GetString("identity.roles.toast.menusSaved", _selected.Name));
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error($"保存菜单授权失败：{ex.Message}"); }
+        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.roles.toast.saveMenusFailed", ex.Message)); }
     }
 
     private static void EnsureOk(HttpResponseMessage response)

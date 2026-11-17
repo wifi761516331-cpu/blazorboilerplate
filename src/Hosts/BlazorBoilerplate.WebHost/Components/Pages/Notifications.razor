@@ -4,10 +4,11 @@
 @inject ToastService Toast
 @inject UserPreferences Preferences
 @inject AccountState Account
+@inject ILocalizationService L
 
 <div class="page-callout">
-    <h1 class="page-title">通知中心</h1>
-    <p class="muted">查看站内通知、标记已读，并可发送一条测试通知。</p>
+    <h1 class="page-title">@L["platform.header.notifications.title"]</h1>
+    <p class="muted">@L["platform.notifications.subtitle"]</p>
 </div>
 
 @if (_loadError is not null)
@@ -16,36 +17,36 @@
 }
 
 <div class="bb-toolbar">
-    <span class="muted">共 @_notifications.Count 条，@UnreadCount 条未读</span>
+    <span class="muted">@L.GetString("platform.notifications.summary", _notifications.Count, UnreadCount)</span>
     <div class="bb-spacer"></div>
-    <button type="button" class="blazorboilerplate-btn ghost" @onclick="MarkAllReadAsync" disabled="@(UnreadCount == 0)">全部标记已读</button>
+    <button type="button" class="blazorboilerplate-btn ghost" @onclick="MarkAllReadAsync" disabled="@(UnreadCount == 0)">@L["platform.notifications.markAllRead"]</button>
     <PermissionView Code="notification.send-test">
         <button type="button" class="blazorboilerplate-btn primary" @onclick="OpenEmailModal" disabled="@_sendingEmail">
-            @(_sendingEmail ? "发送中…" : "发送测试邮件")
+            @(_sendingEmail ? L["platform.notifications.sending"] : L["platform.notifications.sendTestEmail"])
         </button>
         @if (_notificationsEnabled)
         {
             <button type="button" class="blazorboilerplate-btn primary" @onclick="SendTestAsync" disabled="@_sending">
-                @(_sending ? "发送中…" : "发送测试通知")
+                @(_sending ? L["platform.notifications.sending"] : L["platform.notifications.sendTest"])
             </button>
         }
         else
         {
-            <button type="button" class="blazorboilerplate-btn primary" disabled title="请先在账号菜单开启通知">发送测试通知</button>
+            <button type="button" class="blazorboilerplate-btn primary" disabled title="@L["platform.notifications.enableHint"]">@L["platform.notifications.sendTest"]</button>
         }
     </PermissionView>
-    <button type="button" class="blazorboilerplate-btn ghost" @onclick="LoadAsync">刷新</button>
+    <button type="button" class="blazorboilerplate-btn ghost" @onclick="LoadAsync">@L["platform.common.refresh"]</button>
 </div>
 
 @if (!_notificationsEnabled)
 {
-    <div class="page-callout success">站内通知当前关闭，可在右上角账号菜单中开启。</div>
+    <div class="page-callout success">@L["platform.notifications.disabledBanner"]</div>
 }
 
 <div class="notif-list">
     @if (_notifications.Count == 0)
     {
-        <div class="notif-empty">暂无通知。</div>
+        <div class="notif-empty">@L["platform.notifications.empty"]</div>
     }
     @foreach (var n in _notifications)
     {
@@ -60,16 +61,16 @@
                 <div class="notif-foot">
                     @if (!string.IsNullOrWhiteSpace(n.PageUrl))
                     {
-                        <a class="bit-link" href="@n.PageUrl">查看详情 →</a>
+                        <a class="bit-link" href="@n.PageUrl">@L["platform.notifications.viewDetails"]</a>
                     }
                     @if (!n.IsRead)
                     {
                         <button type="button" class="bb-link-btn" @onclick="() => MarkReadAsync(n)"
-                                disabled="@_marking.Contains(n.Id)">标记已读</button>
+                                disabled="@_marking.Contains(n.Id)">@L["platform.notifications.markRead"]</button>
                     }
                     else
                     {
-                        <span class="muted">已读</span>
+                        <span class="muted">@L["platform.notifications.read"]</span>
                     }
                 </div>
             </div>
@@ -78,22 +79,22 @@
 </div>
 
 <BlazorBoilerplateModal @bind-IsOpen="_emailModalOpen"
-                        Title="发送邮件通知"
-                        OkText="发送邮件"
+                        Title="@L["platform.notifications.emailModalTitle"]"
+                        OkText="@L["platform.notifications.sendEmailOk"]"
                         OnOk="SendTestEmailAsync">
     <div class="id-form">
         <div class="auth-field">
-            <label class="auth-label" for="email-to">收件人邮箱</label>
+            <label class="auth-label" for="email-to">@L["platform.notifications.emailTo"]</label>
             <input id="email-to" class="auth-input" type="email" @bind="_emailTo" placeholder="761516331@qq.com" />
         </div>
         <div class="auth-field">
-            <label class="auth-label" for="email-subject">邮件主题</label>
-            <input id="email-subject" class="auth-input" @bind="_emailSubject" placeholder="BlazorBoilerplate 邮件通知测试" />
+            <label class="auth-label" for="email-subject">@L["platform.notifications.emailSubject"]</label>
+            <input id="email-subject" class="auth-input" @bind="_emailSubject" placeholder="@L["platform.notifications.defaultEmailSubject"]" />
         </div>
         <div class="auth-field">
-            <label class="auth-label" for="email-body">邮件内容</label>
+            <label class="auth-label" for="email-body">@L["platform.notifications.emailBody"]</label>
             <textarea id="email-body" class="auth-input" rows="4" @bind="_emailBody"
-                      placeholder="这是一条来自 BlazorBoilerplate 平台的测试邮件通知。"></textarea>
+                      placeholder="@L["platform.notifications.emailBodyPlaceholder"]"></textarea>
         </div>
     </div>
 </BlazorBoilerplateModal>
@@ -105,8 +106,8 @@
     private bool _sendingEmail;
     private bool _emailModalOpen;
     private string _emailTo = string.Empty;
-    private string _emailSubject = "BlazorBoilerplate 邮件通知测试";
-    private string _emailBody = "这是一条来自 BlazorBoilerplate 平台的测试邮件通知，表明您的 SMTP 邮件服务已配置成功。";
+    private string _emailSubject = string.Empty;
+    private string _emailBody = string.Empty;
     private string? _loadError;
     private readonly HashSet<Guid> _marking = [];
 
@@ -114,6 +115,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _emailSubject = L["platform.notifications.defaultEmailSubject"];
+        _emailBody = L["platform.notifications.defaultEmailBody"];
         await Account.EnsureLoadedAsync();
         _emailTo = Account.CurrentUser?.Email ?? string.Empty;
         var prefs = await Preferences.GetAsync();
@@ -131,8 +134,8 @@
         }
         catch (Exception ex)
         {
-            _loadError = $"读取通知失败：{ex.Message}";
-            Toast.Error($"读取通知失败：{ex.Message}");
+            _loadError = L.GetString("platform.notifications.toast.loadFailed", ex.Message);
+            Toast.Error(_loadError);
         }
     }
 
@@ -144,11 +147,11 @@
             await Api.MarkNotificationReadAsync(item.Id);
             var read = item with { IsRead = true };
             _notifications = _notifications.Select(n => n.Id == read.Id ? read : n).ToList();
-            Toast.Success("已标记为已读。");
+            Toast.Success(L["platform.notifications.toast.markedRead"]);
         }
         catch (Exception ex)
         {
-            Toast.Error($"标记已读失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.notifications.toast.markReadFailed", ex.Message));
         }
         finally
         {
@@ -162,11 +165,11 @@
         {
             await Api.MarkAllNotificationsReadAsync();
             _notifications = _notifications.Select(n => n with { IsRead = true }).ToList();
-            Toast.Success("全部通知已标记为已读。");
+            Toast.Success(L["platform.notifications.toast.markedAllRead"]);
         }
         catch (Exception ex)
         {
-            Toast.Error($"全部标记已读失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.notifications.toast.markAllReadFailed", ex.Message));
         }
     }
 
@@ -176,12 +179,12 @@
         try
         {
             await Api.SendTestNotificationAsync();
-            Toast.Success("测试通知已发送。");
+            Toast.Success(L["platform.notifications.toast.testSent"]);
             await LoadAsync();
         }
         catch (Exception ex)
         {
-            Toast.Error($"发送测试通知失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.notifications.toast.sendTestFailed", ex.Message));
         }
         finally
         {
@@ -204,12 +207,12 @@
         {
             var result = await Api.SendTestEmailAsync(new SendEmailNotificationRequestDto(
                 _emailTo, _emailSubject, _emailBody));
-            Toast.Success($"测试邮件已发送至 {result.ToEmail}。");
+            Toast.Success(L.GetString("platform.notifications.toast.testEmailSent", result.ToEmail));
             await LoadAsync();
         }
         catch (Exception ex)
         {
-            Toast.Error($"发送测试邮件失败：{ex.Message}");
+            Toast.Error(L.GetString("platform.notifications.toast.sendTestEmailFailed", ex.Message));
         }
         finally
         {

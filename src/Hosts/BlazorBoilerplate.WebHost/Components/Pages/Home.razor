@@ -3,6 +3,7 @@
 @inject BlazorBoilerplateApiClient Api
 @inject SystemSettingsState SysState
 @inject ILogger<Home> Logger
+@inject ILocalizationService L
 
 @* 页面骨架移植自 Bluebird DashboardPage / OverallStatusCard / 各 Widget：
    <section> + 4 统计卡 + 6 列 Widget 网格。
@@ -13,42 +14,42 @@
             <div class="bb-stat-icon"><AppIcon Name="Info" /></div>
             <div class="bb-stat-body">
                 <p class="bb-stat-value">@(_status?.Mode ?? "—")</p>
-                <span class="bb-stat-label">运行模式</span>
+                <span class="bb-stat-label">@L["platform.home.stat.mode"]</span>
             </div>
         </div>
         <div class="bb-stat">
             <div class="bb-stat-icon"><AppIcon Name="Puzzle" /></div>
             <div class="bb-stat-body">
                 <p class="bb-stat-value">@_moduleCount</p>
-                <span class="bb-stat-label">已注册模块</span>
+                <span class="bb-stat-label">@L["platform.home.stat.modules"]</span>
             </div>
         </div>
         <div class="bb-stat">
             <div class="bb-stat-icon"><AppIcon Name="Shop" /></div>
             <div class="bb-stat-body">
                 <p class="bb-stat-value">@(_productCount?.ToString() ?? "—")</p>
-                <span class="bb-stat-label">商品记录 / OData</span>
+                <span class="bb-stat-label">@L["platform.home.stat.products"]</span>
             </div>
         </div>
         <div class="bb-stat">
             <div class="bb-stat-icon"><AppIcon Name="People" /></div>
             <div class="bb-stat-body">
                 <p class="bb-stat-value">@DashboardMockData.MockUserCount</p>
-                <span class="bb-stat-label">活跃用户（mock）</span>
+                <span class="bb-stat-label">@L["platform.home.stat.activeUsers"]</span>
             </div>
         </div>
     </div>
 
     @if (_loadError is not null)
     {
-        <div class="page-callout error">无法连接 ApiHost：@_loadError（下方 Widget 使用 mock 数据展示）</div>
+        <div class="page-callout error">@L.GetString("platform.home.error.apiHost", _loadError)</div>
     }
 
     <div class="bb-widgets">
         <div class="bb-widget span-4">
             <div class="bb-widget-head">
-                <h2 class="bb-widget-title">各分类商品数量</h2>
-                <span class="bb-widget-sub">mock · 近 30 天</span>
+                <h2 class="bb-widget-title">@L["platform.home.widget.categoryCounts"]</h2>
+                <span class="bb-widget-sub">@L["platform.home.widget.mock30Days"]</span>
             </div>
             <div class="bb-chart">
                 @{ var max = DashboardMockData.Categories.Max(c => c.Count); }
@@ -65,7 +66,7 @@
 
         <div class="bb-widget span-2">
             <div class="bb-widget-head">
-                <h2 class="bb-widget-title">商品占比</h2>
+                <h2 class="bb-widget-title">@L["platform.home.widget.productShare"]</h2>
                 <span class="bb-widget-sub">mock</span>
             </div>
             <div class="bb-pie-row">
@@ -86,7 +87,7 @@
 
         <div class="bb-widget span-3">
             <div class="bb-widget-head">
-                <h2 class="bb-widget-title">最近活动</h2>
+                <h2 class="bb-widget-title">@L["platform.home.widget.recentActivity"]</h2>
                 <span class="bb-widget-sub">mock</span>
             </div>
             <ul class="bb-activity">
@@ -103,8 +104,8 @@
 
         <div class="bb-widget span-3">
             <div class="bb-widget-head">
-                <h2 class="bb-widget-title">快捷入口</h2>
-                <span class="bb-widget-sub">平台功能</span>
+                <h2 class="bb-widget-title">@L["platform.home.widget.quickLinks"]</h2>
+                <span class="bb-widget-sub">@L["platform.home.widget.platformFeatures"]</span>
             </div>
             <div class="bb-quick">
                 @foreach (var link in DashboardMockData.QuickLinks)
@@ -118,7 +119,7 @@
                 <PermissionView Code="identity.user.update">
                     <a href="/profile">
                         <AppIcon Name="Contact" />
-                        <span>个人资料</span>
+                        <span>@L["platform.nav.profile"]</span>
                     </a>
                 </PermissionView>
             </div>
@@ -126,17 +127,13 @@
 
         <div class="bb-widget span-6">
             <div class="bb-widget-head">
-                <h2 class="bb-widget-title">关于 @SysState.Public.SystemName</h2>
+                <h2 class="bb-widget-title">@L.GetString("platform.home.aboutTitle", SysState.Public.SystemName)</h2>
                 <span class="bb-widget-sub">@SysState.Public.FooterText</span>
             </div>
-            <p class="muted">
-                基于 .NET 10、BitPlatform 与 Bit.BlazorUI 的模块化单体（Modular Monolith）演示。
-                模块同时承载后端 Endpoint / Service 与前端 Razor 页面 / 菜单，按 DisplayOrder + 依赖拓扑排序加载，
-                除必要模块外均可动态加载与卸载，端点随模块上线或下线，无需重启宿主。
-            </p>
+            <p class="muted">@L["platform.home.aboutDesc"]</p>
             <div class="row">
-                <a class="bit-link" href="/modules">打开模块管理 →</a>
-                <a class="bit-link" href="/catalog">打开商品目录 →</a>
+                <a class="bit-link" href="/modules">@L["platform.home.openModules"] →</a>
+                <a class="bit-link" href="/catalog">@L["platform.home.openCatalog"] →</a>
             </div>
         </div>
     </div>
