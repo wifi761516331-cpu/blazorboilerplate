@@ -135,6 +135,13 @@ a { color: var(--bb-pri); }
     outline-offset: 2px;
     border-radius: var(--bb-radius-sm);
 }
+/* 纯文本标题被浏览器/辅助插件纳入 Tab 序列时，不画焦点描边框。
+   仅针对非交互标题元素；可交互元素（a/button/input/select）保留焦点提示。 */
+h1:focus-visible, h2:focus-visible, h3:focus-visible,
+h4:focus-visible, h5:focus-visible, h6:focus-visible,
+p:focus-visible, span:focus-visible {
+    outline: none;
+}
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
