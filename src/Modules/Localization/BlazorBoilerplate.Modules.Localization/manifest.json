@@ -1,0 +1,63 @@
+{
+  "id": "localization",
+  "name": "Localization",
+  "displayName": "多语言管理",
+  "version": "1.0.10",
+  "publisher": "BlazorBoilerplate",
+  "entryAssembly": "BlazorBoilerplate.Modules.Localization.dll",
+  "entryType": "BlazorBoilerplate.Modules.Localization.LocalizationModule",
+  "contractVersion": "1.0",
+  "moduleSdkVersion": "1.0",
+  "hostCompatibility": ">=1.0.0 <2.0.0",
+  "displayOrder": 50,
+  "dependencies": [],
+  "isEssential": false,
+  "permissions": [
+    "localization.language.read",
+    "localization.language.write",
+    "localization.resource.read",
+    "localization.resource.write"
+  ],
+  "permissionItems": [
+    {
+      "code": "localization.language.read",
+      "name": "查看语言"
+    },
+    {
+      "code": "localization.language.write",
+      "name": "管理语言"
+    },
+    {
+      "code": "localization.resource.read",
+      "name": "查看词条"
+    },
+    {
+      "code": "localization.resource.write",
+      "name": "编辑词条"
+    }
+  ],
+  "database": {
+    "enabled": true
+  },
+  "frontend": {
+    "assembly": "BlazorBoilerplate.Modules.Localization.Frontend.dll",
+    "routes": [
+      "/localization"
+    ],
+    "menus": [
+      "Localization"
+    ],
+    "menuItems": [
+      {
+        "text": "多语言管理",
+        "route": "/localization",
+        "icon": "Globe",
+        "sort": 900
+      }
+    ],
+    "localization": [],
+    "assets": []
+  },
+  "checksumSha256": null
+}
+
