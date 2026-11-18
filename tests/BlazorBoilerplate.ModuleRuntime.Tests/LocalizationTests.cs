@@ -104,6 +104,45 @@ public class LocalizationTests
         }
     }
 
+    [Fact]
+    public async Task DelegatingLocalizationStore_BridgesScopedModuleStoreAndDetachesCleanly()
+    {
+        var bridge = new DelegatingLocalizationStore();
+        ILocalizationStore hostStore = bridge;
+
+        // 未挂载模块时返回空，不阻断内置回退
+        Assert.False(bridge.IsAttached);
+        Assert.Null(bridge.AttachedModuleId);
+        Assert.Empty(await hostStore.GetLanguagesAsync());
+        Assert.Null(await hostStore.TryGetResourceAsync("zh-CN", "platform.auth.signIn"));
+        Assert.Empty(await hostStore.GetResourcesAsync("zh-CN"));
+
+        // 模拟模块独立 DI 容器（ValidateScopes = true + Scoped Store）
+        var moduleServices = new ServiceCollection();
+        moduleServices.AddScoped<ILocalizationStore, StubLocalizationStore>();
+        using var moduleProvider = moduleServices.BuildServiceProvider(new ServiceProviderOptions
+        {
+            ValidateScopes = true,
+            ValidateOnBuild = true
+        });
+
+        bridge.Attach("localization", moduleProvider);
+        Assert.True(bridge.IsAttached);
+        Assert.Equal("localization", bridge.AttachedModuleId);
+        Assert.Equal("数据库覆盖登录", await hostStore.TryGetResourceAsync("zh-CN", "platform.auth.signIn"));
+        Assert.NotEmpty(await hostStore.GetLanguagesAsync());
+
+        // 非匹配模块 Detach 不应误解绑
+        bridge.Detach("catalog");
+        Assert.True(bridge.IsAttached);
+
+        // 匹配模块 Detach 后立即回到未挂载状态
+        bridge.Detach("localization");
+        Assert.False(bridge.IsAttached);
+        Assert.Null(bridge.AttachedModuleId);
+        Assert.Null(await hostStore.TryGetResourceAsync("zh-CN", "platform.auth.signIn"));
+    }
+
     private sealed class StubLocalizationStore : ILocalizationStore
     {
         public Task<IReadOnlyList<LanguageInfo>> GetLanguagesAsync(CancellationToken cancellationToken = default) =>

@@ -336,6 +336,10 @@ public sealed class ModuleLifecycleManager(
 
             await module.StartAsync(cancellationToken);
 
+            // 若模块注册了持久化 ILocalizationStore，先挂载到宿主桥接器，使后续词条同步可写入该 Store。
+            if (provider.GetService<IServiceProviderIsService>()?.IsService(typeof(ILocalizationStore)) == true)
+                hostServices.GetService<ILocalizationStoreBridge>()?.Attach(id, provider);
+
             await RegisterModuleLocalizationAsync(id, entry.Descriptor.PackagePath, provider, cancellationToken);
 
             // 扫描模块程序集中标记 [Subscribe] 的处理器，注册到宿主 EventBus 的弱引用表。
@@ -372,6 +376,7 @@ public sealed class ModuleLifecycleManager(
         {
             logger.LogError(ex, "Module load failed. Id={Id}", id);
             registry.Remove(id);
+            hostServices.GetService<ILocalizationStoreBridge>()?.Detach(id);
             hostServices.GetService<EventBus>()?.UnsubscribeModule(id);
             handle.EventHandlers = null;
             await SafeDisposeAsync(handle, cancellationToken);
@@ -418,7 +423,8 @@ public sealed class ModuleLifecycleManager(
             hostServices.GetService<EventBus>()?.UnsubscribeModule(id);
             handle.EventHandlers = null;
 
-            // 注销该模块的多语言资源并清理缓存 Tag，防止 ALC 卸载泄漏。
+            // 注销该模块的多语言资源并解绑宿主 Store 桥接器、清理缓存 Tag，防止 ALC 卸载泄漏。
+            hostServices.GetService<ILocalizationStoreBridge>()?.Detach(id);
             hostServices.GetService<ILocalizationRegistry>()?.UnregisterModule(id);
             if (hostServices.GetService<ICacheService>() is { } cache)
                 await cache.RemoveByTagAsync($"localization:{id}", cancellationToken);
@@ -442,6 +448,7 @@ public sealed class ModuleLifecycleManager(
         {
             catalog.SetState(id, ModuleState.Failed, ex.Message);
             registry.Remove(id);
+            hostServices.GetService<ILocalizationStoreBridge>()?.Detach(id);
             hostServices.GetService<EventBus>()?.UnsubscribeModule(id);
             handle.EventHandlers = null;
             await SafeDisposeAsync(handle, cancellationToken);

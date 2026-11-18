@@ -76,6 +76,19 @@ public interface ILocalizationStore
 }
 
 /// <summary>
+/// 宿主与动态模块之间的持久化多语言存储桥接器（宿主单例）：
+/// 模块加载时将模块 DI 中的 <see cref="ILocalizationStore"/> 接入宿主，
+/// 卸载或加载失败时精确解绑，避免宿主持有模块 ALC 内对象的引用导致内存泄漏。
+/// </summary>
+public interface ILocalizationStoreBridge
+{
+    bool IsAttached { get; }
+    string? AttachedModuleId { get; }
+    void Attach(string moduleId, IServiceProvider moduleServiceProvider);
+    void Detach(string moduleId);
+}
+
+/// <summary>
 /// 前后端统一多语言读取服务：
 /// 解析顺序为 当前文化 -> 父文化（如 zh-CN -> zh） -> 中间回退语言 en-US -> key 本身。
 /// </summary>

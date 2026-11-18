@@ -140,6 +140,9 @@ public static class InfrastructureServiceCollectionExtensions
             PlatformBuiltInResources.Register(registry);
             return registry;
         });
+        services.AddSingleton<DelegatingLocalizationStore>();
+        services.AddSingleton<ILocalizationStore>(sp => sp.GetRequiredService<DelegatingLocalizationStore>());
+        services.AddSingleton<ILocalizationStoreBridge>(sp => sp.GetRequiredService<DelegatingLocalizationStore>());
         services.AddScoped<ILocalizationService, PlatformLocalizationService>();
         return services;
     }
