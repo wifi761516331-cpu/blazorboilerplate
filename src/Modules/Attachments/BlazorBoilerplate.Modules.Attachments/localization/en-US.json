@@ -45,5 +45,6 @@
   "attachments.success.uploaded": "Successfully uploaded {0} attachment(s).",
   "attachments.success.copied": "Attachment link copied to clipboard.",
   "attachments.info.link": "Attachment link: {0}",
-  "attachments.success.deleted": "Deleted attachment \"{0}\"."
+  "attachments.success.deleted": "Deleted attachment \"{0}\".",
+  "identity.roles.permissionGroup.attachments": "Attachments"
 }

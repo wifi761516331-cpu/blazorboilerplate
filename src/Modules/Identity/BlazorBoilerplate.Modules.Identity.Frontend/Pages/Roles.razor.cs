@@ -159,7 +159,7 @@ public partial class Roles
     private List<PermissionGroupRow> GetPermissionGroups() =>
         _permissionCatalog
             .GroupBy(ResolvePermissionGroupKey, StringComparer.OrdinalIgnoreCase)
-            .Select(g => new PermissionGroupRow(g.Key, ResolveGroupTitle(g.Key, g.First().ModuleId), g.OrderBy(p => p.Code).ToList()))
+            .Select(g => new PermissionGroupRow(g.Key, ResolveGroupTitle(g.Key), g.OrderBy(p => p.Code).ToList()))
             .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -169,33 +169,10 @@ public partial class Roles
         return lastDot > 0 ? permission.Code[..lastDot] : (permission.ModuleId ?? "other");
     }
 
-    private string ResolveGroupTitle(string groupKey, string? moduleId)
+    private string ResolveGroupTitle(string groupKey)
     {
-        // 从数据库已配置的菜单动态匹配分组显示名称，避免硬编码
-        var byCode = _menus.FirstOrDefault(m =>
-            !string.IsNullOrWhiteSpace(m.PermissionCode) &&
-            m.PermissionCode.StartsWith(groupKey + ".", StringComparison.OrdinalIgnoreCase));
-        if (byCode is not null) return $"{byCode.Name}（{groupKey}）";
-
-        var segment = groupKey.Split('.').LastOrDefault();
-        if (!string.IsNullOrWhiteSpace(segment))
-        {
-            var byPath = _menus.FirstOrDefault(m =>
-                !string.Equals(m.Kind, "group", StringComparison.OrdinalIgnoreCase) &&
-                !string.IsNullOrWhiteSpace(m.Path) &&
-                m.Path.Contains(segment, StringComparison.OrdinalIgnoreCase));
-            if (byPath is not null) return $"{byPath.Name}（{groupKey}）";
-        }
-
-        if (!string.IsNullOrWhiteSpace(moduleId))
-        {
-            var moduleMenus = _menus.Where(m =>
-                !string.Equals(m.Kind, "group", StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(m.ModuleId, moduleId, StringComparison.OrdinalIgnoreCase)).ToList();
-            if (moduleMenus.Count == 1) return $"{moduleMenus[0].Name}（{groupKey}）";
-        }
-
-        return groupKey;
+        var localizationKey = "identity.roles.permissionGroup." + groupKey.Replace('.', '_');
+        return L[localizationKey];
     }
 
     private void TogglePermissionGroup(List<PermissionDefinitionDto> items, bool selected)

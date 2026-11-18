@@ -5,6 +5,7 @@ using BlazorBoilerplate.Modules.Identity.Domain;
 using BlazorBoilerplate.Modules.Identity.Persistence;
 using BlazorBoilerplate.ModuleRuntime.Runtime;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace BlazorBoilerplate.ApiHost.Modules;
 
@@ -41,7 +42,13 @@ public sealed class ModuleMigrationRunner(
             .Select(h => (int?)h.Sequence)
             .MaxAsync(ct) ?? 0;
 
-        var executionServices = moduleServices ?? rootServices;
+        // 迁移步骤可能解析 scoped 服务（Identity 的 SeedPermissions 就要拿 IdentityDbContext）。
+        // moduleServices / rootServices 都是根容器，直接传进去会抛 "Cannot resolve scoped service from root provider"，
+        // 导致整个 OnLoaded 钩子中断（Identity 权限和菜单同步因此全被跳过）。必须用 scope 执行。
+        var executionProvider = moduleServices ?? rootServices;
+        await using var executionScope = executionProvider.GetRequiredService<IServiceScopeFactory>().CreateAsyncScope();
+        var executionServices = executionScope.ServiceProvider;
+
         var count = 0;
         foreach (var step in mergedSteps.Values.OrderBy(s => s.Sequence))
         {

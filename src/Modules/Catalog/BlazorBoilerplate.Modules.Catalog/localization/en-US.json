@@ -23,5 +23,6 @@
   "catalog.pager.page": "Page {0}",
   "catalog.pager.next": "Next",
   "catalog.error.queryFailedStatus": "Query failed ({0}): {1}",
-  "catalog.error.queryFailed": "Query failed: {0}"
+  "catalog.error.queryFailed": "Query failed: {0}",
+  "identity.roles.permissionGroup.catalog_product": "Products"
 }

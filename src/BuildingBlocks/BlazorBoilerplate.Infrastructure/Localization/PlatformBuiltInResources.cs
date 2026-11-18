@@ -16,6 +16,10 @@ public static class PlatformBuiltInResources
     private static readonly Dictionary<string, string> EnUs = new(StringComparer.OrdinalIgnoreCase)
     {
         ["platform.app.name"] = "BlazorBoilerplate",
+        // 宿主核心权限分组标题（角色编辑页按 key 查；module/system.settings/tenant 非动态模块权限）
+        ["identity.roles.permissionGroup.module"] = "Modules",
+        ["identity.roles.permissionGroup.system_settings"] = "System Settings",
+        ["identity.roles.permissionGroup.tenant"] = "Tenants",
         ["platform.nav.home"] = "Home",
         ["platform.nav.modules"] = "Modules",
         ["platform.nav.systemSettings"] = "System Settings",
@@ -445,6 +449,10 @@ public static class PlatformBuiltInResources
     private static readonly Dictionary<string, string> ZhCn = new(StringComparer.OrdinalIgnoreCase)
     {
         ["platform.app.name"] = "BlazorBoilerplate",
+        // 宿主核心权限分组标题（角色编辑页按 key 查；module/system.settings/tenant 非动态模块权限）
+        ["identity.roles.permissionGroup.module"] = "模块管理",
+        ["identity.roles.permissionGroup.system_settings"] = "系统设置",
+        ["identity.roles.permissionGroup.tenant"] = "租户管理",
         ["platform.nav.home"] = "首页",
         ["platform.nav.modules"] = "模块管理",
         ["platform.nav.systemSettings"] = "系统设置",

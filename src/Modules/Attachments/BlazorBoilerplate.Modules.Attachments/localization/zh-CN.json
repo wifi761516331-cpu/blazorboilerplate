@@ -45,5 +45,6 @@
   "attachments.success.uploaded": "成功上传 {0} 个附件。",
   "attachments.success.copied": "已复制附件链接到剪贴板。",
   "attachments.info.link": "附件链接：{0}",
-  "attachments.success.deleted": "已删除附件“{0}”。"
+  "attachments.success.deleted": "已删除附件“{0}”。",
+  "identity.roles.permissionGroup.attachments": "附件管理"
 }

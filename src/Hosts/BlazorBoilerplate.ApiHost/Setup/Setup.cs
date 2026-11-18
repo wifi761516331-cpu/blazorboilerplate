@@ -1,4 +1,5 @@
 using System.Text.Json;
+using BlazorBoilerplate.ApiHost.Modules;
 using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.ModuleRuntime.Runtime;
 using Microsoft.Extensions.Logging;
@@ -96,6 +97,7 @@ public static class SetupEndpoints
             ISetupInitializer initializer,
             ModuleLifecycleManager modules,
             IOptions<ModuleRuntimeOptions> runtimeOptions,
+            IServiceProvider serviceProvider,
             ILogger<SetupLogCategory> logger,
             CancellationToken cancellationToken) =>
         {
@@ -120,7 +122,13 @@ public static class SetupEndpoints
             {
                 try
                 {
-                    await modules.LoadAllAsync(cancellationToken);
+                    var loaded = await modules.LoadAllAsync(cancellationToken);
+
+                    // 与启动 auto-load、/api/modules/load-all 保持一致：模块加载后必须跑数据钩子，
+                    // 否则首次安装完成的进程里 PermissionDefinitions / 菜单同步为空（要重启才补上）。
+                    foreach (var descriptor in loaded.Where(d => d.State == ModuleState.Running))
+                        await ModuleDataHooks.OnLoadedAsync(
+                            serviceProvider, descriptor.Id, descriptor.PackagePath, cancellationToken);
                 }
                 catch (Exception ex)
                 {

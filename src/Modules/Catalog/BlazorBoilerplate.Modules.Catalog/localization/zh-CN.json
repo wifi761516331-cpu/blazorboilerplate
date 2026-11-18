@@ -23,5 +23,6 @@
   "catalog.pager.page": "第 {0} 页",
   "catalog.pager.next": "下一页",
   "catalog.error.queryFailedStatus": "查询失败 ({0})：{1}",
-  "catalog.error.queryFailed": "查询失败：{0}"
+  "catalog.error.queryFailed": "查询失败：{0}",
+  "identity.roles.permissionGroup.catalog_product": "商品管理"
 }
