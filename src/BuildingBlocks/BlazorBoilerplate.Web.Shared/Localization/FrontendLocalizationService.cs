@@ -55,10 +55,11 @@ public sealed class FrontendLocalizationService : ILocalizationService, IDisposa
         new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// 进程级：每个文化只调度一次延迟补刷。补刷只弥补「首次安装时模块资源延迟注册」这一一次性窗口；
-    /// 多线路 / 多组件并发命中预热缓存时不应各自产生一份补刷任务。
+    /// 进程级：每个文化同时最多一个补刷任务在途。与永久去重锁不同，这里在补刷循环结束（成功或耗尽重试）后
+    /// 移除条目，允许后续 EnsureLoadedAsync 再次调度——用于覆盖「ApiHost 从 Bootstrap 恢复 Normal」等
+    /// 模块延迟注册的窗口可能晚于首次补刷的场景。多线路并发命中预热缓存仍共享同一补刷任务。
     /// </summary>
-    private static readonly ConcurrentDictionary<string, byte> CatchUpScheduled =
+    private static readonly ConcurrentDictionary<string, byte> CatchUpInFlight =
         new(StringComparer.OrdinalIgnoreCase);
 
     private string _currentCulture = NormalizeInitialCulture();
@@ -130,7 +131,7 @@ public sealed class FrontendLocalizationService : ILocalizationService, IDisposa
         {
             // 命中预热缓存时 LoadAsync 不会执行，catch-up 也就无从触发。
             // 首次安装时中间件预热拿到的可能只有平台资源，模块延迟注册的词条会永久缺失。
-            // 故命中缓存也调度一次补刷（进程级去重，每文化仅一次，见 CatchUpScheduled）。
+            // 故命中缓存也调度补刷（进程级在途去重，见 CatchUpInFlight）。
             ScheduleCatchUpRefresh(target, cached.Count);
             return;
         }
@@ -174,33 +175,47 @@ public sealed class FrontendLocalizationService : ILocalizationService, IDisposa
         }
     }
 
+    /// <summary>
+    /// 有限次退避补刷：模块词条注册可能晚于首屏预热很多（首次安装含迁移/种子/模块加载可达十余秒）。
+    /// 旧实现固定延迟 3 秒且永久去重，一旦扑空就再也不补，页面永久停在原始 key。
+    /// 现在按递增间隔重试若干次，直到拉到的词典比当前缓存更全；每次重试都重新读取 currentCount，
+    /// 保证并发线路里较旧的快照不会覆盖较新的。成功或耗尽重试后移除在途标记，允许后续再次调度。
+    /// </summary>
     private void ScheduleCatchUpRefresh(string target, int initialCount)
     {
-        // 进程级去重：每条线路命中缓存都会调用，但补刷只需一次。
-        if (!CatchUpScheduled.TryAdd(target, 0))
+        // 进程级在途去重：同一文化同时只跑一个补刷循环；结束后移除，不永久封锁。
+        if (!CatchUpInFlight.TryAdd(target, 0))
             return;
 
         _ = Task.Run(async () =>
         {
             try
             {
-                // 给 ApiHost 完成模块装载与资源注册留出窗口；首次安装时该过程需要数秒。
-                await Task.Delay(TimeSpan.FromSeconds(3));
-                var latest = await _api.GetLocalizationResourcesAsync(target);
-                // 只接受词条更多或相等的快照：避免并发线路里较旧的 411 条覆盖掉已预热的 687 条。
-                var currentCount = _cache.TryGetValue(target, out var cur) ? cur.Count : 0;
-                if (latest.Count >= initialCount && latest.Count > currentCount)
+                // 递增间隔：给 ApiHost 完成建库/种子/模块装载留出窗口，总窗口约 12 秒。
+                int[] delaysMs = [1500, 2000, 2500, 3000, 3000];
+                foreach (var delayMs in delaysMs)
                 {
-                    _cache[target] = new Dictionary<string, string>(latest, StringComparer.OrdinalIgnoreCase);
-                    // 与失效入口一致：缓存是进程级共享，必须递增版本 + 全局广播，
-                    // 否则只有本线路重渲染，其他线路仍停在旧词。
-                    Interlocked.Increment(ref _version);
-                    GlobalChanged?.Invoke();
+                    await Task.Delay(delayMs);
+                    var latest = await _api.GetLocalizationResourcesAsync(target);
+                    var currentCount = _cache.TryGetValue(target, out var cur) ? cur.Count : 0;
+                    if (latest.Count > currentCount && latest.Count >= initialCount)
+                    {
+                        _cache[target] = new Dictionary<string, string>(latest, StringComparer.OrdinalIgnoreCase);
+                        // 缓存是进程级共享，必须递增版本 + 全局广播，否则其他线路仍停在旧词。
+                        Interlocked.Increment(ref _version);
+                        GlobalChanged?.Invoke();
+                        return; // 词条已到齐，停止重试。
+                    }
                 }
+                // 重试耗尽仍未增长：保持现状，不阻断渲染；下次 EnsureLoadedAsync 可再调度。
             }
             catch
             {
-                // 补刷失败不影响已渲染内容；CatchUpScheduled 已置位不再重试，避免反复请求。
+                // 单次补刷失败不影响已渲染内容；在途标记在 finally 移除，后续可重试。
+            }
+            finally
+            {
+                CatchUpInFlight.TryRemove(target, out _);
             }
         });
     }
