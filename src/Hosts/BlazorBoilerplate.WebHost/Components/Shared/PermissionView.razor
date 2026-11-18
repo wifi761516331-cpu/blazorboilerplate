@@ -1,7 +1,6 @@
 @* 按钮级权限门：按 AccountState 的权限码决定是否渲染子内容。
    注入 AccountState → EnsureLoadedAsync 后 HasPermission(Code) 为真才渲染 ChildContent；
-   支持 "*" 通配；可选 Fallback 在无权时渲染。 *@
-@inject AccountState Account
+   支持 "*" 通配；可选 Fallback 在无权时渲染。逻辑在 PermissionView.razor.cs。 *@
 @implements IDisposable
 
 @if (_allowed)
@@ -13,32 +12,3 @@ else if (Fallback is not null)
     @Fallback
 }
 
-@code {
-    [Parameter] public string Code { get; set; } = string.Empty;
-    [Parameter] public RenderFragment? ChildContent { get; set; }
-    [Parameter] public RenderFragment? Fallback { get; set; }
-
-    private bool _allowed;
-
-    protected override void OnInitialized()
-    {
-        Account.Changed += OnAccountChanged;
-    }
-
-    protected override async Task OnParametersSetAsync()
-    {
-        await Account.EnsureLoadedAsync();
-        _allowed = Account.HasPermission(Code);
-    }
-
-    private void OnAccountChanged()
-    {
-        _allowed = Account.HasPermission(Code);
-        _ = InvokeAsync(StateHasChanged);
-    }
-
-    public void Dispose()
-    {
-        Account.Changed -= OnAccountChanged;
-    }
-}

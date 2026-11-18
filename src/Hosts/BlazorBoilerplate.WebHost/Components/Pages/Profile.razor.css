@@ -1,0 +1,25 @@
+/* Profile 页卡片/表单网格（从 app.css 迁入，CSS 隔离） */
+.bb-card {
+    padding: 1rem 1.25rem;
+    background: var(--bb-bg-pri);
+    border: 1px solid var(--bb-brd-ter);
+    border-radius: var(--bb-radius-sm);
+    box-shadow: var(--bb-shd-1);
+}
+.bb-card-head { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.bb-card + .bb-card { margin-top: 1rem; }
+.account-page-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+.account-page-grid > .bb-card + .bb-card { margin-top: 0; }
+.bb-form-actions { display: flex; gap: .5rem; margin-top: .25rem; }
+
+@media (max-width: 959px) {
+    .account-page-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 599px) {
+    .account-page-grid { grid-template-columns: 1fr; }
+}

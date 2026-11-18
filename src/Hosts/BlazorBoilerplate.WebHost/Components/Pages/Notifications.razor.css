@@ -1,0 +1,36 @@
+/* Notifications 通知列表（从 app.css 迁入，CSS 隔离） */
+/* 通知列表：未读加粗 + 左侧主色条 */
+.notif-list { display: flex; flex-direction: column; gap: .75rem; margin-top: 1rem; }
+.notif-item {
+    display: flex; gap: .75rem;
+    padding: .875rem 1rem;
+    background: var(--bb-bg-pri);
+    border: 1px solid var(--bb-brd-ter);
+    border-radius: var(--bb-radius-md);
+    box-shadow: var(--bb-shd-1);
+}
+.notif-item.unread {
+    border-inline-start: 3px solid var(--bb-pri);
+    background: color-mix(in srgb, var(--bb-pri) 4%, var(--bb-bg-pri));
+}
+.notif-dot {
+    width: .5rem; height: .5rem; flex: 0 0 .5rem; margin-top: .4rem;
+    border-radius: 50%; background: var(--bb-brd-sec);
+}
+.notif-item.unread .notif-dot { background: var(--bb-pri); }
+.notif-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .375rem; }
+.notif-head { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; }
+.notif-title { font-size: .875rem; color: var(--bb-fg-pri); }
+.notif-item.unread .notif-title { font-weight: 700; }
+.notif-time { font-size: .75rem; color: var(--bb-fg-ter); white-space: nowrap; }
+.notif-message { font-size: .8125rem; color: var(--bb-fg-sec); line-height: 1.5; word-break: break-word; }
+.notif-foot { display: flex; align-items: center; gap: 1rem; font-size: .8125rem; }
+.notif-empty {
+    padding: 2.5rem 1rem; text-align: center;
+    border: 1px dashed var(--bb-brd-sec); border-radius: var(--bb-radius-md);
+    color: var(--bb-fg-ter); font-size: .875rem;
+}
+
+@media (max-width: 599px) {
+    .notif-head { flex-direction: column; gap: .125rem; }
+}

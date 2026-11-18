@@ -1,13 +1,8 @@
 @* 切换租户弹框：对齐 Bluebird 的「切换租户」模态（标题 + 返回箭头、租户列表、底部「管理我的租户」入口）。
    数据来自 AccountState / GetTenantsAsync；切换经由 app.js 的 blazorAuth.switchTenant；
    「管理我的租户」跳转 /tenants。显隐完全由 @bind-IsOpen 参数驱动：Blazor 子组件的渲染
-   由参数变化触发，外部直接调用方法修改子组件私有字段不会引起重渲染（弹框将永远不显示）。 *@
-@inject NavigationManager Navigation
-@inject ToastService Toast
-@inject BlazorBoilerplateApiClient Api
-@inject AccountState Account
-@inject IJSRuntime JS
-@inject ILocalizationService L
+   由参数变化触发，外部直接调用方法修改子组件私有字段不会引起重渲染（弹框将永远不显示）。
+   注入与租户加载/切换逻辑在 SwitchTenantModal.razor.cs。 *@
 
 <div class="switch-tenant-root">
     <button type="button" class="switch-tenant-backdrop" hidden="@(!IsOpen)" aria-label="@L["platform.tenant.closeSwitch"]" @onclick="CloseAsync"></button>
@@ -58,89 +53,3 @@
     </div>
 </div>
 
-@code {
-    /// <summary>显隐由父组件（AccountMenu）双向绑定：true 时加载数据并显示。</summary>
-    [Parameter] public bool IsOpen { get; set; }
-    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
-
-    private bool _lastOpen;
-    private bool _loading;
-    private bool _busy;
-    private List<TenantDto> _tenants = [];
-
-    /// <summary>IsOpen 由 false 变 true 时加载当前用户的租户列表（含受邀未接受的）。</summary>
-    protected override async Task OnParametersSetAsync()
-    {
-        if (IsOpen && !_lastOpen)
-        {
-            _loading = true;
-            try
-            {
-                await Account.EnsureLoadedAsync();
-                _tenants = (await Api.GetTenantsAsync()).ToList();
-            }
-            catch (Exception ex)
-            {
-                _tenants = [];
-                Toast.Error($"读取租户列表失败：{ex.Message}");
-            }
-            finally
-            {
-                _loading = false;
-            }
-        }
-        _lastOpen = IsOpen;
-    }
-
-    private Task CloseAsync() => IsOpenChanged.InvokeAsync(false);
-
-    private bool IsCurrent(TenantDto tenant) =>
-        tenant.Current || Account.CurrentUser?.TenantId == tenant.Id;
-
-    private async Task SelectAsync(TenantDto tenant)
-    {
-        if (IsCurrent(tenant) || _busy) return;
-        _busy = true;
-        try
-        {
-            var result = await JS.InvokeAsync<JsonElement>("blazorAuth.switchTenant", tenant.Id.ToString());
-            if (!Ok(result))
-            {
-                Toast.Error(Err(result) ?? "切换租户失败。");
-                return;
-            }
-            Toast.Success($"正在切换到租户「{tenant.Name}」…");
-            await CloseAsync();
-            await Redirect("/");
-        }
-        catch (Exception ex)
-        {
-            Toast.Error($"切换租户失败：{ex.Message}");
-        }
-        finally
-        {
-            _busy = false;
-        }
-    }
-
-    private async Task ManageTenants()
-    {
-        await CloseAsync();
-        Navigation.NavigateTo("/tenants");
-    }
-
-    private async Task Redirect(string url)
-    {
-        try { await JS.InvokeVoidAsync("blazorAuth.redirect", url); }
-        catch { /* 整页跳转会销毁 JS 上下文，忽略跳转引发的 interop 异常 */ }
-    }
-
-    private static bool Ok(JsonElement el) =>
-        el.ValueKind == JsonValueKind.Object &&
-        el.TryGetProperty("ok", out var v) && v.ValueKind == JsonValueKind.True;
-
-    private static string? Err(JsonElement el) =>
-        el.ValueKind == JsonValueKind.Object &&
-        el.TryGetProperty("error", out var v) && v.ValueKind == JsonValueKind.String
-            ? v.GetString() : null;
-}

@@ -1,0 +1,84 @@
+/* IdentityLayout 专属样式（从全局 app.css 迁入）。
+   作用域：本组件标记 + ::deep 穿透 @Body 子内容里的 Bit 组件。
+   全局类（如 .nav-brand-mark 基础样式、CSS 变量）仍留在 app.css。 */
+
+.identity-shell {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 100vh;
+    background: var(--bb-bg-pri);
+    color: var(--bb-fg-pri);
+}
+
+.identity-header {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline: 0;
+    z-index: var(--bb-z-base);
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    height: 65px;
+    padding: 1rem 1.5rem;
+}
+.identity-header .home-link {
+    display: flex; align-items: center; gap: .5rem;
+    font-size: .875rem; color: var(--bb-fg-sec); text-decoration: none;
+}
+.identity-header .home-link:hover { color: var(--bb-pri); }
+.identity-header .home-link ::deep .app-icon { width: 1rem; height: 1rem; }
+.identity-header .spacer { flex: 1; }
+/* 主题切换按钮：太阳/月亮统一用主色，避免随明暗主题在灰阶间跳变（浅色 #525252 / 深色 #bdbdbd）。
+   同时覆盖 :hover 以压过全局 .icon-btn:hover 的 --bb-fg-pri。 */
+.identity-header .icon-btn,
+.identity-header .icon-btn:hover { color: var(--bb-pri); }
+.identity-brand { display: flex; align-items: center; gap: .5rem; font-weight: 600; }
+.identity-brand .nav-brand-mark { width: 1.75rem; height: 1.75rem; flex-basis: 1.75rem; font-size: .875rem; }
+
+.identity-main { display: flex; flex: 1; min-height: 100vh; }
+.identity-body {
+    width: 30%;
+    min-width: 35rem;
+    flex: 0 0 30%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6rem 3rem 3rem;
+    overflow-y: auto;
+    background: var(--bb-bg-sec);
+    border-inline-end: 1px solid var(--bb-brd-sec);
+}
+/* margin-block:auto 而非 justify-content:center：内容超高时仍可滚动，不会裁掉顶部 */
+.identity-form { width: min(100%, 21rem); margin-block: auto; }
+/* 穿透：Bit 按钮由 @Body 子内容渲染，不带本组件作用域属性 */
+.identity-form ::deep .bit-btn { width: 100%; }
+
+.identity-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 3rem;
+    color: #fff;
+    background: radial-gradient(circle at 20% 20%, #2f7fe0 0%, transparent 55%),
+                radial-gradient(circle at 80% 75%, #7c3aed 0%, transparent 55%),
+                linear-gradient(135deg, #0f6cbd, #0a3f74);
+}
+.identity-art { width: min(70%, 24rem); margin-bottom: 1.5rem; opacity: .9; }
+.panel-title { font-size: 2rem; font-weight: 600; text-align: center; }
+.panel-sub { font-size: 1rem; opacity: .85; text-align: center; max-width: 30rem; line-height: 1.6; }
+.panel-badges { display: flex; gap: .5rem; flex-wrap: wrap; justify-content: center; margin-top: 1.5rem; }
+.panel-badge { padding: .375rem .75rem; border: 1px solid rgba(255, 255, 255, .35); border-radius: 9999px; font-size: .75rem; }
+
+@media (max-width: 959px) {
+    .identity-body { width: 100%; min-width: unset; flex: 1; padding: 5.5rem 1.5rem 2rem; border: 0; background: var(--bb-bg-pri); }
+    .identity-panel { display: none; }
+}
+
+@media (max-width: 599px) {
+    .identity-body { padding-inline: 1rem; }
+    .identity-form { width: 100%; }
+}

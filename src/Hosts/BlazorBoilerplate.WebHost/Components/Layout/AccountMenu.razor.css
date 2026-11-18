@@ -1,0 +1,225 @@
+/* AccountMenu 独占样式（persona-* / header-persona / menu-* / account-* / accent-* 仅本组件使用）。
+   注意：.account-check（Tenants 页面复用）、.icon-btn、@keyframes 及 894 行处的
+   .header-sub/.persona-name 响应式规则（与 MainLayout 混写）仍留在 app.css。 */
+.header-persona { display: flex; align-items: center; gap: .5rem; padding: .25rem .5rem; }
+.persona-avatar {
+    width: 2rem; height: 2rem; border-radius: 50%;
+    background: var(--bb-pri); color: #fff;
+    display: grid; place-items: center;
+    font-size: .75rem; font-weight: 600;
+}
+.persona-name { font-size: .875rem; color: var(--bb-fg-pri); white-space: nowrap; }
+
+.account-menu-root { position: relative; }
+.header-persona {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .25rem .5rem;
+    border: 0; border-radius: var(--bb-radius-sm);
+    background: transparent;
+    font-family: var(--bb-font); color: var(--bb-fg-pri);
+    cursor: pointer;
+}
+.header-persona:hover { background: var(--bb-bg-sec); }
+.header-persona .persona-avatar { position: relative; }
+.persona-presence {
+    position: absolute; inset-inline-end: -1px; bottom: -1px;
+    width: .625rem; height: .625rem;
+    border: 2px solid var(--bb-bg-pri); border-radius: 50%;
+    background: var(--bb-suc);
+}
+.menu-chevron { display: grid; place-items: center; color: var(--bb-fg-ter); }
+.menu-chevron .app-icon { width: .875rem; height: .875rem; }
+
+.menu-backdrop {
+    position: fixed; inset: 0; z-index: 1150;
+    border: 0; padding: 0; margin: 0;
+    background: transparent; cursor: default;
+}
+
+.account-menu {
+    position: absolute;
+    inset-block-start: calc(100% + .5rem);
+    inset-inline-end: 0;
+    z-index: 1160;
+    width: 20rem;
+    max-width: calc(100vw - 1rem);
+    max-height: calc(100vh - 5rem);
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: .125rem;
+    padding: .75rem;
+    background: var(--bb-bg-pri);
+    border: 1px solid var(--bb-brd-ter);
+    border-radius: var(--bb-radius-md);
+    box-shadow: var(--bb-shd-4);
+}
+.account-hint {
+    margin-bottom: .5rem; padding: .5rem .625rem;
+    border-radius: var(--bb-radius-sm);
+    background: var(--bb-pri-tint); color: var(--bb-pri);
+    font-size: .75rem; line-height: 1.5;
+}
+
+.account-identity { display: flex; align-items: center; gap: .75rem; padding: .25rem .25rem .75rem; }
+.account-avatar-lg {
+    position: relative;
+    width: 3rem; height: 3rem; flex: 0 0 3rem;
+    padding: 0;
+    display: grid; place-items: center;
+    border: 0; border-radius: 50%;
+    background: var(--bb-pri); color: #fff;
+    font-size: 1rem; font-weight: 600;
+    cursor: pointer;
+}
+.avatar-overlay {
+    position: absolute; inset: 0; z-index: 2;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, .55); color: #fff;
+    font-size: .75rem; font-weight: 500;
+    opacity: 0; transition: opacity .15s ease;
+    pointer-events: none;
+}
+.account-avatar-lg:hover .avatar-overlay,
+.account-avatar-lg:focus-visible .avatar-overlay { opacity: 1; }
+.presence-dot {
+    position: absolute; inset-inline-end: -1px; bottom: -1px; z-index: 4;
+    width: .75rem; height: .75rem;
+    border: 2px solid var(--bb-bg-pri); border-radius: 50%;
+    background: var(--bb-suc);
+    pointer-events: none;
+}
+.account-identity-text { display: flex; flex-direction: column; gap: .125rem; min-width: 0; }
+.account-identity-text strong { font-size: .9375rem; }
+.account-identity-text span { font-size: .75rem; color: var(--bb-fg-ter); overflow: hidden; text-overflow: ellipsis; }
+
+.account-section-label {
+    padding: .625rem .5rem .25rem;
+    font-size: .6875rem; font-weight: 600; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--bb-fg-ter);
+}
+.account-separator { height: 1px; margin: .5rem 0; background: var(--bb-brd-ter); }
+
+.account-action {
+    display: flex; align-items: center; gap: .625rem;
+    width: 100%; min-height: 2.25rem;
+    padding: .375rem .5rem;
+    border: 0; border-radius: var(--bb-radius-sm);
+    background: transparent;
+    font-family: var(--bb-font); font-size: .8125rem; text-align: start;
+    color: var(--bb-fg-pri); cursor: pointer;
+}
+.account-action:hover { background: var(--bb-bg-sec); }
+.account-action .app-icon { width: 1.125rem; height: 1.125rem; flex: 0 0 1.125rem; color: var(--bb-fg-sec); }
+.account-action.danger { color: var(--bb-err); }
+.account-action.danger .app-icon { color: var(--bb-err); }
+.account-action.danger:hover { background: var(--bb-err-bg); }
+.account-action-text { display: flex; flex-direction: column; gap: .0625rem; min-width: 0; text-align: start; }
+.account-action-text strong { font-weight: 600; }
+.account-action-text small { font-size: .6875rem; color: var(--bb-fg-ter); }
+.account-mini-avatar {
+    width: 1.75rem; height: 1.75rem; flex: 0 0 1.75rem;
+    display: grid; place-items: center; border-radius: 50%;
+    background: var(--bb-bg-ter); color: var(--bb-fg-sec);
+    font-size: .625rem; font-weight: 600;
+}
+.account-chevron { margin-inline-start: auto; display: grid; place-items: center; color: var(--bb-fg-ter); }
+.account-chevron .app-icon { width: 1rem; height: 1rem; }
+.account-back { font-weight: 600; }
+
+.account-row { display: flex; align-items: center; gap: .5rem; min-height: 2.25rem; padding: .25rem .5rem; font-size: .8125rem; }
+.account-row > .app-icon { width: 1.125rem; height: 1.125rem; flex: 0 0 1.125rem; color: var(--bb-fg-sec); }
+.account-row-label { color: var(--bb-fg-pri); }
+.account-spacer { flex: 1; }
+.account-select {
+    flex: 1; min-width: 0;
+    padding: .3125rem .375rem;
+    border: 1px solid transparent; border-radius: var(--bb-radius-sm);
+    background: transparent; color: var(--bb-fg-sec);
+    font-family: var(--bb-font); font-size: .75rem;
+    cursor: pointer; outline: none;
+}
+.account-select:hover, .account-select:focus { border-color: var(--bb-brd-ter); background: var(--bb-bg-sec); }
+.account-select option { background: var(--bb-bg-pri); color: var(--bb-fg-pri); }
+
+.account-switch {
+    width: 2.25rem; height: 1.125rem; flex: 0 0 2.25rem;
+    padding: 0; border: 1px solid var(--bb-brd-pri); border-radius: 9999px;
+    background: transparent; cursor: pointer;
+    display: flex; align-items: center;
+    transition: background .15s ease, border-color .15s ease;
+}
+.account-switch span {
+    width: .75rem; height: .75rem; margin-inline-start: .125rem;
+    border-radius: 50%; background: var(--bb-brd-pri);
+    transition: transform .15s ease, background .15s ease;
+}
+.account-switch.on { background: var(--bb-pri); border-color: var(--bb-pri); }
+.account-switch.on span { transform: translateX(1.05rem); background: #fff; }
+
+.accent-block { padding: .25rem .5rem .5rem; }
+.accent-block .account-section-label { padding-inline: 0; }
+.accent-swatches { display: flex; gap: .5rem; flex-wrap: wrap; }
+.accent-swatch {
+    width: 1.25rem; height: 1.25rem;
+    display: grid; place-items: center;
+    border: 2px solid transparent; border-radius: 50%;
+    cursor: pointer; padding: 0;
+    box-shadow: var(--bb-shd-1);
+}
+.accent-swatch:hover { transform: scale(1.1); }
+.accent-swatch.selected { border-color: var(--bb-fg-pri); outline: 2px solid var(--bb-bg-pri); }
+.accent-swatch .app-icon { width: .75rem; height: .75rem; color: #fff; stroke-width: 2.5; }
+
+.account-choice {
+    display: flex; align-items: center; gap: .625rem;
+    width: 100%; min-height: 2.25rem;
+    padding: .375rem .5rem;
+    border: 0; border-radius: var(--bb-radius-sm);
+    background: transparent;
+    font-family: var(--bb-font); font-size: .8125rem; text-align: start;
+    color: var(--bb-fg-pri); cursor: pointer;
+}
+.account-choice:hover { background: var(--bb-bg-sec); }
+.account-choice.selected { color: var(--bb-pri); font-weight: 600; }
+.account-choice .app-icon { width: 1.125rem; height: 1.125rem; flex: 0 0 1.125rem; }
+.account-choice > .app-icon:last-child { margin-inline-start: auto; color: var(--bb-pri); }
+.account-choice .pending-badge {
+    margin-inline-start: auto; padding: .125rem .375rem;
+    border: 1px solid var(--bb-wrn); border-radius: 9999px;
+    color: var(--bb-wrn); font-size: .625rem; font-weight: 500;
+}
+
+/* ===== 账号菜单扩展（原 app.css「账号菜单扩展」块；.nav-signin-avatar 为死样式已删） ===== */
+.account-empty { padding: .375rem .5rem; font-size: .75rem; color: var(--bb-fg-ter); }
+.account-row-link {
+    display: inline-flex; align-items: center; gap: .375rem;
+    padding: 0; border: 0; background: transparent;
+    font-family: var(--bb-font); font-size: .8125rem; color: var(--bb-fg-pri);
+    cursor: pointer;
+}
+.account-row-link:hover { color: var(--bb-pri); }
+.account-unread {
+    min-width: 1.05rem; height: 1.05rem; padding: 0 .3rem;
+    display: inline-grid; place-items: center;
+    border-radius: 9999px;
+    background: var(--bb-err); color: #fff;
+    font-size: .625rem; font-weight: 700; line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+.account-zone-now {
+    display: flex; align-items: center; gap: .5rem;
+    padding: 0 .5rem .375rem 2.125rem;
+    font-size: .75rem; color: var(--bb-fg-ter);
+}
+.account-zone-now .app-icon { width: .875rem; height: .875rem; }
+
+/* 959px：与 MainLayout 的 .header-sub 拆分后的 persona-name 隐藏规则 */
+@media (max-width: 959px) {
+    .persona-name { display: none; }
+}
+
+@media (max-width: 599px) {
+    .account-menu { width: min(20rem, calc(100vw - 1rem)); }
+    .menu-chevron, .persona-name { display: none; }
+    .header-persona { padding: .25rem; }
+}

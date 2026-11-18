@@ -1,0 +1,99 @@
+/* 模块管理页卡片网格（从 app.css 迁入，CSS 隔离；跨组件共享的 .module-summary / .module-chip / .module-empty 留全局 app.css） */
+.module-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+    gap: 1rem;
+    align-items: stretch;
+}
+.module-card {
+    display: flex;
+    flex-direction: column;
+    gap: .875rem;
+    min-height: 13.5rem;
+    padding: 1.25rem;
+    background: var(--bb-bg-pri);
+    border: 1px solid var(--bb-brd-ter);
+    border-inline-start: 3px solid var(--bb-brd-ter);
+    border-radius: var(--bb-radius-md);
+    box-shadow: var(--bb-shd-1);
+    transition: box-shadow .15s ease, border-color .15s ease, transform .15s ease;
+}
+.module-card:hover { box-shadow: var(--bb-shd-3); transform: translateY(-2px); }
+.module-card.is-running { border-inline-start-color: var(--bb-suc); }
+.module-card.is-failed { border-inline-start-color: var(--bb-err); }
+.module-card.is-essential { border-inline-start-color: var(--bb-pri); }
+
+.module-card-head { display: flex; align-items: center; gap: .75rem; }
+.module-version-badge {
+    margin-left: auto;
+    flex: 0 0 auto;
+    padding: .15rem .55rem;
+    border-radius: 999px;
+    font-size: .78rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--bb-pri);
+    background: var(--bb-pri-tint);
+    border: 1px solid color-mix(in srgb, var(--bb-pri) 35%, transparent);
+}
+.module-card-icon {
+    width: 2.75rem; height: 2.75rem; flex: 0 0 2.75rem;
+    display: grid; place-items: center;
+    border-radius: var(--bb-radius-sm);
+    background: var(--bb-pri-tint);
+    color: var(--bb-pri);
+}
+.module-card-icon .app-icon { width: 1.5rem; height: 1.5rem; }
+.module-card-heading { display: flex; flex-direction: column; gap: .125rem; flex: 1 1 0; min-width: 0; }
+.module-card-title { font-size: 1rem; font-weight: 600; color: var(--bb-fg-pri); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.module-card-id { font-family: var(--bb-mono); font-size: .75rem; color: var(--bb-fg-ter); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.module-card-head .bit-bdg { flex-shrink: 0; }
+/* 多版本下拉：与版本徽章同视觉（chip 风格），margin-left:auto 推到卡片头部右侧 */
+.module-card-head .module-version-select {
+    margin-left: auto;
+    flex: 0 0 5rem;
+    width: 5rem;
+}
+.module-card-head .module-version-select .bit-ddl-lbl,
+.module-card-head .module-version-select input.bit-ddl {
+    font-size: .78rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--bb-pri);
+    padding: .15rem .3rem .15rem .55rem;
+    min-height: 1.7rem;
+    height: 1.7rem;
+    background: var(--bb-pri-tint);
+    border: 1px solid color-mix(in srgb, var(--bb-pri) 35%, transparent);
+    border-radius: 999px;
+}
+.module-card-head .module-version-select .bit-ddl-lbl { cursor: pointer; display: flex; align-items: center; }
+.module-card-head .module-version-select .bit-ddl { justify-content: space-between; }
+
+.module-card-meta { display: flex; align-items: center; gap: .5rem; font-size: .8125rem; color: var(--bb-fg-sec); }
+.dot-sep { width: .25rem; height: .25rem; border-radius: 50%; background: var(--bb-fg-dis); }
+
+.module-card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: .375rem;
+    max-height: 7.5rem;
+    overflow-y: auto;
+    padding-right: .25rem;
+    scrollbar-width: thin;
+}
+.module-card-tags::-webkit-scrollbar { width: 4px; }
+.module-card-tags::-webkit-scrollbar-thumb { background: var(--bb-brd-sec); border-radius: 999px; }
+.module-card-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: auto; padding-top: .875rem;
+    border-top: 1px solid var(--bb-brd-ter);
+}
+.module-card-foot .bit-btn { flex: none; padding-inline: .375rem; }
+.module-card-foot .bit-btn .bit-icon { font-size: 1rem; }
+.module-protected { display: flex; align-items: center; gap: .375rem; font-size: .8125rem; color: var(--bb-fg-ter); }
+.module-protected .app-icon { width: 1rem; height: 1rem; }
+@media (max-width: 599px) {
+    .module-grid { grid-template-columns: 1fr; }
+}

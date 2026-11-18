@@ -1,9 +1,5 @@
 @page "/"
 @rendermode RenderMode.InteractiveServer
-@inject BlazorBoilerplateApiClient Api
-@inject SystemSettingsState SysState
-@inject ILogger<Home> Logger
-@inject ILocalizationService L
 
 @* 页面骨架移植自 Bluebird DashboardPage / OverallStatusCard / 各 Widget：
    <section> + 4 统计卡 + 6 列 Widget 网格。
@@ -139,34 +135,3 @@
     </div>
 </section>
 
-@code {
-    private SetupStatus? _status;
-    private int _moduleCount;
-    private int? _productCount;
-    private string? _loadError;
-
-    protected override async Task OnInitializedAsync()
-    {
-        try
-        {
-            _status = await Api.GetSetupStatusAsync();
-            _moduleCount = (await Api.GetModulesAsync()).Count;
-
-            try
-            {
-                var page = await Api.GetODataAsync<System.Text.Json.JsonElement>(
-                    "api/catalog/products", new BlazorBoilerplate.Application.OData.ODataQuery { Top = 1, Count = true });
-                _productCount = (int?)page.Count;
-            }
-            catch
-            {
-                _productCount = null;
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogWarning(ex, "Home 页面加载失败");
-            _loadError = ex.Message;
-        }
-    }
-}

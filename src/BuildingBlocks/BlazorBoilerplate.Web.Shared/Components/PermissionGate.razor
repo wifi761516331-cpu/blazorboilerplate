@@ -1,7 +1,7 @@
 @* 按钮/区域级权限门（跨模块共享）：注入 ICurrentUserPermissionService，
    支持单个 Code 或多个 Codes（满足任一即可），以及 "*" 管理员通配。 *@
 @implements IDisposable
-@inject ICurrentUserPermissionService Perms
+
 
 @if (_allowed)
 {
@@ -10,40 +10,5 @@
 else if (Fallback is not null)
 {
     @Fallback
-}
-
-@code {
-    [Parameter] public string? Code { get; set; }
-    [Parameter] public string[]? Codes { get; set; }
-    [Parameter] public RenderFragment? ChildContent { get; set; }
-    [Parameter] public RenderFragment? Fallback { get; set; }
-
-    private bool _allowed;
-
-    protected override void OnInitialized() => Perms.Changed += OnPermissionsChanged;
-
-    protected override async Task OnParametersSetAsync()
-    {
-        await Perms.EnsureLoadedAsync();
-        Evaluate();
-    }
-
-    private void OnPermissionsChanged() => _ = InvokeAsync(() =>
-    {
-        Evaluate();
-        StateHasChanged();
-    });
-
-    private void Evaluate()
-    {
-        if (Codes is { Length: > 0 })
-            _allowed = Perms.HasAnyPermission(Codes);
-        else if (!string.IsNullOrWhiteSpace(Code))
-            _allowed = Perms.HasPermission(Code);
-        else
-            _allowed = Perms.IsAuthenticated;
-    }
-
-    public void Dispose() => Perms.Changed -= OnPermissionsChanged;
 }
 

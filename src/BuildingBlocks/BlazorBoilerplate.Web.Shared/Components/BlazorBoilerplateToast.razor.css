@@ -1,0 +1,36 @@
+/* BlazorBoilerplateToast 独占样式（toast-* 前缀 class 仅本组件使用）。
+   注意：@keyframes blazorboilerplate-toast-in 仍留在 app.css（与其他 keyframes 统一管理）。 */
+.blazorboilerplate-toast-container {
+    position: fixed; z-index: 1400;
+    inset-block-end: 1rem; inset-inline-end: 1rem;
+    display: flex; flex-direction: column; gap: .5rem;
+    width: min(22rem, calc(100vw - 2rem));
+    pointer-events: none;
+}
+.blazorboilerplate-toast {
+    display: flex; align-items: flex-start; gap: .5rem;
+    padding: .65rem .75rem;
+    background: var(--bb-bg-pri); color: var(--bb-fg-pri);
+    border: 1px solid var(--bb-brd-ter);
+    border-radius: var(--bb-radius-md);
+    box-shadow: var(--bb-shd-4);
+    pointer-events: auto;
+    animation: blazorboilerplate-toast-in .18s ease-out;
+}
+.blazorboilerplate-toast-icon { display: grid; place-items: center; margin-top: .1rem; }
+.blazorboilerplate-toast-icon .app-icon { width: 1.1rem; height: 1.1rem; stroke-width: 1.75; }
+.blazorboilerplate-toast-msg { flex: 1; font-size: .8125rem; line-height: 1.45; word-break: break-word; }
+.blazorboilerplate-toast-close {
+    border: 0; background: transparent; cursor: pointer;
+    color: var(--bb-fg-ter); font-size: .8rem; line-height: 1;
+    padding: .1rem .2rem;
+}
+.blazorboilerplate-toast-close:hover { color: var(--bb-fg-pri); }
+.blazorboilerplate-toast.success { border-inline-start: 3px solid var(--bb-suc); }
+.blazorboilerplate-toast.success .blazorboilerplate-toast-icon { color: var(--bb-suc); }
+.blazorboilerplate-toast.warning { border-inline-start: 3px solid var(--bb-wrn); }
+.blazorboilerplate-toast.warning .blazorboilerplate-toast-icon { color: var(--bb-wrn); }
+.blazorboilerplate-toast.error { border-inline-start: 3px solid var(--bb-err); }
+.blazorboilerplate-toast.error .blazorboilerplate-toast-icon { color: var(--bb-err); }
+.blazorboilerplate-toast.info { border-inline-start: 3px solid var(--bb-pri); }
+.blazorboilerplate-toast.info .blazorboilerplate-toast-icon { color: var(--bb-pri); }

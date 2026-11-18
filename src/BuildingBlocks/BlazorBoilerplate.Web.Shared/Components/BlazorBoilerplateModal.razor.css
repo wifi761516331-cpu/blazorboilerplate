@@ -1,0 +1,46 @@
+/* BlazorBoilerplateModal 独占样式（modal-* 前缀 class 仅本组件使用）。
+   注意：.blazorboilerplate-btn / .blazorboilerplate-spinner 与 @keyframes
+   （blazorboilerplate-modal-in 被 SwitchTenantModal 等共用）仍留在 app.css 全局。 */
+.blazorboilerplate-modal-backdrop {
+    position: fixed; inset: 0; z-index: 1300;
+    display: grid; place-items: center;
+    padding: 1rem;
+    background: rgba(0, 0, 0, .45);
+    animation: blazorboilerplate-fade-in .15s ease-out;
+}
+.blazorboilerplate-modal {
+    display: flex; flex-direction: column;
+    width: min(30rem, 100%);
+    max-height: calc(100vh - 2rem);
+    background: var(--bb-bg-pri);
+    color: var(--bb-fg-pri);
+    border: 1px solid var(--bb-brd-ter);
+    border-radius: var(--bb-radius-lg);
+    box-shadow: var(--bb-shd-4), 0 12px 28px rgba(0, 0, 0, .22);
+    animation: blazorboilerplate-modal-in .16s ease-out;
+}
+.blazorboilerplate-modal.wide {
+    width: min(52rem, 100%);
+}
+.blazorboilerplate-modal-header {
+    display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+    padding: .875rem 1rem;
+    border-bottom: 1px solid var(--bb-brd-ter);
+}
+.blazorboilerplate-modal-title { margin: 0; font-size: 1rem; font-weight: 600; color: var(--bb-fg-pri); }
+.blazorboilerplate-modal-close {
+    display: grid; place-items: center;
+    width: 1.75rem; height: 1.75rem;
+    border: 0; border-radius: var(--bb-radius-sm);
+    background: transparent; color: var(--bb-fg-ter);
+    font-size: .9rem; line-height: 1; cursor: pointer;
+}
+.blazorboilerplate-modal-close:hover { background: var(--bb-bg-sec); color: var(--bb-fg-pri); }
+.blazorboilerplate-modal-body { padding: 1rem; overflow: auto; }
+.blazorboilerplate-modal-message { margin: 0; font-size: .875rem; color: var(--bb-fg-sec); line-height: 1.5; }
+.blazorboilerplate-modal-body .blazorboilerplate-modal-message + * { margin-top: .75rem; }
+.blazorboilerplate-modal-footer {
+    display: flex; justify-content: flex-end; gap: .5rem;
+    padding: .75rem 1rem;
+    border-top: 1px solid var(--bb-brd-ter);
+}

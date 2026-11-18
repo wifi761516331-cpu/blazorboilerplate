@@ -1,8 +1,6 @@
 @page "/settings"
 @page "/settings/{Section?}"
 @rendermode RenderMode.InteractiveServer
-@inject NavigationManager Navigation
-@inject ILocalizationService L
 
 <style>
     .settings-shell {
@@ -102,16 +100,4 @@
         </BitAccordionList>
     </BitStack>
 </div>
-
-@code {
-    [Parameter] public string? Section { get; set; }
-
-    private string? _expandedSection;
-
-    protected override void OnParametersSet()
-    {
-        if (!string.IsNullOrWhiteSpace(Section))
-            _expandedSection = Section.Trim().ToLowerInvariant();
-    }
-}
 

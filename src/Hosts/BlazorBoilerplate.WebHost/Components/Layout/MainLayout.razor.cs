@@ -1,0 +1,418 @@
+using BlazorBoilerplate.Application.Localization;
+using BlazorBoilerplate.ModuleAbstractions;
+using BlazorBoilerplate.Shared.Features.Identity;
+using BlazorBoilerplate.Web.Shared.Localization;
+using BlazorBoilerplate.Web.Shared.Services;
+using BlazorBoilerplate.WebHost.Services;
+using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Logging;
+// RouteData 与 Microsoft.AspNetCore.Routing.RouteData 二义：组件级联参数用的是 Components 版。
+using RouteData = Microsoft.AspNetCore.Components.RouteData;
+
+namespace BlazorBoilerplate.WebHost.Components.Layout;
+
+// 基类 LayoutComponentBase / 接口 IDisposable 留在 .razor；
+// RenderNavNode（含 Razor 标记语法）留在 .razor 的 @code；其余注入与布局逻辑在 .razor.cs。
+public partial class MainLayout
+{
+    [CascadingParameter]
+    private RouteData? RouteData { get; set; }
+
+    [Inject]
+    private BlazorBoilerplateApiClient Api { get; set; } = default!;
+
+    [Inject]
+    private NavigationManager Navigation { get; set; } = default!;
+
+    [Inject]
+    private ILogger<MainLayout> Logger { get; set; } = default!;
+
+    [Inject]
+    private AccountState Account { get; set; } = default!;
+
+    [Inject]
+    private SystemSettingsState SysState { get; set; } = default!;
+
+    [Inject]
+    private UserPreferences Preferences { get; set; } = default!;
+
+    [Inject]
+    private ILocalizationService L { get; set; } = default!;
+
+    [Inject]
+    private FrontendLocalizationService FrontendLoc { get; set; } = default!;
+
+    [Inject]
+    private BlazorBoilerplate.WebHost.Services.NavRefreshService NavRefresh { get; set; } = null!;
+
+    private sealed record NavNode(Guid Id, string Text, string Path, string Icon, string Kind, List<NavNode> Children);
+
+    /// <summary>页面标题交给顶栏（对应 Bluebird 的 AppPageData → Header）。</summary>
+    private static readonly Dictionary<string, (string TitleKey, string SubtitleKey)> Headers = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Home"] = ("platform.header.home.title", "platform.header.home.subtitle"),
+        ["Dashboard"] = ("platform.header.dashboard.title", "platform.header.dashboard.subtitle"),
+        ["Modules"] = ("platform.header.modules.title", "platform.header.modules.subtitle"),
+        ["Catalog"] = ("platform.header.catalog.title", "platform.header.catalog.subtitle"),
+        ["Users"] = ("platform.header.users.title", "platform.header.users.subtitle"),
+        ["Roles"] = ("platform.header.roles.title", "platform.header.roles.subtitle"),
+        ["Menus"] = ("platform.header.menus.title", "platform.header.menus.subtitle"),
+        ["Profile"] = ("platform.header.profile.title", "platform.header.profile.subtitle"),
+        ["Tenants"] = ("platform.header.tenants.title", "platform.header.tenants.subtitle"),
+        ["Notifications"] = ("platform.header.notifications.title", "platform.header.notifications.subtitle"),
+        ["Attachments"] = ("platform.header.attachments.title", "platform.header.attachments.subtitle"),
+        ["SystemSettings"] = ("platform.header.systemSettings.title", "platform.header.systemSettings.subtitle")
+    };
+
+    private List<NavNode> _navTree = [];
+    private readonly HashSet<Guid> _expandedIds = [];
+    private bool _expandedInitialized;
+    private List<IdentityMenuDto> _dbMenus = [];
+    private List<ModuleDescriptor> _moduleStates = [];
+    private bool _navOpen;
+    private bool _navToggled;
+    private bool _dark;
+    private string? _accent;
+    private int _unreadCount;
+    private (string TitleKey, string SubtitleKey)? _pageHeader;
+    private string HeaderTitle => _pageHeader is { } h ? L[h.TitleKey] : SysState.Public.SystemName;
+    private string HeaderSubtitle => _pageHeader is { } h ? L[h.SubtitleKey] : string.Empty;
+
+    /// <summary>账号菜单选中的强调色；null = Fluent2 默认蓝（不渲染 data-accent）。</summary>
+    private string AccentStyle => _accent is null ? string.Empty : $"--bb-accent: {_accent};";
+
+    /// <summary>当前 Running 模块声明的全部页面路由（菜单归属判定）。</summary>
+    private HashSet<string> RunningRoutes => _moduleStates
+        .Where(m => m.State == ModuleState.Running)
+        .SelectMany(m => m.Routes)
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 菜单可见性：平台自有页面（/、/modules）始终显示；已认证且服务端下发菜单白名单时，
+    /// 额外按账户菜单授权过滤（管理员 "*" / 全量 MenuPaths 放行）；模块页面仅当所属模块 Running 时显示，
+    /// 模块卸载后其菜单随之消失，重新加载即恢复（数据库行保留，不丢角色授权）。
+    /// 模块状态不可知（ApiHost 不可达）时不过滤。
+    /// </summary>
+    private bool IsMenuVisible(IdentityMenuDto menu)
+    {
+        if (string.Equals(menu.Kind, "group", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (menu.Path == "/")
+            return true;
+        if (Account.IsAuthenticated && !Account.IsAdmin)
+        {
+            if (!Account.HasMenu(menu.Path))
+                return false;
+            if (!string.IsNullOrWhiteSpace(menu.PermissionCode) && !Account.HasPermission(menu.PermissionCode))
+                return false;
+        }
+        // 仅归属于动态模块的菜单才按模块运行状态过滤；平台内置页（如 /system/settings）与自定义菜单不受 RunningRoutes 限制。
+        if (!string.IsNullOrWhiteSpace(menu.ModuleId) && _moduleStates.Count > 0)
+        {
+            var mod = _moduleStates.FirstOrDefault(x => string.Equals(x.Id, menu.ModuleId, StringComparison.OrdinalIgnoreCase));
+            return mod is null || mod.State == ModuleState.Running;
+        }
+        return true;
+    }
+
+    private bool IsCurrentRouteAuthorized()
+    {
+        if (!Account.IsAuthenticated || Account.IsAdmin || IsPublicRoute())
+            return true;
+
+        var current = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/');
+        if (string.IsNullOrEmpty(current)
+            || string.Equals(current, "/profile", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(current, "/settings", StringComparison.OrdinalIgnoreCase)
+            || current.StartsWith("/settings/", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(current, "/tenants", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(current, "/notifications", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (!Account.HasMenu(current))
+            return false;
+
+        var matched = _dbMenus.FirstOrDefault(m =>
+            !string.Equals(m.Kind, "group", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(m.Path.TrimEnd('/'), current, StringComparison.OrdinalIgnoreCase))
+            ?? _dbMenus
+                .Where(m =>
+                {
+                    if (string.Equals(m.Kind, "group", StringComparison.OrdinalIgnoreCase))
+                        return false;
+                    var p = m.Path.TrimEnd('/');
+                    return !string.IsNullOrEmpty(p) && current.StartsWith(p + "/", StringComparison.OrdinalIgnoreCase);
+                })
+                .OrderByDescending(m => m.Path.Length)
+                .FirstOrDefault();
+        if (matched is not null && !string.IsNullOrWhiteSpace(matched.PermissionCode) && !Account.HasPermission(matched.PermissionCode))
+            return false;
+
+        return true;
+    }
+
+    protected override void OnInitialized()
+    {
+        NavRefresh.OnChanged += HandleNavRefresh;
+        Account.Changed += HandleAccountChanged;
+        SysState.Changed += HandleSysChanged;
+        FrontendLoc.Changed += HandleLocalizationChanged;
+    }
+
+    private void HandleNavRefresh() => _ = InvokeAsync(RefreshNavAsync);
+
+    private void HandleAccountChanged() => _ = InvokeAsync(async () =>
+    {
+        if (Account.IsAuthenticated && _dbMenus.Count == 0)
+            await RefreshNavAsync();
+        else
+        {
+            BuildNavGroups();
+            StateHasChanged();
+        }
+    });
+
+    private void HandleSysChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void HandleLocalizationChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        NavRefresh.OnChanged -= HandleNavRefresh;
+        Account.Changed -= HandleAccountChanged;
+        SysState.Changed -= HandleSysChanged;
+        FrontendLoc.Changed -= HandleLocalizationChanged;
+    }
+
+    /// <summary>公共（匿名）路由：登录页与安装向导使用独立的 IdentityLayout，绝不能被本布局的登录守卫重复跳转。</summary>
+    private bool IsPublicRoute()
+    {
+        var path = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/');
+        return string.Equals(path, "/sign-in", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(path, "/sign-up", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(path, "/forgot-password", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(path, "/setup", StringComparison.OrdinalIgnoreCase);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 首屏语言恢复：bb_culture cookie 已由中间件还原到 CultureInfo（见 Program.cs），
+        // 但偏好可能来自服务端（跨设备同步）或与 cookie 不一致，这里以偏好为准再校准一次。
+        // SetCultureAsync 内部会 EnsureLoadedAsync 并触发 Changed，无需再单独加载。
+        var prefs = await Preferences.GetAsync();
+        if (!string.IsNullOrWhiteSpace(prefs.Culture) &&
+            !string.Equals(FrontendLoc.CurrentCulture, prefs.Culture, StringComparison.OrdinalIgnoreCase))
+            await FrontendLoc.SetCultureAsync(prefs.Culture);
+        else
+            await FrontendLoc.EnsureLoadedAsync();
+
+        // 账户状态先就绪，IsMenuVisible 的菜单授权过滤才能生效。
+        await Account.EnsureLoadedAsync();
+        await SysState.EnsureLoadedAsync();
+
+        // 首屏主题 / 强调色恢复：await 后写回并请求重渲染（App.razor 首屏 cookie 由主代理处理）。
+        _dark = string.Equals(prefs.Theme, "dark", StringComparison.OrdinalIgnoreCase);
+        _accent = prefs.AccentColor;
+        StateHasChanged();
+
+        await RefreshNavAsync();
+
+        // 未登录自动跳登录页（带 return-url，登录后回跳原页面）。
+        // RefreshNavAsync 内的 /setup 安装向导重定向会先于本判断执行（未安装时优先走向导），
+        // 且 NavigateTo 抛出的 NavigationException 会终止本方法，故这里仅在「已安装」时生效，
+        // 不会与首次运行向导冲突。MainLayout 是除 /sign-in、/setup（用 IdentityLayout）外
+        // 所有页面的默认布局，因此在此一处即可覆盖全部受保护路由。
+        // 已在公共路由（登录/安装向导）上时，绝不重复跳转，避免 /sign-in → /sign-in 的无限重定向。
+        if (!Account.IsAuthenticated && !IsPublicRoute())
+        {
+            var returnUrl = Uri.EscapeDataString(Navigation.Uri);
+            Navigation.NavigateTo($"/sign-in?return-url={returnUrl}");
+            return;
+        }
+
+        await LoadUnreadAsync();
+    }
+
+    /// <summary>顶栏通知铃铛未读数：独立调用 Api.GetUnreadCountAsync()，失败隐藏徽标。</summary>
+    private async Task LoadUnreadAsync()
+    {
+        try { _unreadCount = await Api.GetUnreadCountAsync(); }
+        catch { _unreadCount = 0; }
+    }
+
+    private static string Initials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return string.Concat(char.ToUpperInvariant(parts[0][0]), char.ToUpperInvariant(parts[1][0]));
+        return name.Length >= 2 ? name[..2].ToUpperInvariant() : name.ToUpperInvariant();
+    }
+
+    /// <summary>重建侧边栏导航：取模块状态 + 可见菜单，按模块运行状态过滤。</summary>
+    private async Task RefreshNavAsync()
+    {
+        var page = RouteData?.PageType?.Name ?? string.Empty;
+        _pageHeader = Headers.TryGetValue(page, out var header) ? header : null;
+
+        try
+        {
+            _dbMenus = [.. await Api.GetListAsync<IdentityMenuDto>("api/identity/menus/visible")];
+        }
+        catch
+        {
+            _dbMenus = [];
+        }
+
+        try
+        {
+            _moduleStates = [.. await Api.GetModulesAsync()];
+        }
+        catch
+        {
+            _moduleStates = [];
+        }
+
+        BuildNavGroups();
+        StateHasChanged();
+
+        // 首次运行（未安装）强制进入初始化向导。/setup 与 /sign-in 走独立的 IdentityLayout，
+        // 不会执行到这里。NavigateTo 必须在 try/catch 之外 —— 静态预渲染阶段它以 NavigationException
+        // 作为重定向信号抛出，若被 catch 吞掉，重定向将静默失效。只检查一次（导航刷新事件不重复查）。
+        if (_setupChecked)
+            return;
+        _setupChecked = true;
+        SetupStatus? status;
+        try
+        {
+            status = await Api.GetSetupStatusAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "安装状态检查失败（ApiHost 可能未启动）");
+            return;
+        }
+
+        if (!status.Installed && !status.DevBypass)
+            Navigation.NavigateTo("/setup");
+    }
+
+    private bool _setupChecked;
+
+    private void BuildNavGroups()
+    {
+        if (_dbMenus.Count > 0)
+        {
+            var eligible = _dbMenus.Where(m => m.IsVisible && IsMenuVisible(m)).ToList();
+            var eligibleIds = eligible.Select(m => m.Id).ToHashSet();
+
+            var roots = eligible
+                .Where(m => m.ParentId is null || !eligibleIds.Contains(m.ParentId.Value))
+                .OrderBy(m => m.Sort)
+                .ThenBy(m => m.CreatedAtUtc)
+                .ToList();
+
+            var visited = new HashSet<Guid>();
+            _navTree = [.. roots
+                .Select(r => BuildNavNode(r, eligible, visited))
+                .Where(n => !string.Equals(n.Kind, "group", StringComparison.OrdinalIgnoreCase) || n.Children.Count > 0)];
+
+            if (!_expandedInitialized)
+            {
+                _expandedInitialized = true;
+                foreach (var n in _navTree.Where(n => string.Equals(n.Kind, "group", StringComparison.OrdinalIgnoreCase)))
+                    _expandedIds.Add(n.Id);
+            }
+            ExpandActiveAncestors(_navTree);
+            return;
+        }
+
+        // 未获取到数据库菜单（如未登录或 ApiHost 不可达）时，仅保留概览入口，不硬编码业务菜单
+        _navTree = [new(Guid.NewGuid(), "概览", "/", "Home", "menu", [])];
+    }
+
+    private static NavNode BuildNavNode(IdentityMenuDto m, List<IdentityMenuDto> pool, HashSet<Guid> visited)
+    {
+        visited.Add(m.Id);
+        var children = pool
+            .Where(c => c.ParentId == m.Id && !visited.Contains(c.Id))
+            .OrderBy(c => c.Sort)
+            .ThenBy(c => c.CreatedAtUtc)
+            .Select(c => BuildNavNode(c, pool, visited))
+            .Where(n => !string.Equals(n.Kind, "group", StringComparison.OrdinalIgnoreCase) || n.Children.Count > 0)
+            .ToList();
+
+        var icon = string.IsNullOrWhiteSpace(m.Icon) ? IconOf(m.Path) : m.Icon!;
+        var kind = string.IsNullOrWhiteSpace(m.Kind) ? "menu" : m.Kind;
+        return new NavNode(m.Id, m.Name, m.Path, icon, kind, children);
+    }
+
+    private bool ExpandActiveAncestors(IEnumerable<NavNode> nodes)
+    {
+        var current = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/');
+        var anyActive = false;
+        foreach (var n in nodes)
+        {
+            var selfActive = !string.Equals(n.Kind, "group", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(current, n.Path.TrimEnd('/'), StringComparison.OrdinalIgnoreCase);
+            var childActive = ExpandActiveAncestors(n.Children);
+            if (childActive)
+                _expandedIds.Add(n.Id);
+            if (selfActive || childActive)
+                anyActive = true;
+        }
+        return anyActive;
+    }
+
+    private void ToggleExpand(Guid id)
+    {
+        if (!_expandedIds.Add(id))
+            _expandedIds.Remove(id);
+    }
+
+    private void OnNavItemClick(NavNode node)
+    {
+        if (node.Children.Count > 0)
+            _expandedIds.Add(node.Id);
+        CloseNav();
+    }
+
+    private static IEnumerable<NavNode> FlattenLeafNodes(IEnumerable<NavNode> nodes)
+    {
+        foreach (var n in nodes)
+        {
+            if (!string.Equals(n.Kind, "group", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(n.Path))
+                yield return n;
+            foreach (var child in FlattenLeafNodes(n.Children))
+                yield return child;
+        }
+    }
+
+    private string NavClass(string href)
+    {
+        var current = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/');
+        return string.Equals(current, href.TrimEnd('/'), StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
+    }
+
+    private void OpenNav()
+    {
+        _navOpen = true;
+        _navToggled = false;
+    }
+
+    private void CloseNav() => _navOpen = false;
+
+    private static string IconOf(string path) => path switch
+    {
+        "/" => "Home",
+        "/catalog" => "Shop",
+        "/identity/users" => "People",
+        "/identity/roles" => "SecurityGroup",
+        "/identity/menus" => "EditList",
+        "/modules" => "Puzzle",
+        "/attachments" => "Attach",
+        "/settings" => "Settings",
+        "/system/settings" => "Settings",
+        _ => "Grid"
+    };
+}

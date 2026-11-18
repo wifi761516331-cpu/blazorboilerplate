@@ -1,0 +1,84 @@
+/* SwitchTenantModal 独占样式（switch-tenant-* 前缀 class 仅本组件使用）。
+   注意：@keyframes blazorboilerplate-modal-in / blazorboilerplate-fade-in
+   仍留在 app.css（与其他组件共用），此处仅引用。 */
+.switch-tenant-root { position: relative; }
+.switch-tenant-backdrop {
+    position: fixed; inset: 0; z-index: 1400;
+    border: 0; padding: 0; cursor: default;
+    background: rgba(0, 0, 0, .45);
+    animation: blazorboilerplate-fade-in .15s ease-out;
+}
+.switch-tenant-modal {
+    position: fixed; z-index: 1401; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex; flex-direction: column;
+    width: min(22rem, 100%);
+    max-height: calc(100vh - 2rem);
+    background: var(--bb-bg-pri); color: var(--bb-fg-pri);
+    border: 1px solid var(--bb-brd-ter);
+    border-radius: var(--bb-radius-lg);
+    box-shadow: var(--bb-shd-4), 0 12px 28px rgba(0, 0, 0, .22);
+    animation: blazorboilerplate-modal-in .16s ease-out;
+}
+.switch-tenant-header {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .5rem .5rem .5rem .25rem;
+    border-bottom: 1px solid var(--bb-brd-ter);
+}
+.switch-tenant-back {
+    display: grid; place-items: center;
+    width: 2rem; height: 2rem;
+    border: 0; border-radius: var(--bb-radius-sm);
+    background: transparent; color: var(--bb-fg-pri);
+    cursor: pointer; font-size: 1.1rem; line-height: 1;
+}
+.switch-tenant-back:hover { background: var(--bb-bg-sec); }
+.switch-tenant-title {
+    flex: 1; text-align: center;
+    font-size: 1rem; font-weight: 600; color: var(--bb-fg-pri);
+    margin-right: 2rem; /* 抵消左侧返回按钮宽度，使标题视觉居中 */
+}
+.switch-tenant-body {
+    flex: 1; overflow: auto;
+    display: flex; flex-direction: column; gap: .25rem;
+    padding: .75rem;
+}
+.switch-tenant-empty {
+    display: flex; justify-content: center;
+    padding: 2.5rem 1rem;
+    font-size: .875rem; color: var(--bb-fg-sec);
+}
+.switch-tenant-item {
+    display: flex; align-items: center; gap: .65rem;
+    width: 100%; text-align: left;
+    padding: .65rem .75rem;
+    border: 1px solid var(--bb-brd-ter);
+    border-radius: var(--bb-radius-md);
+    background: var(--bb-bg-pri); color: var(--bb-fg-pri);
+    cursor: pointer; font-size: .9rem;
+    transition: background .12s ease, border-color .12s ease;
+}
+.switch-tenant-item:hover:not(:disabled) { background: var(--bb-bg-sec); border-color: var(--bb-brd-sec); }
+.switch-tenant-item.selected { border-color: color-mix(in srgb, var(--bb-pri) 45%, transparent); background: var(--bb-pri-tint); cursor: default; }
+.switch-tenant-item:disabled { opacity: .85; cursor: default; }
+.switch-tenant-item .switch-tenant-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.switch-tenant-item .pending { color: var(--bb-warn, #b25b00); }
+.switch-tenant-item .current { color: var(--bb-succ, #0e700e); }
+.switch-tenant-item .pending-badge {
+    flex-shrink: 0;
+    font-size: .7rem; line-height: 1;
+    padding: .25rem .4rem;
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--bb-warn, #b25b00) 14%, transparent);
+    color: var(--bb-warn, #b25b00);
+}
+.switch-tenant-manage {
+    display: flex; align-items: center; gap: .65rem;
+    width: 100%; text-align: left;
+    padding: .75rem 1rem;
+    border: 0; border-top: 1px solid var(--bb-brd-ter);
+    background: var(--bb-bg-sec); color: var(--bb-fg-pri);
+    cursor: pointer; font-size: .9rem; font-weight: 500;
+    border-radius: 0 0 var(--bb-radius-lg) var(--bb-radius-lg);
+}
+.switch-tenant-manage:hover { background: var(--bb-bg-ter); }
