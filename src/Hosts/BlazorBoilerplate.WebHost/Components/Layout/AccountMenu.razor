@@ -171,7 +171,7 @@
             {
                 <button type="button" class="account-choice @(_culture == culture.Code ? "selected" : "")"
                         @onclick="() => SelectLanguage(culture)">
-                    <BitFlag Iso2="@RegionIso2(culture.Code)" />
+                    <BitFlag Iso2="@(culture.FlagCode ?? RegionIso2(culture.Code))" />
                     <span>@culture.Text</span>
                     @if (_culture == culture.Code)
                     {

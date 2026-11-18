@@ -238,7 +238,7 @@ else
                 <div class="version-row @(v.IsActive ? "is-active" : "")">
                     <div class="version-info">
                         <strong>v@(v.Version)</strong>
-                        @if (v.IsActive)
+                        @if (v.State == ModuleState.Running)
                         {
                             <span class="module-chip info">@L["platform.modules.currentRunning"]</span>
                         }
@@ -252,7 +252,7 @@ else
                             <span class="version-error">@v.Error</span>
                         }
                     </div>
-                    @if (!v.IsActive && v.State is ModuleState.Installed or ModuleState.Uninstalled or ModuleState.Disabled)
+                    @if (v.State is ModuleState.Installed or ModuleState.Uninstalled or ModuleState.Disabled)
                     {
                         <PermissionView Code="module.load">
                             <BitButton Color="BitColor.Primary" Variant="BitVariant.Outline"

@@ -11,8 +11,8 @@ public static class LocalizationDefaults
 
     public static readonly IReadOnlyList<LanguageInfo> BuiltInLanguages =
     [
-        new LanguageInfo(DefaultFallbackCulture, "English", "English (US)", IsRtl: false, IsDefault: false, IsEnabled: true, DisplayOrder: 10),
-        new LanguageInfo(DefaultChineseCulture, "简体中文", "简体中文 (中国)", IsRtl: false, IsDefault: true, IsEnabled: true, DisplayOrder: 20)
+        new LanguageInfo(DefaultFallbackCulture, "English", "English (US)", IsRtl: false, IsDefault: false, IsEnabled: true, DisplayOrder: 10, FlagCode: "US"),
+        new LanguageInfo(DefaultChineseCulture, "简体中文", "简体中文 (中国)", IsRtl: false, IsDefault: true, IsEnabled: true, DisplayOrder: 20, FlagCode: "CN")
     ];
 }
 
@@ -23,7 +23,8 @@ public sealed record LanguageInfo(
     bool IsRtl = false,
     bool IsDefault = false,
     bool IsEnabled = true,
-    int DisplayOrder = 0);
+    int DisplayOrder = 0,
+    string? FlagCode = null);
 
 public sealed record LocaleResourceEntry(
     string ModuleId,

@@ -69,12 +69,12 @@ public partial class AccountMenu
     /// 只列平台真正有词条资源的中/英两种；ja-JP/de-DE 等无资源项会导致整页原始 key，不能放入。</summary>
     private static readonly CultureOption[] FallbackCultures =
     [
-        new("zh-CN", "简体中文"), new("en-US", "英语（美国）")
+        new("zh-CN", "简体中文", "CN"), new("en-US", "英语（美国）", "US")
     ];
 
     // 只拿不透明的 accountId：refresh_token 留在 WebHost 的加密 Cookie 票据里，不下发到浏览器。
     private sealed record OtherAccount(string UserId, string UserName, string Email, string DisplayName, string AccountId);
-    private sealed record CultureOption(string Code, string Text);
+    private sealed record CultureOption(string Code, string Text, string? FlagCode = null);
 
     private bool _isOpen;
     private bool _switchOpen;
@@ -98,6 +98,8 @@ public partial class AccountMenu
     {
         Account.Changed += HandleAccountChanged;
         Preferences.Changed += HandlePreferencesChanged;
+        if (L is BlazorBoilerplate.Web.Shared.Localization.FrontendLocalizationService fl)
+            fl.Changed += HandleLocalizationChanged;
         await Account.EnsureLoadedAsync();
 
         var prefs = await Preferences.GetAsync();
@@ -164,9 +166,17 @@ public partial class AccountMenu
     {
         Account.Changed -= HandleAccountChanged;
         Preferences.Changed -= HandlePreferencesChanged;
+        if (L is BlazorBoilerplate.Web.Shared.Localization.FrontendLocalizationService fl)
+            fl.Changed -= HandleLocalizationChanged;
         _clockCts?.Cancel();
         _clockCts?.Dispose();
     }
+
+    private void HandleLocalizationChanged() => _ = InvokeAsync(async () =>
+    {
+        await LoadCulturesAsync();
+        StateHasChanged();
+    });
 
     private async Task LoadAccountsAsync()
     {
@@ -189,7 +199,10 @@ public partial class AccountMenu
             var languages = await L.GetSupportedLanguagesAsync();
             _cultures = languages is { Count: > 0 }
                 ? languages.Where(l => l.IsEnabled).OrderBy(l => l.DisplayOrder)
-                    .Select(l => new CultureOption(l.Culture, string.IsNullOrWhiteSpace(l.Name) ? CultureName(l.Culture) : l.Name))
+                    .Select(l => new CultureOption(
+                        l.Culture,
+                        string.IsNullOrWhiteSpace(l.Name) ? CultureName(l.Culture) : l.Name,
+                        string.IsNullOrWhiteSpace(l.FlagCode) ? null : l.FlagCode))
                     .ToList()
                 : [.. FallbackCultures];
         }
@@ -318,7 +331,12 @@ public partial class AccountMenu
         }
     }
 
-    private void OpenLanguages() { _panel = MenuPanel.Languages; _hint = null; }
+    private async Task OpenLanguages()
+    {
+        _panel = MenuPanel.Languages;
+        _hint = null;
+        await LoadCulturesAsync();
+    }
 
     /// <summary>打开切换租户弹框：仅置绑定状态，由参数驱动子组件渲染并自行加载数据。</summary>
     private void OpenTenants() { Close(); _switchOpen = true; }
