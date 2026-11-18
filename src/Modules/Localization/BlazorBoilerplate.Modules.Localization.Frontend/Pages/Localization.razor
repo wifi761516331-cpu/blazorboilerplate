@@ -1,0 +1,366 @@
+@page "/localization"
+@rendermode RenderMode.InteractiveServer
+
+<div class="page-callout">
+    <BitText Element="h1" Class="page-title">@L["localization.title"]</BitText>
+    <BitText Class="muted">@L["localization.subtitle"]</BitText>
+</div>
+
+<div class="id-page">
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <BitCallout Class="page-callout error">@_error</BitCallout>
+    }
+    @if (!string.IsNullOrWhiteSpace(_notice))
+    {
+        <BitCallout Class="page-callout">@_notice</BitCallout>
+    }
+
+    <BitPivot SelectedKey="@_activeTabKey" SelectedKeyChanged="OnTabChangedAsync">
+        <BitPivotItem Key="languages" HeaderText="@L["localization.tab.languages"]" ItemCount="@(_languages.Count == 0 ? null : _languages.Count)">
+            <div class="bb-toolbar" style="margin-top: 0.75rem;">
+                <BitButton Variant="BitVariant.Outline"
+                           IconName="@BitIconName.Refresh"
+                           OnClick="LoadLanguagesAsync"
+                           IsEnabled="!_busy">
+                    @L["platform.common.refresh"]
+                </BitButton>
+                <PermissionGate Code="localization.language.write">
+                    <BitButton IconName="@BitIconName.Add"
+                               OnClick="OpenCreateLanguage"
+                               IsEnabled="!_busy">
+                        @L["localization.lang.add"]
+                    </BitButton>
+                </PermissionGate>
+            </div>
+
+            <div class="grid-container">
+                <table class="loc-table" style="width:100%; border-collapse:collapse;">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left; padding:0.65rem 0.75rem;">@L["localization.lang.flag"]</th>
+                            <th style="text-align:left; padding:0.65rem 0.75rem;">@L["localization.lang.culture"]</th>
+                            <th style="text-align:left; padding:0.65rem 0.75rem;">@L["localization.lang.name"]</th>
+                            <th style="text-align:left; padding:0.65rem 0.75rem;">@L["localization.lang.displayName"]</th>
+                            <th style="text-align:left; padding:0.65rem 0.75rem;">@L["localization.lang.order"]</th>
+                            <th style="text-align:left; padding:0.65rem 0.75rem;">@L["localization.lang.rtl"]</th>
+                            <th style="text-align:left; padding:0.65rem 0.75rem;">@L["localization.lang.default"]</th>
+                            <th style="text-align:left; padding:0.65rem 0.75rem;">@L["localization.lang.enabled"]</th>
+                            <th style="text-align:left; padding:0.65rem 0.75rem;">@L["localization.common.actions"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var lang in _languages)
+                        {
+                            <tr style="border-top:1px solid var(--bb-border, #e5e7eb);">
+                                <td style="padding:0.6rem 0.75rem;">
+                                    @if (!string.IsNullOrWhiteSpace(lang.FlagCode))
+                                    {
+                                        <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.4rem">
+                                            <BitFlag Iso2="@lang.FlagCode" />
+                                            <BitTag Color="BitColor.TertiaryBackground">@lang.FlagCode</BitTag>
+                                        </BitStack>
+                                    }
+                                    else
+                                    {
+                                        <span class="muted">—</span>
+                                    }
+                                </td>
+                                <td style="padding:0.6rem 0.75rem;">
+                                    <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.5rem">
+                                        <strong>@lang.Culture</strong>
+                                        @if (lang.IsFallbackProtected)
+                                        {
+                                            <BitBadge Color="BitColor.SevereWarning">@L["localization.lang.protected"]</BitBadge>
+                                        }
+                                    </BitStack>
+                                </td>
+                                <td style="padding:0.6rem 0.75rem;">@lang.Name</td>
+                                <td style="padding:0.6rem 0.75rem;">@lang.DisplayName</td>
+                                <td style="padding:0.6rem 0.75rem;">@lang.DisplayOrder</td>
+                                <td style="padding:0.6rem 0.75rem;">
+                                    <BitTag Color="BitColor.TertiaryBackground">@(lang.IsRtl ? "RTL" : "LTR")</BitTag>
+                                </td>
+                                <td style="padding:0.6rem 0.75rem;">
+                                    @if (lang.IsDefault)
+                                    {
+                                        <BitBadge Color="BitColor.Info">@L["localization.lang.default"]</BitBadge>
+                                    }
+                                    else
+                                    {
+                                        <span class="muted">—</span>
+                                    }
+                                </td>
+                                <td style="padding:0.6rem 0.75rem;">
+                                    <BitBadge Color="@(lang.IsEnabled ? BitColor.Success : BitColor.TertiaryBackground)">
+                                        @(lang.IsEnabled ? L["localization.lang.enabled"] : "-")
+                                    </BitBadge>
+                                </td>
+                                <td style="padding:0.6rem 0.75rem;">
+                                    <PermissionGate Code="localization.language.write">
+                                        <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.75rem">
+                                            <button type="button" class="bb-link-btn" @onclick="() => OpenEditLanguage(lang)">
+                                                @L["localization.common.edit"]
+                                            </button>
+                                            @if (!lang.IsDefault)
+                                            {
+                                                <button type="button" class="bb-link-btn" @onclick="() => SetDefaultLanguageAsync(lang)">
+                                                    @L["localization.lang.setDefault"]
+                                                </button>
+                                            }
+                                            @if (!lang.IsFallbackProtected && !lang.IsDefault)
+                                            {
+                                                <button type="button" class="bb-link-btn danger" @onclick="() => AskDeleteLanguage(lang)">
+                                                    @L["localization.common.delete"]
+                                                </button>
+                                            }
+                                        </BitStack>
+                                    </PermissionGate>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </BitPivotItem>
+
+        <BitPivotItem Key="resources" HeaderText="@L["localization.tab.resources"]">
+            <div class="bb-toolbar" style="margin-top: 0.75rem; flex-wrap: nowrap; align-items: center; gap: 0.5rem; min-width: 0;">
+                <select class="bit-select" style="flex-shrink:0; width:11.5rem;" title="@L["localization.res.targetCulture"]" value="@_targetCulture" @onchange="OnTargetCultureChangedAsync">
+                    @foreach (var lang in _languages)
+                    {
+                        <option value="@lang.Culture">@lang.DisplayName (@lang.Culture)</option>
+                    }
+                </select>
+
+                <select class="bit-select" style="flex-shrink:0; width:9rem;" title="@L["localization.res.module"]" value="@_selectedModule" @onchange="OnModuleChangedAsync">
+                    <option value="">@L["localization.res.allModules"]</option>
+                    @foreach (var mod in _modules)
+                    {
+                        <option value="@mod">@GetModuleDisplayName(mod)</option>
+                    }
+                </select>
+
+                <div class="bb-search" style="flex: 1 1 7rem; min-width: 6rem; max-width: 16rem;">
+                    <BitSearchBox Placeholder="@L["localization.res.search"]"
+                                  Immediate
+                                  DebounceTime="300"
+                                  Value="@_keyword"
+                                  ValueChanged="OnKeywordChangedAsync" />
+                </div>
+
+                <div style="flex-shrink:0; white-space:nowrap;">
+                    <BitCheckbox Label="@L["localization.res.onlyMissing"]"
+                                 Value="@_onlyMissing"
+                                 ValueChanged="OnOnlyMissingChangedAsync" />
+                </div>
+
+                <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.4rem" Style="flex-wrap:nowrap; flex-shrink:0; margin-left:auto;">
+                    <PermissionGate Code="localization.resource.write">
+                        <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Sync" OnClick="SyncBuiltInAsync" IsEnabled="!_busy" Style="white-space:nowrap;">
+                            @L["localization.res.sync"]
+                        </BitButton>
+                        <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Upload" OnClick="OpenImportDialog" IsEnabled="!_busy" Style="white-space:nowrap;">
+                            @L["localization.res.import"]
+                        </BitButton>
+                        <BitButton IconName="@BitIconName.Save" OnClick="SaveAllDirtyAsync" IsEnabled="@(!_busy && _resources.Any(r => r.IsDirty))" Style="white-space:nowrap;">
+                            @L["localization.res.saveAll"]
+                        </BitButton>
+                    </PermissionGate>
+                    <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Download" OnClick="ExportJsonAsync" IsEnabled="!_busy" Style="white-space:nowrap;">
+                        @L["localization.res.export"]
+                    </BitButton>
+                </BitStack>
+            </div>
+
+            <div class="grid-container">
+                <table class="data-grid">
+                    <thead>
+                        <tr>
+                            <th>@L["localization.res.col.module"]</th>
+                            <th>@L["localization.res.col.key"]</th>
+                            <th>@L["localization.res.col.fallback"]</th>
+                            <th>@L["localization.res.col.target"]</th>
+                            <th>@L["localization.res.col.status"]</th>
+                            <th>@L["localization.res.col.actions"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in _resources)
+                        {
+                            <tr>
+                                <td>
+                                    <BitTag Color="BitColor.TertiaryBackground">@GetModuleDisplayName(row.ModuleId)</BitTag>
+                                </td>
+                                <td class="mono" style="word-break:break-all;">
+                                    @row.Key
+                                </td>
+                                <td style="max-width:260px; word-break:break-word;" class="muted">
+                                    @row.FallbackValue
+                                </td>
+                                <td style="min-width:260px;">
+                                    <input class="loc-input @(row.IsDirty ? "dirty" : "")"
+                                           style="width:100%; padding:0.375rem 0.5rem; border:1px solid @(row.IsDirty ? "var(--bb-accent, #0078d4)" : "var(--bb-border, #cbd5e1)"); border-radius:4px; background:transparent; color:inherit; font:inherit;"
+                                           value="@row.TargetValue"
+                                           @oninput="e => OnRowValueInput(row, e.Value?.ToString())" />
+                                </td>
+                                <td>
+                                    @if (row.IsOverridden)
+                                    {
+                                        <BitBadge Color="BitColor.Info">@L["localization.res.status.overridden"]</BitBadge>
+                                    }
+                                    else if (row.IsMissing)
+                                    {
+                                        <BitBadge Color="BitColor.Warning">@L["localization.res.status.missing"]</BitBadge>
+                                    }
+                                    else
+                                    {
+                                        <BitBadge Color="BitColor.Success">@L["localization.res.status.builtin"]</BitBadge>
+                                    }
+                                </td>
+                                <td>
+                                    <PermissionGate Code="localization.resource.write">
+                                        <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.75rem">
+                                            <button type="button"
+                                                    class="bb-link-btn"
+                                                    disabled="@(_busy || !row.IsDirty)"
+                                                    @onclick="() => SaveSingleRowAsync(row)">
+                                                @L["localization.res.save"]
+                                            </button>
+                                            @if (row.IsOverridden)
+                                            {
+                                                <button type="button"
+                                                        class="bb-link-btn danger"
+                                                        disabled="@_busy"
+                                                        @onclick="() => ResetRowAsync(row)">
+                                                    @L["localization.res.reset"]
+                                                </button>
+                                            }
+                                        </BitStack>
+                                    </PermissionGate>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pager">
+                <BitText Class="muted" Style="white-space:nowrap;">@L.GetString("localization.common.total", _totalResources)</BitText>
+                <select class="bit-select" value="@_pageSize" @onchange="OnPageSizeChangedAsync">
+                    <option value="10">10 / 页</option>
+                    <option value="20">20 / 页</option>
+                    <option value="50">50 / 页</option>
+                    <option value="100">100 / 页</option>
+                </select>
+                <BitButton Color="BitColor.Secondary" IsEnabled="@(_page > 1 && !_busy)" OnClick="PrevPageAsync">
+                    @L["localization.common.prev"]
+                </BitButton>
+                <BitText Style="white-space:nowrap;">@_page / @TotalPages</BitText>
+                <BitButton Color="BitColor.Secondary" IsEnabled="@(_page < TotalPages && !_busy)" OnClick="NextPageAsync">
+                    @L["localization.common.next"]
+                </BitButton>
+            </div>
+        </BitPivotItem>
+    </BitPivot>
+</div>
+
+<BlazorBoilerplateModal @bind-IsOpen="_langDialogOpen"
+                        Title="@(_editingLangId is null ? L["localization.lang.add"] : L["localization.lang.edit"])"
+                        OkText="@L["localization.common.confirm"]"
+                        CancelText="@L["localization.common.cancel"]"
+                        Disabled="@_busy"
+                        OnOk="SaveLanguageAsync"
+                        CloseOnBackdrop="false">
+    <BitStack Vertical Gap="0.9rem" Style="width:100%;">
+        @if (!string.IsNullOrWhiteSpace(_modalError))
+        {
+            <BitCallout Class="page-callout error">@_modalError</BitCallout>
+        }
+
+        @if (_editingLangId is null)
+        {
+            <BitDropdown TItem="BitDropdownItem<string>"
+                         TValue="string"
+                         Label="@L["localization.lang.culture"]"
+                         Placeholder="@L["localization.lang.culturePlaceholder"]"
+                         Items="@_filteredCultureItems"
+                         ShowSearchBox="true"
+                         SearchBoxPlaceholder="输入语言或代码搜索（如 日语 / ja-JP）..."
+                         OnSearch="OnCultureSearch"
+                         OnSelectItem="OnCultureItemSelected"
+                         @bind-Value="_langCulture"
+                         Style="width:100%;" />
+        }
+        else
+        {
+            <BitTextField Label="@L["localization.lang.culture"]"
+                          Value="@_langCulture"
+                          ReadOnly="true"
+                          Style="width:100%;" />
+        }
+
+        <BitTextField Label="@L["localization.lang.name"]" @bind-Value="_langName" Style="width:100%;" />
+        <BitTextField Label="@L["localization.lang.displayName"]" @bind-Value="_langDisplayName" Style="width:100%;" />
+
+        <BitDropdown TItem="BitDropdownItem<string>"
+                     TValue="string"
+                     Label="@L["localization.lang.flag"]"
+                     Placeholder="@L["localization.lang.flagPlaceholder"]"
+                     Items="@_filteredCountryFlagItems"
+                     ShowSearchBox="true"
+                     SearchBoxPlaceholder="输入国家或代码搜索（如 中国 / CN / JP）..."
+                     OnSearch="OnFlagSearch"
+                     @bind-Value="_langFlagCode"
+                     Style="width:100%;">
+            <TextTemplate Context="dropdown">
+                @if (dropdown?.SelectedItem is { } sel && !string.IsNullOrWhiteSpace(sel.Value))
+                {
+                    <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.5rem">
+                        <BitFlag Iso2="@sel.Value" />
+                        <span>@sel.Text</span>
+                    </BitStack>
+                }
+            </TextTemplate>
+            <ItemTemplate Context="item">
+                <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.5rem">
+                    <BitFlag Iso2="@item.Value" />
+                    <span>@item.Text</span>
+                </BitStack>
+            </ItemTemplate>
+        </BitDropdown>
+
+        <BitNumberField Label="@L["localization.lang.order"]" @bind-Value="_langOrder" Style="width:100%;" />
+
+        <BitStack Horizontal Gap="1rem" Style="flex-wrap:wrap; width:100%;">
+            <BitCheckbox Label="@L["localization.lang.rtl"]" @bind-Value="_langRtl" />
+            <BitCheckbox Label="@L["localization.lang.default"]" @bind-Value="_langDefault" />
+            <BitCheckbox Label="@L["localization.lang.enabled"]"
+                         IsEnabled="@(!_editingProtected)"
+                         @bind-Value="_langEnabled" />
+        </BitStack>
+    </BitStack>
+</BlazorBoilerplateModal>
+
+<BlazorBoilerplateModal IsOpen="@(_deletingLang is not null)"
+                        IsOpenChanged="@(open => { if (!open) _deletingLang = null; })"
+                        Title="@L["localization.common.delete"]"
+                        Message="@(_deletingLang is null ? null : L.GetString("localization.lang.deleteConfirm", _deletingLang.Culture))"
+                        OkText="@L["localization.common.confirm"]"
+                        CancelText="@L["localization.common.cancel"]"
+                        Danger="true"
+                        Disabled="@_busy"
+                        OnOk="ConfirmDeleteLanguageAsync" />
+
+<BlazorBoilerplateModal @bind-IsOpen="_importDialogOpen"
+                        Title="@L["localization.res.importTitle"]"
+                        OkText="@L["localization.common.confirm"]"
+                        CancelText="@L["localization.common.cancel"]"
+                        Disabled="@_busy"
+                        OnOk="ImportJsonAsync"
+                        CloseOnBackdrop="false">
+    <textarea rows="10"
+              style="width:100%; padding:0.5rem; border:1px solid var(--bb-border, #cbd5e1); border-radius:4px; background:transparent; color:inherit; font:inherit;"
+              placeholder="@L["localization.res.importPlaceholder"]"
+              @bind="_importJson"></textarea>
+</BlazorBoilerplateModal>
