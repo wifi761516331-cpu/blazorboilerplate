@@ -24,8 +24,6 @@ public partial class ForgotPassword
     private string _verificationCode = string.Empty;
     private string _newPassword = string.Empty;
     private string _confirmPassword = string.Empty;
-    private bool _revealPassword;
-    private bool _revealConfirm;
     private bool _busy;
     private bool _sendingCode;
     private bool _resetSuccess;
@@ -182,9 +180,6 @@ public partial class ForgotPassword
             : $"/sign-up?return-url={Uri.EscapeDataString(_returnUrl)}";
         Navigation.NavigateTo(url);
     }
-
-    private void ToggleRevealPassword() => _revealPassword = !_revealPassword;
-    private void ToggleRevealConfirm() => _revealConfirm = !_revealConfirm;
 
     private static string? NormalizeReturnUrl(string? returnUrl, string baseUri)
     {

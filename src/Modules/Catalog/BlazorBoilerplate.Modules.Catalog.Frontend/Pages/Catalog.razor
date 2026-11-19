@@ -10,70 +10,28 @@
 {
     <BitCallout Class="page-callout error">@_loadError</BitCallout>
 }
-else
-{
-    @* Bluebird ProductsPage 风格：筛选工具栏 + 带边框的表格容器 *@
-    <div class="bb-toolbar bb-filters">
-        <div class="filter-row">
-            <BitTextField Label="@L["catalog.filter.name"]" Placeholder="@L["catalog.filter.namePlaceholder"]" @bind-Value="_search" OnInput="OnFilterChanged" />
-            <BitTextField Label="@L["catalog.filter.minPrice"]" Placeholder="@L["catalog.filter.minPricePlaceholder"]" @bind-Value="_minPrice" OnInput="OnFilterChanged" />
-            <BitTextField Label="@L["catalog.filter.category"]" Placeholder="@L["catalog.filter.categoryPlaceholder"]" @bind-Value="_category" OnInput="OnFilterChanged" />
-            <div class="filter-sort">
-                <BitText Class="muted">@L["catalog.filter.sort"]</BitText>
-                <select class="bit-select" @bind="_sortField">
-                    <option value="price">@L["catalog.filter.sortPrice"]</option>
-                    <option value="name">@L["catalog.filter.sortName"]</option>
-                    <option value="category">@L["catalog.filter.sortCategory"]</option>
-                </select>
-                <BitCheckbox Label="@L["catalog.filter.desc"]" @bind-Value="_sortDesc" OnChange="OnFilterChanged" />
-            </div>
-        </div>
-    </div>
 
-    <div class="grid-container">
-        @if (_loading)
-        {
-            <BitText Class="muted">@L["catalog.loading"]</BitText>
-        }
-        else if (_items.Count == 0)
-        {
-            <BitText Class="muted">@L["catalog.empty"]</BitText>
-        }
-        else
-        {
-            <table class="data-grid">
-                <thead>
-                    <tr>
-                        <th>@L["catalog.col.name"]</th>
-                        <th class="num">@L["catalog.col.price"]</th>
-                        <th>@L["catalog.col.category"]</th>
-                        <th>@L["catalog.col.id"]</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var p in _items)
-                    {
-                        <tr>
-                            <td>@p.Name</td>
-                            <td class="num">@p.Price.ToString("C", System.Globalization.CultureInfo.CurrentCulture)</td>
-                            <td><BitBadge Color="BitColor.Info">@p.Category</BitBadge></td>
-                            <td class="mono">@p.Id</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-
-        }
-    </div>
-
-    @if (!_loading && _items.Count > 0)
-    {
-        <div class="pager">
-            <BitText Class="muted">@L.GetString("catalog.pager.total", _total)</BitText>
-            <BitButton Color="BitColor.Secondary" OnClick="PrevAsync" Disabled="@(_page <= 1 || _loading)">@L["catalog.pager.prev"]</BitButton>
-            <BitText>@L.GetString("catalog.pager.page", _page)</BitText>
-            <BitButton Color="BitColor.Secondary" OnClick="NextAsync" Disabled="@(_loading || (_total > 0 && _page * PageSize >= _total))">@L["catalog.pager.next"]</BitButton>
-        </div>
-    }
-}
-
+@* BitDataGrid 服务端模式：OnRead 把 skip/take/sorts/filters 映射到服务端 OData，翻页/排序/筛选都不走内存。
+   表头下方是内置筛选行（每列一个输入框）；排序点表头，箭头由 BitDataGrid 内置渲染；
+   ColumnId 设为 OData 白名单字段名。 *@
+<BitDataGrid TItem="ProductDto"
+             OnRead="ReadAsync"
+             Strings="@_gridStrings"
+             Pageable="true" PageSize="PageSize"
+             Sortable="true" Filterable="true" FilterDebounce="300"
+             Bordered="true" Hoverable="true" Striped="true"
+             ShowHeader="true">
+    <Columns>
+        <BitDataGridColumn TItem="ProductDto" Property="p => p.Name" ColumnId="name" Title="@L["catalog.col.name"]" Sortable="true" />
+        <BitDataGridColumn TItem="ProductDto" Property="p => p.Price" ColumnId="price" Title="@L["catalog.col.price"]" Format="C" Align="BitTextAlign.End" Sortable="true" FilterOperators="true" />
+        <BitDataGridColumn TItem="ProductDto" Property="p => p.Category" ColumnId="category" Title="@L["catalog.col.category"]" Sortable="true">
+            <Template Context="p">
+                <BitBadge Color="BitColor.Info">@p.Category</BitBadge>
+            </Template>
+        </BitDataGridColumn>
+        <BitDataGridColumn TItem="ProductDto" Property="p => p.Id" ColumnId="id" Title="@L["catalog.col.id"]" Sortable="true" Filterable="false" />
+    </Columns>
+    <EmptyTemplate>
+        <BitText Class="muted">@L["catalog.empty"]</BitText>
+    </EmptyTemplate>
+</BitDataGrid>

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using Bit.BlazorUI;
 using BlazorBoilerplate.Application.Localization;
 using BlazorBoilerplate.Shared.Features.Account;
 using BlazorBoilerplate.Shared.Features.Identity;
@@ -85,6 +86,8 @@ public partial class AccountMenu
     private List<OtherAccount> _accounts = [];
     private List<CultureOption> _cultures = [.. FallbackCultures];
     private List<(string Id, string Text)> _timeZoneOptions = [.. TimeZones];
+    private List<BitDropdownItem<string>> TimeZoneItems => _timeZoneOptions
+        .Select(z => new BitDropdownItem<string> { Text = z.Text, Value = z.Id }).ToList();
     private string _culture = "zh-CN";
     private string _timeZone = "Asia/Shanghai";
     private bool _notifications;

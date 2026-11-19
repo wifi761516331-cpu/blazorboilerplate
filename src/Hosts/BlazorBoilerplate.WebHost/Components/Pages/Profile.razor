@@ -3,19 +3,19 @@
 @using BlazorBoilerplate.Shared.Features.Attachments
 @using Microsoft.AspNetCore.Components.Forms
 
-<div class="page-callout">
-    <h1 class="page-title">@L["platform.header.profile.title"]</h1>
-    <p class="muted">@L["platform.profile.subtitle"]</p>
-</div>
+<BitCallout Class="page-callout">
+    <BitText Element="h1" Class="page-title">@L["platform.header.profile.title"]</BitText>
+    <BitText Class="muted">@L["platform.profile.subtitle"]</BitText>
+</BitCallout>
 
 @if (_loadError is not null)
 {
-    <div class="page-callout error">@_loadError</div>
+    <BitCallout Class="page-callout error">@_loadError</BitCallout>
 }
 
 <div class="account-page-grid">
     <section class="bb-card">
-        <h2 class="section-title">@L["platform.profile.avatarTitle"]</h2>
+        <BitText Element="h2" Typography="BitTypography.H5" Class="section-title">@L["platform.profile.avatarTitle"]</BitText>
         <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
             @if (_avatarUrl is not null)
             {
@@ -31,10 +31,11 @@
             <div style="display:flex;flex-direction:column;gap:.5rem;">
                 <InputFile OnChange="UploadAvatarAsync" accept=".jpg,.jpeg,.png,.webp,.gif,.bmp" disabled="@_uploadingAvatar" />
                 <div style="display:flex;gap:.5rem;align-items:center;">
-                    <span class="muted" style="font-size:.85rem;">@L["platform.profile.avatarHint"]</span>
+                    <BitText Class="muted" Style="font-size:.85rem;">@L["platform.profile.avatarHint"]</BitText>
                     @if (_avatarUrl is not null)
                     {
-                        <button type="button" class="bb-link-btn danger" @onclick="DeleteAvatarAsync" disabled="@_uploadingAvatar">@L["platform.profile.removeAvatar"]</button>
+                        <BitButton Variant="BitVariant.Text" Color="BitColor.Error" Size="BitSize.Small"
+                                   OnClick="DeleteAvatarAsync" Disabled="@_uploadingAvatar">@L["platform.profile.removeAvatar"]</BitButton>
                     }
                 </div>
             </div>
@@ -42,42 +43,32 @@
     </section>
 
     <section class="bb-card">
-        <h2 class="section-title">@L["platform.profile.basicInfo"]</h2>
+        <BitText Element="h2" Typography="BitTypography.H5" Class="section-title">@L["platform.profile.basicInfo"]</BitText>
         <div class="id-form">
-            <div class="auth-field">
-                <label class="auth-label" for="pf-name">@L["platform.profile.displayName"]</label>
-                <input id="pf-name" class="auth-input" @bind="_displayName" />
-            </div>
-            <div class="auth-field">
-                <label class="auth-label" for="pf-email">@L["platform.profile.email"]</label>
-                <input id="pf-email" class="auth-input" type="email" @bind="_email" />
-            </div>
+            <BitTextField Label="@L["platform.profile.displayName"]" @bind-Value="_displayName" />
+            <BitTextField Label="@L["platform.profile.email"]" @bind-Value="_email" Type="BitInputType.Email" />
             <div class="bb-form-actions">
                 <PermissionView Code="identity.user.update">
-                    <button type="button" class="blazorboilerplate-btn primary" @onclick="SaveProfileAsync" disabled="@_savingProfile">
-                        @(_savingProfile ? L["platform.profile.saving"] : L["platform.profile.saveProfile"])
-                    </button>
+                    <BitButton Color="BitColor.Primary" OnClick="SaveProfileAsync" IsLoading="@_savingProfile">
+                        @L["platform.profile.saveProfile"]
+                    </BitButton>
                 </PermissionView>
             </div>
         </div>
     </section>
 
     <section class="bb-card">
-        <h2 class="section-title">@L["platform.profile.changePassword"]</h2>
+        <BitText Element="h2" Typography="BitTypography.H5" Class="section-title">@L["platform.profile.changePassword"]</BitText>
         <div class="id-form">
-            <div class="auth-field">
-                <label class="auth-label" for="pf-old">@L["platform.profile.oldPassword"]</label>
-                <input id="pf-old" class="auth-input" type="password" @bind="_oldPassword" />
-            </div>
-            <div class="auth-field">
-                <label class="auth-label" for="pf-new">@L["platform.profile.newPassword"]</label>
-                <input id="pf-new" class="auth-input" type="password" @bind="_newPassword" />
-            </div>
+            <BitTextField Label="@L["platform.profile.oldPassword"]" @bind-Value="_oldPassword"
+                          Type="BitInputType.Password" CanRevealPassword />
+            <BitTextField Label="@L["platform.profile.newPassword"]" @bind-Value="_newPassword"
+                          Type="BitInputType.Password" CanRevealPassword />
             <div class="bb-form-actions">
                 <PermissionView Code="identity.user.change-password">
-                    <button type="button" class="blazorboilerplate-btn primary" @onclick="ChangePasswordAsync" disabled="@_savingPassword">
-                        @(_savingPassword ? L["platform.profile.submitting"] : L["platform.profile.changePassword"])
-                    </button>
+                    <BitButton Color="BitColor.Primary" OnClick="ChangePasswordAsync" IsLoading="@_savingPassword">
+                        @L["platform.profile.changePassword"]
+                    </BitButton>
                 </PermissionView>
             </div>
         </div>
@@ -86,55 +77,48 @@
 
 <section class="bb-card">
     <div class="bb-card-head">
-        <h2 class="section-title">@L["platform.profile.sessionsTitle"]</h2>
-        <button type="button" class="blazorboilerplate-btn ghost" @onclick="LoadSessionsAsync">@L["platform.common.refresh"]</button>
+        <BitText Element="h2" Typography="BitTypography.H5" Class="section-title">@L["platform.profile.sessionsTitle"]</BitText>
+        <BitButton Variant="BitVariant.Outline" OnClick="LoadSessionsAsync">@L["platform.common.refresh"]</BitButton>
     </div>
-    <div class="grid-container">
-        <table class="data-grid">
-            <thead>
-                <tr>
-                    <th>@L["platform.profile.col.device"]</th>
-                    <th>IP</th>
-                    <th>@L["platform.accountMenu.timeZone"]</th>
-                    <th>@L["platform.profile.col.startedAt"]</th>
-                    <th>@L["platform.profile.col.status"]</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @if (_sessions.Count == 0)
-                {
-                    <tr><td colspan="6" class="muted">@L["platform.profile.sessionsEmpty"]</td></tr>
-                }
-                @foreach (var s in _sessions)
-                {
-                    <tr>
-                        <td>@(string.IsNullOrWhiteSpace(s.DeviceInfo) ? "—" : s.DeviceInfo)</td>
-                        <td class="mono">@(string.IsNullOrWhiteSpace(s.IP) ? "—" : s.IP)</td>
-                        <td class="mono">@(string.IsNullOrWhiteSpace(s.TimeZone) ? "—" : s.TimeZone)</td>
-                        <td>@s.StartedOnUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
-                        <td>
-                            @if (s.Current)
-                            {
-                                <span class="module-chip info">@L["platform.profile.currentSession"]</span>
-                            }
-                            else
-                            {
-                                <span class="muted">@L["platform.profile.otherDevice"]</span>
-                            }
-                        </td>
-                        <td>
-                            <PermissionView Code="identity.user.revoke-session">
-                                <button type="button" class="bb-link-btn danger" @onclick="() => RevokeAsync(s)"
-                                        disabled="@(s.Current || _revoking.Contains(s.Id))">
-                                    @(_revoking.Contains(s.Id) ? L["platform.profile.revoking"] : L["platform.profile.revoke"])
-                                </button>
-                            </PermissionView>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
+    <BitDataGrid TItem="UserSessionDto" Items="_sessions" Bordered="true" Hoverable="true" Striped="true">
+        <Columns>
+            <BitDataGridColumn TItem="UserSessionDto" Field="DeviceInfo" Title="@L["platform.profile.col.device"]">
+                <Template Context="s">@(string.IsNullOrWhiteSpace(s.DeviceInfo) ? "—" : s.DeviceInfo)</Template>
+            </BitDataGridColumn>
+            <BitDataGridColumn TItem="UserSessionDto" Field="IP" Title="IP">
+                <Template Context="s">@(string.IsNullOrWhiteSpace(s.IP) ? "—" : s.IP)</Template>
+            </BitDataGridColumn>
+            <BitDataGridColumn TItem="UserSessionDto" Field="TimeZone" Title="@L["platform.accountMenu.timeZone"]">
+                <Template Context="s">@(string.IsNullOrWhiteSpace(s.TimeZone) ? "—" : s.TimeZone)</Template>
+            </BitDataGridColumn>
+            <BitDataGridColumn TItem="UserSessionDto" Field="StartedOnUtc" Title="@L["platform.profile.col.startedAt"]">
+                <Template Context="s">@s.StartedOnUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</Template>
+            </BitDataGridColumn>
+            <BitDataGridColumn TItem="UserSessionDto" Title="@L["platform.profile.col.status"]">
+                <Template Context="s">
+                    @if (s.Current)
+                    {
+                        <BitTag Size="BitSize.Small" Color="BitColor.Info">@L["platform.profile.currentSession"]</BitTag>
+                    }
+                    else
+                    {
+                        <BitText Class="muted">@L["platform.profile.otherDevice"]</BitText>
+                    }
+                </Template>
+            </BitDataGridColumn>
+            <BitDataGridColumn TItem="UserSessionDto" Title="">
+                <Template Context="s">
+                    <PermissionView Code="identity.user.revoke-session">
+                        <BitButton Variant="BitVariant.Text" Color="BitColor.Error" Size="BitSize.Small"
+                                   OnClick="() => RevokeAsync(s)" Disabled="@(s.Current || _revoking.Contains(s.Id))">
+                            @(_revoking.Contains(s.Id) ? L["platform.profile.revoking"] : L["platform.profile.revoke"])
+                        </BitButton>
+                    </PermissionView>
+                </Template>
+            </BitDataGridColumn>
+        </Columns>
+        <EmptyTemplate>
+            <BitText Class="muted">@L["platform.profile.sessionsEmpty"]</BitText>
+        </EmptyTemplate>
+    </BitDataGrid>
 </section>
-

@@ -1,41 +1,41 @@
 @page "/notifications"
 @rendermode RenderMode.InteractiveServer
 
-<div class="page-callout">
-    <h1 class="page-title">@L["platform.header.notifications.title"]</h1>
-    <p class="muted">@L["platform.notifications.subtitle"]</p>
-</div>
+<BitCallout Class="page-callout">
+    <BitText Element="h1" Class="page-title">@L["platform.header.notifications.title"]</BitText>
+    <BitText Class="muted">@L["platform.notifications.subtitle"]</BitText>
+</BitCallout>
 
 @if (_loadError is not null)
 {
-    <div class="page-callout error">@_loadError</div>
+    <BitCallout Class="page-callout error">@_loadError</BitCallout>
 }
 
 <div class="bb-toolbar">
     <span class="muted">@L.GetString("platform.notifications.summary", _notifications.Count, UnreadCount)</span>
     <div class="bb-spacer"></div>
-    <button type="button" class="blazorboilerplate-btn ghost" @onclick="MarkAllReadAsync" disabled="@(UnreadCount == 0)">@L["platform.notifications.markAllRead"]</button>
+    <BitButton Variant="BitVariant.Outline" OnClick="MarkAllReadAsync" Disabled="@(UnreadCount == 0)">@L["platform.notifications.markAllRead"]</BitButton>
     <PermissionView Code="notification.send-test">
-        <button type="button" class="blazorboilerplate-btn primary" @onclick="OpenEmailModal" disabled="@_sendingEmail">
-            @(_sendingEmail ? L["platform.notifications.sending"] : L["platform.notifications.sendTestEmail"])
-        </button>
+        <BitButton Color="BitColor.Primary" OnClick="OpenEmailModal" IsLoading="@_sendingEmail">
+            @L["platform.notifications.sendTestEmail"]
+        </BitButton>
         @if (_notificationsEnabled)
         {
-            <button type="button" class="blazorboilerplate-btn primary" @onclick="SendTestAsync" disabled="@_sending">
-                @(_sending ? L["platform.notifications.sending"] : L["platform.notifications.sendTest"])
-            </button>
+            <BitButton Color="BitColor.Primary" OnClick="SendTestAsync" IsLoading="@_sending">
+                @L["platform.notifications.sendTest"]
+            </BitButton>
         }
         else
         {
-            <button type="button" class="blazorboilerplate-btn primary" disabled title="@L["platform.notifications.enableHint"]">@L["platform.notifications.sendTest"]</button>
+            <BitButton Color="BitColor.Primary" Disabled Title="@L["platform.notifications.enableHint"]">@L["platform.notifications.sendTest"]</BitButton>
         }
     </PermissionView>
-    <button type="button" class="blazorboilerplate-btn ghost" @onclick="LoadAsync">@L["platform.common.refresh"]</button>
+    <BitButton Variant="BitVariant.Outline" OnClick="LoadAsync">@L["platform.common.refresh"]</BitButton>
 </div>
 
 @if (!_notificationsEnabled)
 {
-    <div class="page-callout success">@L["platform.notifications.disabledBanner"]</div>
+    <BitCallout Class="page-callout success">@L["platform.notifications.disabledBanner"]</BitCallout>
 }
 
 <div class="notif-list">
@@ -60,8 +60,8 @@
                     }
                     @if (!n.IsRead)
                     {
-                        <button type="button" class="bb-link-btn" @onclick="() => MarkReadAsync(n)"
-                                disabled="@_marking.Contains(n.Id)">@L["platform.notifications.markRead"]</button>
+                        <BitButton Variant="BitVariant.Text" Size="BitSize.Small" OnClick="() => MarkReadAsync(n)"
+                                   Disabled="@_marking.Contains(n.Id)">@L["platform.notifications.markRead"]</BitButton>
                     }
                     else
                     {
@@ -78,19 +78,12 @@
                         OkText="@L["platform.notifications.sendEmailOk"]"
                         OnOk="SendTestEmailAsync">
     <div class="id-form">
-        <div class="auth-field">
-            <label class="auth-label" for="email-to">@L["platform.notifications.emailTo"]</label>
-            <input id="email-to" class="auth-input" type="email" @bind="_emailTo" placeholder="761516331@qq.com" />
-        </div>
-        <div class="auth-field">
-            <label class="auth-label" for="email-subject">@L["platform.notifications.emailSubject"]</label>
-            <input id="email-subject" class="auth-input" @bind="_emailSubject" placeholder="@L["platform.notifications.defaultEmailSubject"]" />
-        </div>
-        <div class="auth-field">
-            <label class="auth-label" for="email-body">@L["platform.notifications.emailBody"]</label>
-            <textarea id="email-body" class="auth-input" rows="4" @bind="_emailBody"
-                      placeholder="@L["platform.notifications.emailBodyPlaceholder"]"></textarea>
-        </div>
+        <BitTextField Label="@L["platform.notifications.emailTo"]" @bind-Value="_emailTo"
+                      Type="BitInputType.Email" Placeholder="761516331@qq.com" />
+        <BitTextField Label="@L["platform.notifications.emailSubject"]" @bind-Value="_emailSubject"
+                      Placeholder="@L["platform.notifications.defaultEmailSubject"]" />
+        <BitTextField Label="@L["platform.notifications.emailBody"]" @bind-Value="_emailBody"
+                      Multiline Rows="4" Placeholder="@L["platform.notifications.emailBodyPlaceholder"]" />
     </div>
 </BlazorBoilerplateModal>
 

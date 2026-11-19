@@ -14,7 +14,7 @@
 
 @if (_loadError is not null)
 {
-    <div class="page-callout error">@_loadError</div>
+    <BitCallout Class="page-callout error">@_loadError</BitCallout>
 }
 
 @if (_loading)
@@ -37,22 +37,16 @@ else
                 {
                     <div class="mt-section-body">
                         <div class="mt-form">
-                            <div class="auth-field">
-                                <label class="auth-label" for="tn-create-name">@L["platform.tenants.field.nameRequired"]</label>
-                                <input id="tn-create-name" class="auth-input" @bind="_createName" placeholder="@L["platform.tenants.field.namePlaceholder"]" />
-                            </div>
-                            <div class="auth-field">
-                                <label class="auth-label" for="tn-create-title">@L["platform.tenants.field.title"]</label>
-                                <input id="tn-create-title" class="auth-input" @bind="_createTitle" placeholder="@L["platform.tenants.field.titlePlaceholder"]" />
-                            </div>
-                            <div class="auth-field">
-                                <label class="auth-label" for="tn-create-domain">@L["platform.tenants.field.domain"]</label>
-                                <input id="tn-create-domain" class="auth-input" @bind="_createDomain" placeholder="tenant.example.com" />
-                            </div>
+                            <BitTextField Label="@L["platform.tenants.field.nameRequired"]" @bind-Value="_createName"
+                                          Placeholder="@L["platform.tenants.field.namePlaceholder"]" />
+                            <BitTextField Label="@L["platform.tenants.field.title"]" @bind-Value="_createTitle"
+                                          Placeholder="@L["platform.tenants.field.titlePlaceholder"]" />
+                            <BitTextField Label="@L["platform.tenants.field.domain"]" @bind-Value="_createDomain"
+                                          Placeholder="tenant.example.com" />
                         </div>
-                        <button type="button" class="blazorboilerplate-btn primary" disabled="@_busy" @onclick="CreateAsync">
-                            @(_busy ? L["platform.tenants.creating"] : L["platform.common.save"])
-                        </button>
+                        <BitButton Color="BitColor.Primary" Disabled="@_busy" OnClick="CreateAsync">
+                            @L["platform.common.save"]
+                        </BitButton>
                     </div>
                 }
             </div>
@@ -72,14 +66,12 @@ else
                     <div class="mt-section-body">
                         <p class="muted">@L.GetString("platform.tenants.inviteDesc", string.IsNullOrWhiteSpace(_currentTenant.Title) ? _currentTenant.Name : _currentTenant.Title)</p>
                         <div class="mt-form">
-                            <div class="auth-field">
-                                <label class="auth-label" for="tn-invite-email">@L["platform.tenants.field.memberEmail"]</label>
-                                <input id="tn-invite-email" class="auth-input" type="email" @bind="_inviteEmail" placeholder="member@example.com" />
-                            </div>
+                            <BitTextField Label="@L["platform.tenants.field.memberEmail"]" @bind-Value="_inviteEmail"
+                                          Type="BitInputType.Email" Placeholder="member@example.com" />
                         </div>
-                        <button type="button" class="blazorboilerplate-btn primary" disabled="@_busy" @onclick="InviteAsync">
-                            @(_busy ? L["platform.notifications.sending"] : L["platform.tenants.sendInvite"])
-                        </button>
+                        <BitButton Color="BitColor.Primary" Disabled="@_busy" IsLoading="@_busy" OnClick="InviteAsync">
+                            @L["platform.tenants.sendInvite"]
+                        </BitButton>
                     </div>
                 }
             </div>
@@ -98,22 +90,16 @@ else
                 {
                     <div class="mt-section-body">
                         <div class="mt-form">
-                            <div class="auth-field">
-                                <label class="auth-label" for="tn-edit-name">@L["platform.tenants.field.nameRequired"]</label>
-                                <input id="tn-edit-name" class="auth-input" @bind="_editName" placeholder="@L["platform.tenants.field.namePlaceholder"]" />
-                            </div>
-                            <div class="auth-field">
-                                <label class="auth-label" for="tn-edit-title">@L["platform.tenants.field.title"]</label>
-                                <input id="tn-edit-title" class="auth-input" @bind="_editTitle" placeholder="@L["platform.tenants.field.titlePlaceholder"]" />
-                            </div>
-                            <div class="auth-field">
-                                <label class="auth-label" for="tn-edit-domain">@L["platform.tenants.field.domain"]</label>
-                                <input id="tn-edit-domain" class="auth-input" @bind="_editDomain" placeholder="tenant.example.com" />
-                            </div>
+                            <BitTextField Label="@L["platform.tenants.field.nameRequired"]" @bind-Value="_editName"
+                                          Placeholder="@L["platform.tenants.field.namePlaceholder"]" />
+                            <BitTextField Label="@L["platform.tenants.field.title"]" @bind-Value="_editTitle"
+                                          Placeholder="@L["platform.tenants.field.titlePlaceholder"]" />
+                            <BitTextField Label="@L["platform.tenants.field.domain"]" @bind-Value="_editDomain"
+                                          Placeholder="tenant.example.com" />
                         </div>
-                        <button type="button" class="blazorboilerplate-btn primary" disabled="@_busy" @onclick="UpdateAsync">
-                            @(_busy ? L["platform.profile.saving"] : L["platform.common.save"])
-                        </button>
+                        <BitButton Color="BitColor.Primary" Disabled="@_busy" OnClick="UpdateAsync">
+                            @L["platform.common.save"]
+                        </BitButton>
                     </div>
                 }
             </div>
@@ -202,46 +188,38 @@ else
                 <BitButton IconPlacement="BitPlacement.End" IconName="@BitIconName.Add" OnClick="OpenAdminCreate">@L["platform.tenants.addTenant"]</BitButton>
             </div>
 
-            <div class="grid-container">
-                <table class="data-grid">
-                    <thead>
-                        <tr>
-                            <th>@L["platform.tenants.field.name"]</th>
-                            <th>@L["platform.tenants.field.title"]</th>
-                            <th>@L["platform.tenants.field.domain"]</th>
-                            <th style="text-align:center; width:150px;">@L["platform.tenants.active"]</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @if (_allTenants.Count == 0)
-                        {
-                            <tr><td colspan="4" class="muted">@L["platform.tenants.adminEmpty"]</td></tr>
-                        }
-                        @foreach (var t in _allTenants)
-                        {
-                            <tr>
-                                <td><strong>@t.Name</strong></td>
-                                <td>@(string.IsNullOrWhiteSpace(t.Title) ? "—" : t.Title)</td>
-                                <td class="mono">@(string.IsNullOrWhiteSpace(t.Domain) ? "—" : t.Domain)</td>
-                                <td>
-                                    <div class="admin-tenant-actions">
-                                        <BitToggle Value="t.IsActive"
-                                                   AriaLabel="@L["platform.tenants.active"]"
-                                                   OnChange="@(async (bool _) => await ToggleActiveAsync(t))" />
-                                        <PermissionView Code="tenant.update">
-                                            <BitButton Variant="BitVariant.Text"
-                                                       IconName="@BitIconName.Edit"
-                                                       Title="@L["platform.common.edit"]"
-                                                       AriaLabel="@L["platform.common.edit"]"
-                                                       OnClick="() => OpenAdminEdit(t)" />
-                                        </PermissionView>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+            <BitDataGrid TItem="TenantDto" Items="_allTenants" Bordered="true" Hoverable="true" Striped="true">
+                <Columns>
+                    <BitDataGridColumn TItem="TenantDto" Field="Name" Title="@L["platform.tenants.field.name"]">
+                        <Template Context="t"><strong>@t.Name</strong></Template>
+                    </BitDataGridColumn>
+                    <BitDataGridColumn TItem="TenantDto" Field="Title" Title="@L["platform.tenants.field.title"]">
+                        <Template Context="t">@(string.IsNullOrWhiteSpace(t.Title) ? "—" : t.Title)</Template>
+                    </BitDataGridColumn>
+                    <BitDataGridColumn TItem="TenantDto" Field="Domain" Title="@L["platform.tenants.field.domain"]">
+                        <Template Context="t">@(string.IsNullOrWhiteSpace(t.Domain) ? "—" : t.Domain)</Template>
+                    </BitDataGridColumn>
+                    <BitDataGridColumn TItem="TenantDto" Title="@L["platform.tenants.active"]">
+                        <Template Context="t">
+                            <div class="admin-tenant-actions">
+                                <BitToggle Value="t.IsActive"
+                                           AriaLabel="@L["platform.tenants.active"]"
+                                           OnChange="@(async (bool _) => await ToggleActiveAsync(t))" />
+                                <PermissionView Code="tenant.update">
+                                    <BitButton Variant="BitVariant.Text"
+                                               IconName="@BitIconName.Edit"
+                                               Title="@L["platform.common.edit"]"
+                                               AriaLabel="@L["platform.common.edit"]"
+                                               OnClick="() => OpenAdminEdit(t)" />
+                                </PermissionView>
+                            </div>
+                        </Template>
+                    </BitDataGridColumn>
+                </Columns>
+                <EmptyTemplate>
+                    <BitText Class="muted">@L["platform.tenants.adminEmpty"]</BitText>
+                </EmptyTemplate>
+            </BitDataGrid>
         </div>
     }
 </PermissionView>
@@ -252,21 +230,13 @@ else
 <BlazorBoilerplateModal @bind-IsOpen="_adminEditOpen"
                         Title="@(_adminEditing is null ? L["platform.tenants.addTenant"] : L["platform.tenants.editTenant"])" OkText="@L["platform.common.save"]" OnOk="SaveAdminEditAsync">
     <div class="id-form">
-        <div class="auth-field">
-            <label class="auth-label" for="tn-adm-name">@L["platform.tenants.field.nameRequired"]</label>
-            <input id="tn-adm-name" class="auth-input" @bind="_adminName" placeholder="@L["platform.tenants.field.namePlaceholder"]" />
-        </div>
-        <div class="auth-field">
-            <label class="auth-label" for="tn-adm-title">@L["platform.tenants.field.title"]</label>
-            <input id="tn-adm-title" class="auth-input" @bind="_adminTitle" placeholder="@L["platform.tenants.field.titlePlaceholder"]" />
-        </div>
-        <div class="auth-field">
-            <label class="auth-label" for="tn-adm-domain">@L["platform.tenants.field.domain"]</label>
-            <input id="tn-adm-domain" class="auth-input" @bind="_adminDomain" placeholder="tenant.example.com" />
-        </div>
-        <label class="account-check">
-            <input type="checkbox" @bind="_adminActive" /> @L["platform.tenants.active"]
-        </label>
+        <BitTextField Label="@L["platform.tenants.field.nameRequired"]" @bind-Value="_adminName"
+                      Placeholder="@L["platform.tenants.field.namePlaceholder"]" />
+        <BitTextField Label="@L["platform.tenants.field.title"]" @bind-Value="_adminTitle"
+                      Placeholder="@L["platform.tenants.field.titlePlaceholder"]" />
+        <BitTextField Label="@L["platform.tenants.field.domain"]" @bind-Value="_adminDomain"
+                      Placeholder="tenant.example.com" />
+        <BitCheckbox @bind-Value="_adminActive" Label="@L["platform.tenants.active"]" />
     </div>
 </BlazorBoilerplateModal>
 

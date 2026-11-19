@@ -60,6 +60,20 @@ public partial class Localization
     private bool _onlyMissing;
     private int _page = 1;
     private int _pageSize = 10;
+
+    // 资源页工具栏下拉项。语言项复用 _cultureDropdownItems；模块/分页在此构造。
+    private List<BitDropdownItem<string>> ModuleItems =>
+    [
+        new() { Text = L["localization.res.allModules"], Value = string.Empty },
+        .. _modules.Select(m => new BitDropdownItem<string> { Text = GetModuleDisplayName(m), Value = m })
+    ];
+    private static readonly List<BitDropdownItem<int>> PageSizeItems =
+    [
+        new() { Text = "10 / 页", Value = 10 },
+        new() { Text = "20 / 页", Value = 20 },
+        new() { Text = "50 / 页", Value = 50 },
+        new() { Text = "100 / 页", Value = 100 }
+    ];
     private int _totalResources;
     private List<ResourceRowModel> _resources = [];
 
@@ -462,17 +476,15 @@ public partial class Localization
         }
     }
 
-    private async Task OnTargetCultureChangedAsync(ChangeEventArgs e)
+    private async Task OnTargetCultureChangedAsync()
     {
-        _targetCulture = e.Value?.ToString() ?? LocalizationDefaults.DefaultChineseCulture;
         _page = 1;
         SyncUrlQuery();
         await LoadResourcesAsync();
     }
 
-    private async Task OnModuleChangedAsync(ChangeEventArgs e)
+    private async Task OnModuleChangedAsync()
     {
-        _selectedModule = e.Value?.ToString() ?? string.Empty;
         _page = 1;
         SyncUrlQuery();
         await LoadResourcesAsync();
@@ -650,14 +662,10 @@ public partial class Localization
         }
     }
 
-    private async Task OnPageSizeChangedAsync(ChangeEventArgs e)
+    private async Task OnPageSizeChangedAsync()
     {
-        if (int.TryParse(e.Value?.ToString(), out var size) && size is >= 10 and <= 200)
-        {
-            _pageSize = size;
-            _page = 1;
-            await LoadResourcesAsync();
-        }
+        _page = 1;
+        await LoadResourcesAsync();
     }
 
     private async Task PrevPageAsync()

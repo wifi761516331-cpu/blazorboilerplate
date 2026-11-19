@@ -98,12 +98,9 @@
 
             <div class="account-row">
                 <AppIcon Name="Clock" />
-                <select class="account-select" @bind="_timeZone" @bind:after="OnTimeZoneChangedAsync" title="@L["platform.accountMenu.timeZone"]">
-                    @foreach (var zone in _timeZoneOptions)
-                    {
-                        <option value="@zone.Id">@zone.Text</option>
-                    }
-                </select>
+                <BitDropdown TItem="BitDropdownItem<string>" TValue="string" Items="TimeZoneItems"
+                             @bind-Value="_timeZone" @bind-Value:after="OnTimeZoneChangedAsync"
+                             Title="@L["platform.accountMenu.timeZone"]" Class="account-select" />
             </div>
             <div class="account-zone-now">
                 <AppIcon Name="Clock" />
@@ -190,9 +187,7 @@
                 Message="@L["platform.accountMenu.signOutConfirm"]"
                 ShowClose="false" CloseOnBackdrop="false"
                 OnOk="ConfirmSignOutAsync">
-        <label class="account-check">
-            <input type="checkbox" @bind="_signOutAll" /> @L["platform.accountMenu.signOutAll"]
-        </label>
+        <BitCheckbox @bind-Value="_signOutAll" Label="@L["platform.accountMenu.signOutAll"]" Class="account-check" />
     </BlazorBoilerplateModal>
 </div>
 

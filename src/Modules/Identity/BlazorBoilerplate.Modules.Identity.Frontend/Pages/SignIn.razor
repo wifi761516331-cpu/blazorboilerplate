@@ -8,25 +8,23 @@
 @using BlazorBoilerplate.Application.Localization
 @using BlazorBoilerplate.Web.Shared.Localization
 
-@* 登录界面：移植自 Bluebird Components/Pages/Identity/SignIn/SignInPanel.razor。
-   Bluebird 使用 11.x 的 BitStack / BitPivot / BitPhoneInput / EditForm / CanRevealPassword，
-   BlazorBoilerplate 是 Bit.BlazorUI 10.7.0，故用原生表单 + app.css 的 Fluent2 输入框样式 1:1 复刻视觉。
-   真实鉴权由 WebHost wwwroot/app.js 的全局函数 blazorAuth.login / blazorAuth.redirect 完成
-   （POST /auth/login 写 cookie，成功后由宿主跳转 return-url）。
-   [AllowAnonymous]：Blazor Web App 的 AuthorizeRouteView 需放行该路由。
-   事件处理器统一用方法组（不用带字符串字面量的内联 lambda），规避 Razor 属性引号解析问题。 *@
+@* 登录界面：原生控件已改为 Bit.BlazorUI（BitTextField / BitButton / BitCheckbox）。
+   密码显隐用 BitTextField 的 CanRevealPassword 内置图标，不再自绘 SVG 眼睛。
+   第三方登录按钮保留原生：彩色品牌 SVG logo 无对应 BitIconName。
+   真实鉴权由 WebHost wwwroot/app.js 的 blazorAuth.login / blazorAuth.redirect 完成
+   （POST /auth/login 写 cookie，成功后由宿主跳转 return-url）。 *@
 
 <div class="auth-head">
-    <h1 class="auth-title">@L["identity.signin.title"]</h1>
-    <p class="auth-sub">@L.GetString("identity.signin.subtitle", _systemName)</p>
+    <BitText Element="h1" Class="auth-title">@L["identity.signin.title"]</BitText>
+    <BitText Class="auth-sub">@L.GetString("identity.signin.subtitle", _systemName)</BitText>
 </div>
 
 @if (_message is not null)
 {
-    <div class="auth-msg @(_messageIsError ? "error" : "")">@_message</div>
+    <BitCallout Class="@("auth-msg " + (_messageIsError ? "error" : ""))">@_message</BitCallout>
 }
 
-@* 第三方身份提供商（Bluebird ExternalIdentityProviders） *@
+@* 第三方身份提供商 *@
 <div class="ext-providers">
     <button type="button" class="ext-btn" title="@L["identity.signin.external.google"]" @onclick="ExternalGoogleAsync">
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -58,93 +56,57 @@
 
 <div class="or-sep">@L["identity.signin.orAccount"]</div>
 
-@* Bluebird BitPivot：邮箱 / 手机号 *@
+@* 邮箱 / 手机号 切换 *@
 <div class="auth-tabs">
-    <button type="button" class="auth-tab @TabClass(AccountTab.Email)" @onclick="SelectEmail">@L["identity.signin.tab.email"]</button>
-    <button type="button" class="auth-tab @TabClass(AccountTab.Phone)" @onclick="SelectPhone">@L["identity.signin.tab.phone"]</button>
+    <BitButton Variant="@(_tab == AccountTab.Email ? BitVariant.Fill : BitVariant.Text)"
+               OnClick="SelectEmail">@L["identity.signin.tab.email"]</BitButton>
+    <BitButton Variant="@(_tab == AccountTab.Phone ? BitVariant.Fill : BitVariant.Text)"
+               OnClick="SelectPhone">@L["identity.signin.tab.phone"]</BitButton>
 </div>
 
 <div class="auth-field">
-    <label class="auth-label" for="signin-account">@(_tab == AccountTab.Email ? L["identity.signin.label.email"] : L["identity.signin.label.phone"])</label>
-    <div class="auth-input-wrap">
-        <input id="signin-account"
-               class="auth-input @(_accountInvalid ? "invalid" : "")"
-               type="@(_tab == AccountTab.Email ? "email" : "tel")"
-               autocomplete="username"
-               placeholder="@(_tab == AccountTab.Email ? "admin@example.com" : "138 0000 0000")"
-               @bind="_account" @bind:event="oninput" />
-    </div>
-    @if (_accountInvalid)
-    {
-        <span class="validation-message">@(_tab == AccountTab.Email ? L["identity.signin.validation.email"] : L["identity.signin.validation.phone"])</span>
-    }
+    <BitTextField @bind-Value="_account"
+                  Label="@(_tab == AccountTab.Email ? L["identity.signin.label.email"] : L["identity.signin.label.phone"])"
+                  Type="@(_tab == AccountTab.Email ? BitInputType.Email : BitInputType.Tel)"
+                  Placeholder="@(_tab == AccountTab.Email ? "admin@example.com" : "138 0000 0000")"
+                  Invalid="@_accountInvalid"
+                  ErrorMessage="@(_tab == AccountTab.Email ? L["identity.signin.validation.email"] : L["identity.signin.validation.phone"])" />
 </div>
 
 <div class="auth-field">
     <div class="auth-label-row">
-        <label class="auth-label" for="signin-password">@L["identity.signin.label.password"]</label>
-        <button type="button" class="auth-link" @onclick="ForgotPassword">@L["identity.signin.forgotPassword"]</button>
+        <BitTextField @bind-Value="_password"
+                      Label="@L["identity.signin.label.password"]"
+                      Type="BitInputType.Password"
+                      CanRevealPassword
+                      Placeholder="@L["identity.signin.placeholder.password"]"
+                      Invalid="@_passwordInvalid"
+                      ErrorMessage="@L["identity.signin.validation.password"]" />
+        <BitButton Variant="BitVariant.Text" Class="auth-link" OnClick="ForgotPassword">@L["identity.signin.forgotPassword"]</BitButton>
     </div>
-    <div class="auth-input-wrap">
-        <input id="signin-password"
-               class="auth-input has-suffix @(_passwordInvalid ? "invalid" : "")"
-               type="@(_reveal ? "text" : "password")"
-               autocomplete="current-password"
-               placeholder="@L["identity.signin.placeholder.password"]"
-               @bind="_password" @bind:event="oninput" />
-        <button type="button" class="auth-suffix" title="@(_reveal ? L["identity.signin.hidePassword"] : L["identity.signin.showPassword"])" @onclick="ToggleReveal">
-            @if (_reveal)
-            {
-                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 3l14 14" />
-                    <path d="M8.2 5.3A9 9 0 0 1 10 5c5 0 8 5 8 5a13 13 0 0 1-2.2 2.6M5.1 6.3A13 13 0 0 0 2 10s3 5 8 5c1 0 1.9-.2 2.7-.5" />
-                </svg>
-            }
-            else
-            {
-                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M2 10s3-5 8-5 8 5 8 5-3 5-8 5-8-5-8-5Z" />
-                    <circle cx="10" cy="10" r="2.5" />
-                </svg>
-            }
-        </button>
-    </div>
-    @if (_passwordInvalid)
-    {
-        <span class="validation-message">@L["identity.signin.validation.password"]</span>
-    }
 </div>
 
 <div class="auth-row">
-    <label><input type="checkbox" @bind="_remember" /> @L["identity.signin.rememberMe"]</label>
+    <BitCheckbox @bind-Value="_remember" Label="@L["identity.signin.rememberMe"]" />
     <span class="spacer"></span>
-    <button type="button" class="passkey-btn" title="@L["identity.signin.passkey"]" @onclick="Passkey">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">
-            <path d="M4 10a6 6 0 0 1 12 0v3" />
-            <path d="M6.5 11a3.5 3.5 0 0 1 7 0v2" />
-            <path d="M9 13a1 1 0 0 1 2 0v4" />
-            <path d="M3.5 7.5A8 8 0 0 1 10 4" />
-            <path d="M16.5 7.5A8 8 0 0 0 15 5.7" />
-        </svg>
-    </button>
+    <BitButton Variant="BitVariant.Text" Title="@L["identity.signin.passkey"]" OnClick="Passkey">@L["identity.signin.passkey"]</BitButton>
 </div>
 
-<button type="button" class="auth-btn" disabled="@_busy" @onclick="SignInAsync">
-    @(_busy ? L["identity.signin.signingIn"] : L["identity.signin.submit"])
-</button>
-<button type="button" class="auth-btn outline" disabled="@_busy" @onclick="MagicLinkAsync">
+<BitButton Color="BitColor.Primary" FullWidth IsLoading="@_busy" OnClick="SignInAsync">
+    @L["identity.signin.submit"]
+</BitButton>
+<BitButton Variant="BitVariant.Outline" FullWidth Disabled="@_busy" OnClick="MagicLinkAsync">
     @L["identity.signin.magicLink"]
-</button>
+</BitButton>
 
 @if (_supportedCultures.Length > 0)
 {
-    <p class="auth-foot">@L["platform.common.language"]：@string.Join("、", _supportedCultures)</p>
+    <BitText Class="auth-foot">@L["platform.common.language"]：@string.Join("、", _supportedCultures)</BitText>
 }
 
 @if (_registerEnabled)
 {
     <p class="auth-foot">
-        @L["identity.signin.noAccount"]<button type="button" class="auth-link" @onclick="SignUp">@L["identity.signin.signUpNow"]</button>
+        @L["identity.signin.noAccount"]<BitButton Variant="BitVariant.Text" Class="auth-link" OnClick="SignUp">@L["identity.signin.signUpNow"]</BitButton>
     </p>
 }
-

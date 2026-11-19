@@ -2,7 +2,7 @@
   "id": "catalog",
   "name": "Catalog",
   "displayName": "商品目录",
-  "version": "1.0.7",
+  "version": "1.0.10",
   "publisher": "BlazorBoilerplate",
   "entryAssembly": "BlazorBoilerplate.Modules.Catalog.dll",
   "entryType": "BlazorBoilerplate.Modules.Catalog.CatalogModule",

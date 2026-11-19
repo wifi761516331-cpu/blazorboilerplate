@@ -1,11 +1,13 @@
+using BlazorBoilerplate.Application.OData;
 using BlazorBoilerplate.Application.Localization;
 using BlazorBoilerplate.Modules.Catalog.OData;
 using BlazorBoilerplate.Web.Shared.Localization;
 using BlazorBoilerplate.Web.Shared.Services;
+using BlazorBoilerplate.Web.Shared.OData;
 using System.Globalization;
-using System.Net.Http.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Components;
+using Bit.BlazorUI;
 
 namespace BlazorBoilerplate.Modules.Catalog.Pages;
 
@@ -23,96 +25,95 @@ public partial class Catalog
     [Inject]
     private FrontendLocalizationService FrontendLoc { get; set; } = default!;
 
-    // 模块私有投影与查询构造器（见 OData/），不暴露给 Host 或其他模块。
-    private string _search = "";
-    private string _minPrice = "";
-    private string _category = "";
-    private string _sortField = "price";
-    private bool _sortDesc = true;
-
-    private List<ProductDto> _items = [];
-    private long _total;
-    private int _page = 1;
+    private static readonly ODataFieldMap FieldMap = new(["id", "name", "price", "category"]);
     private const int PageSize = 10;
-    private bool _loading;
-    private string? _loadError;
 
-    private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true
-    };
+    private ODataServerSource<ProductDto> _source = default!;
+    private BitDataGridStrings _gridStrings = new();
+    private string? _loadError;
 
     protected override async Task OnInitializedAsync()
     {
         await FrontendLoc.EnsureLoadedAsync();
-        await QueryAsync();
+        _source = new ODataServerSource<ProductDto>(Http, "api/catalog/products", FieldMap);
+        _gridStrings = new BitDataGridStrings
+        {
+            FilterPlaceholder = L["catalog.grid.filterPlaceholder"],
+            FilterByFormat = L["catalog.grid.filterBy"],
+            FilterOperatorLabel = L["catalog.grid.filterOperator"],
+            ClearFiltersText = L["catalog.grid.clearFilters"],
+            FilterAllText = L["catalog.grid.all"],
+            FilterOpContains = L["catalog.grid.op.contains"],
+            FilterOpDoesNotContain = L["catalog.grid.op.doesNotContain"],
+            FilterOpStartsWith = L["catalog.grid.op.startsWith"],
+            FilterOpEndsWith = L["catalog.grid.op.endsWith"],
+            FilterOpEquals = L["catalog.grid.op.equals"],
+            FilterOpNotEquals = L["catalog.grid.op.notEquals"],
+            FilterOpGreaterThan = L["catalog.grid.op.greaterThan"],
+            FilterOpGreaterThanOrEqual = L["catalog.grid.op.greaterThanOrEqual"],
+            FilterOpLessThan = L["catalog.grid.op.lessThan"],
+            FilterOpLessThanOrEqual = L["catalog.grid.op.lessThanOrEqual"],
+            FilterOpIsEmpty = L["catalog.grid.op.isEmpty"],
+            FilterOpIsNotEmpty = L["catalog.grid.op.isNotEmpty"],
+            FilterOpIn = L["catalog.grid.op.in"],
+            FilterOpNotIn = L["catalog.grid.op.notIn"],
+            FilterListPlaceholder = L["catalog.grid.listPlaceholder"],
+            NoMatchesText = L["catalog.grid.noMatches"]
+        };
     }
 
-    private async Task OnFilterChanged() => await QueryAsync(resetPage: true);
-
-    private async Task PrevAsync()
+    /// <summary>
+    /// BitDataGrid 服务端模式：把它的 ReadRequest（skip/take/sorts/filters）映射到 OData 服务器数据源，
+    /// 翻页/排序/筛选都在服务端完成，不退化成当前页内存分页。字段白名单与转义由 ODataServerSource 统一处理。
+    /// </summary>
+    private async Task<BitDataGridReadResult<ProductDto>> ReadAsync(BitDataGridReadRequest req)
     {
-        if (_page <= 1) return;
-        _page--;
-        await QueryAsync();
-    }
+        // 表头排序 → OData $orderby；列名即 ColumnId（OData 白名单字段名）。
+        var sorts = req.Sorts.Select(s => new ODataSort(s.ColumnId, s.Direction == BitDataGridSortDirection.Descending)).ToList();
 
-    private async Task NextAsync()
-    {
-        _page++;
-        await QueryAsync();
-    }
+        // 表头筛选行的输入 → OData $filter；BitDataGrid 操作符映射到 OData 操作符。
+        var filters = req.Filters
+            .Select(ToODataFilter)
+            .Where(f => f is not null)
+            .Select(f => f!)
+            .ToList();
 
-    private async Task QueryAsync(bool resetPage = false)
-    {
-        if (resetPage) _page = 1;
-        _loading = true;
-        _loadError = null;
+        var request = new ODataServerRequest(req.Skip, req.Take, sorts, filters, null);
         try
         {
-            var builder = new ODataQueryBuilder().Top(PageSize).Skip((_page - 1) * PageSize).Count();
-            if (!string.IsNullOrWhiteSpace(_search)) builder.Contains("name", _search);
-            if (!string.IsNullOrWhiteSpace(_category)) builder.Contains("category", _category);
-            if (decimal.TryParse(_minPrice, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var min))
-                builder.GreaterThanOrEqual("price", min);
-            builder.OrderBy(_sortField, _sortDesc);
-
-            var qs = BuildQueryString(builder.Build());
-            var response = await Http.GetAsync($"api/catalog/products{qs}");
-            if (!response.IsSuccessStatusCode)
-            {
-                _loadError = L.GetString("catalog.error.queryFailedStatus", (int)response.StatusCode, await response.Content.ReadAsStringAsync());
-                _items = [];
-                _total = 0;
-                return;
-            }
-            var page = await response.Content.ReadFromJsonAsync<BlazorBoilerplate.Application.OData.ODataPage<ProductDto>>(JsonOptions);
-            _items = page?.Value.ToList() ?? [];
-            _total = page?.Count ?? _items.Count;
+            var page = await _source.LoadAsync(request);
+            return new BitDataGridReadResult<ProductDto>(page.Items, (int)page.TotalCount);
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "OData 查询失败");
             _loadError = L.GetString("catalog.error.queryFailed", ex.Message);
-            _items = [];
-            _total = 0;
-        }
-        finally
-        {
-            _loading = false;
-            StateHasChanged();
+            return new BitDataGridReadResult<ProductDto>([], 0);
         }
     }
 
-    private static string BuildQueryString(BlazorBoilerplate.Application.OData.ODataQuery query)
+    /// <summary>把 BitDataGrid 的列筛选描述符转成 OData 筛选；文本列退化成 contains，价格列按所选比较符。</summary>
+    private static ODataFilter? ToODataFilter(BitDataGridFilterDescriptor filter)
     {
-        var parts = new List<string>();
-        if (!string.IsNullOrWhiteSpace(query.Filter)) parts.Add("$filter=" + Uri.EscapeDataString(query.Filter));
-        if (!string.IsNullOrWhiteSpace(query.OrderBy)) parts.Add("$orderby=" + Uri.EscapeDataString(query.OrderBy));
-        if (query.Top is { } top) parts.Add("$top=" + top);
-        if (query.Skip is { } skip) parts.Add("$skip=" + skip);
-        if (query.Count) parts.Add("$count=true");
-        return parts.Count == 0 ? string.Empty : "?" + string.Join("&", parts);
+        if (filter.Value is null) return null;
+
+        var op = filter.Operator switch
+        {
+            BitDataGridFilterOperator.Contains
+                or BitDataGridFilterOperator.StartsWith
+                or BitDataGridFilterOperator.EndsWith
+                or BitDataGridFilterOperator.DoesNotContain => "contains",
+            BitDataGridFilterOperator.Equals => "eq",
+            BitDataGridFilterOperator.NotEquals => "ne",
+            BitDataGridFilterOperator.GreaterThan => "gt",
+            BitDataGridFilterOperator.GreaterThanOrEqual => "ge",
+            BitDataGridFilterOperator.LessThan => "lt",
+            BitDataGridFilterOperator.LessThanOrEqual => "le",
+            _ => null
+        };
+        if (op is null) return null;
+
+        var value = Convert.ToString(filter.Value, CultureInfo.InvariantCulture);
+        return string.IsNullOrWhiteSpace(value) ? null : new ODataFilter(filter.ColumnId, op, value);
     }
 }

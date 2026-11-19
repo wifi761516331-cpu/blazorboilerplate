@@ -34,7 +34,6 @@ public partial class SignIn
     private string _account = string.Empty;
     private string _password = string.Empty;
     private bool _remember;
-    private bool _reveal;
     private bool _busy;
     private bool _accountInvalid;
     private bool _passwordInvalid;
@@ -186,7 +185,6 @@ public partial class SignIn
         _messageIsError = false;
     }
 
-    private void ToggleReveal() => _reveal = !_reveal;
     private void SelectEmail() => _tab = AccountTab.Email;
     private void SelectPhone() => _tab = AccountTab.Phone;
 

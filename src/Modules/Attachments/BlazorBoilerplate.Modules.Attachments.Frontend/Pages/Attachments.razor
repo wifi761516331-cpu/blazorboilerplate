@@ -258,12 +258,9 @@
         <BitSearchBox @bind-Value="_searchText" Immediate DebounceTime="200" Placeholder="@L["attachments.searchPlaceholder"]" />
     </div>
     <div class="bb-spacer"></div>
-    <select class="auth-input" style="width:auto;" @bind="_filterKind" @bind:after="LoadAsync">
-        <option value="">@L["attachments.filter.all"]</option>
-        <option value="@AttachmentKind.General">@L["attachments.kind.general"]</option>
-        <option value="@AttachmentKind.UserProfileImage">@L["attachments.kind.userAvatar"]</option>
-        <option value="@AttachmentKind.ProductPrimaryImage">@L["attachments.kind.productImage"]</option>
-    </select>
+    <BitDropdown TItem="BitDropdownItem<string>" TValue="string" Items="FilterKindItems"
+                 @bind-Value="_filterKind" @bind-Value:after="LoadAsync"
+                 Style="width:180px;" />
     <PermissionGate Code="attachments.upload">
         <BitButton Color="BitColor.Primary" IconName="CloudUpload" OnClick="OpenUploadModal">
             @L["attachments.upload"]
@@ -387,20 +384,13 @@ else
                         Disabled="@(_pendingFiles.Count == 0 || _uploading)"
                         OnOk="StartUploadAsync">
     <div class="att-modal-form">
-        <div class="auth-field">
-            <label class="auth-label" for="att-kind">@L["attachments.modal.kindLabel"]</label>
-            <select id="att-kind" class="auth-input" @bind="_uploadKind" disabled="@_uploading">
-                <option value="@AttachmentKind.General">@L["attachments.kind.general"]</option>
-                <option value="@AttachmentKind.UserProfileImage">@L["attachments.kind.userAvatarSelf"]</option>
-                <option value="@AttachmentKind.ProductPrimaryImage">@L["attachments.kind.productImage"]</option>
-            </select>
-        </div>
+        <BitDropdown TItem="BitDropdownItem<AttachmentKind>" TValue="AttachmentKind"
+                     Label="@L["attachments.modal.kindLabel"]" Items="UploadKindItems"
+                     @bind-Value="_uploadKind" Disabled="@_uploading" />
         @if (_uploadKind == AttachmentKind.ProductPrimaryImage)
         {
-            <div class="auth-field">
-                <label class="auth-label" for="att-owner">@L["attachments.modal.ownerLabel"]</label>
-                <input id="att-owner" class="auth-input" @bind="_ownerIdText" placeholder="@L["attachments.modal.ownerPlaceholder"]" disabled="@_uploading" />
-            </div>
+            <BitTextField Label="@L["attachments.modal.ownerLabel"]" @bind-Value="_ownerIdText"
+                          Placeholder="@L["attachments.modal.ownerPlaceholder"]" Disabled="@_uploading" />
         }
         <label class="att-dropzone @(_uploading ? "is-uploading" : "")" for="att-file-input">
             <InputFile @key="_inputKey"
@@ -428,7 +418,8 @@ else
                         {
                             <BitTag Size="BitSize.Small" Color="BitColor.Error">@L["attachments.dropzone.tooLarge"]</BitTag>
                         }
-                        <button type="button" class="bb-link-btn danger" @onclick="() => RemovePendingFile(file)" disabled="@_uploading">@L["attachments.dropzone.remove"]</button>
+                        <BitButton Size="BitSize.Small" Variant="BitVariant.Text" Color="BitColor.Error"
+                                   OnClick="() => RemovePendingFile(file)" Disabled="@_uploading">@L["attachments.dropzone.remove"]</BitButton>
                     </div>
                 }
             </div>

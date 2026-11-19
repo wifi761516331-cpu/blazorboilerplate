@@ -7,166 +7,92 @@
 @using Microsoft.JSInterop
 @using BlazorBoilerplate.Shared.Features.Identity
 
-@* 邮箱验证码注册界面：参考 Bluebird SignUpPage，沿用 SignIn 的 Fluent2 .auth-* 样式与 IdentityLayout。
+@* 邮箱验证码注册界面：原生控件已改为 Bit.BlazorUI；密码显隐用 BitTextField 的 CanRevealPassword。
    注册成功后通过 blazorAuth.register（POST /auth/register）直接写入认证 Cookie 并跳转 return-url 或首页。 *@
 
 <div class="auth-head">
-    <h1 class="auth-title">@L["identity.signup.title"]</h1>
-    <p class="auth-sub">@L.GetString("identity.signup.subtitle", _systemName)</p>
+    <BitText Element="h1" Class="auth-title">@L["identity.signup.title"]</BitText>
+    <BitText Class="auth-sub">@L.GetString("identity.signup.subtitle", _systemName)</BitText>
 </div>
 
 @if (_message is not null)
 {
-    <div class="auth-msg @(_messageIsError ? "error" : "")">@_message</div>
+    <BitCallout Class="@("auth-msg " + (_messageIsError ? "error" : ""))">@_message</BitCallout>
 }
 
 @if (!_registerEnabled)
 {
-    <div class="auth-msg error">@L["identity.signup.disabled"]</div>
-    <button type="button" class="auth-btn" @onclick="GoToSignIn">@L["identity.signup.backToSignIn"]</button>
+    <BitCallout Class="auth-msg error">@L["identity.signup.disabled"]</BitCallout>
+    <BitButton Color="BitColor.Primary" FullWidth OnClick="GoToSignIn">@L["identity.signup.backToSignIn"]</BitButton>
 }
 else
 {
     <div class="auth-field">
-        <label class="auth-label" for="signup-username">@L["identity.signup.label.userName"]</label>
-        <div class="auth-input-wrap">
-            <input id="signup-username"
-                   class="auth-input @(_userNameInvalid ? "invalid" : "")"
-                   type="text"
-                   autocomplete="username"
-                   placeholder="@L["identity.signup.placeholder.userName"]"
-                   @bind="_userName" @bind:event="oninput" />
-        </div>
-        @if (_userNameInvalid)
-        {
-            <span class="validation-message">@L["identity.signup.validation.userName"]</span>
-        }
+        <BitTextField @bind-Value="_userName"
+                      Label="@L["identity.signup.label.userName"]"
+                      Placeholder="@L["identity.signup.placeholder.userName"]"
+                      Invalid="@_userNameInvalid"
+                      ErrorMessage="@L["identity.signup.validation.userName"]" />
     </div>
 
     <div class="auth-field">
-        <label class="auth-label" for="signup-email">@L["identity.signin.label.email"]</label>
-        <div class="auth-input-wrap">
-            <input id="signup-email"
-                   class="auth-input @(_emailInvalid ? "invalid" : "")"
-                   type="email"
-                   autocomplete="email"
-                   placeholder="name@example.com"
-                   @bind="_email" @bind:event="oninput" />
-        </div>
-        @if (_emailInvalid)
-        {
-            <span class="validation-message">@L["identity.signin.validation.email"]</span>
-        }
+        <BitTextField @bind-Value="_email"
+                      Label="@L["identity.signin.label.email"]"
+                      Type="BitInputType.Email"
+                      Placeholder="name@example.com"
+                      Invalid="@_emailInvalid"
+                      ErrorMessage="@L["identity.signin.validation.email"]" />
     </div>
 
     <div class="auth-field">
-        <label class="auth-label" for="signup-code">@L["identity.signup.label.verificationCode"]</label>
         <div class="auth-code-row">
-            <div class="auth-input-wrap">
-                <input id="signup-code"
-                       class="auth-input @(_codeInvalid ? "invalid" : "")"
-                       type="text"
-                       inputmode="numeric"
-                       maxlength="6"
-                       autocomplete="one-time-code"
-                       placeholder="@L["identity.signup.placeholder.verificationCode"]"
-                       @bind="_verificationCode" @bind:event="oninput" />
-            </div>
-            <button type="button"
-                    class="auth-code-btn"
-                    disabled="@(_sendingCode || _cooldownSeconds > 0)"
-                    @onclick="SendCodeAsync">
+            <BitTextField @bind-Value="_verificationCode"
+                          Label="@L["identity.signup.label.verificationCode"]"
+                          MaxLength="6"
+                          InputMode="BitInputMode.Numeric"
+                          Placeholder="@L["identity.signup.placeholder.verificationCode"]"
+                          Invalid="@_codeInvalid"
+                          ErrorMessage="@L["identity.signup.validation.verificationCode"]" />
+            <BitButton Variant="BitVariant.Outline"
+                       Class="auth-code-btn"
+                       Disabled="@(_sendingCode || _cooldownSeconds > 0)"
+                       OnClick="SendCodeAsync">
                 @(_sendingCode ? L["identity.signup.sendingCode"] : _cooldownSeconds > 0 ? L.GetString("identity.signup.resendCooldown", _cooldownSeconds) : L["identity.signup.sendCode"])
-            </button>
-        </div>
-        @if (_codeInvalid)
-        {
-            <span class="validation-message">@L["identity.signup.validation.verificationCode"]</span>
-        }
-    </div>
-
-    <div class="auth-field">
-        <label class="auth-label" for="signup-displayname">@L["identity.signup.label.displayName"]</label>
-        <div class="auth-input-wrap">
-            <input id="signup-displayname"
-                   class="auth-input"
-                   type="text"
-                   autocomplete="name"
-                   placeholder="@L["identity.signup.placeholder.displayName"]"
-                   @bind="_displayName" @bind:event="oninput" />
+            </BitButton>
         </div>
     </div>
 
     <div class="auth-field">
-        <label class="auth-label" for="signup-password">@L["identity.signin.label.password"]</label>
-        <div class="auth-input-wrap">
-            <input id="signup-password"
-                   class="auth-input has-suffix @(_passwordInvalid ? "invalid" : "")"
-                   type="@(_revealPassword ? "text" : "password")"
-                   autocomplete="new-password"
-                   placeholder="@L.GetString("identity.signup.placeholder.password", _passwordMinLength)"
-                   @bind="_password" @bind:event="oninput" />
-            <button type="button" class="auth-suffix" title="@(_revealPassword ? L["identity.signin.hidePassword"] : L["identity.signin.showPassword"])" @onclick="ToggleRevealPassword">
-                @if (_revealPassword)
-                {
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 3l14 14" />
-                        <path d="M8.2 5.3A9 9 0 0 1 10 5c5 0 8 5 8 5a13 13 0 0 1-2.2 2.6M5.1 6.3A13 13 0 0 0 2 10s3 5 8 5c1 0 1.9-.2 2.7-.5" />
-                    </svg>
-                }
-                else
-                {
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M2 10s3-5 8-5 8 5 8 5-3 5-8 5-8-5-8-5Z" />
-                        <circle cx="10" cy="10" r="2.5" />
-                    </svg>
-                }
-            </button>
-        </div>
-        @if (_passwordInvalid)
-        {
-            <span class="validation-message">@L.GetString("identity.signup.validation.passwordMinLength", _passwordMinLength)</span>
-        }
+        <BitTextField @bind-Value="_displayName"
+                      Label="@L["identity.signup.label.displayName"]"
+                      Placeholder="@L["identity.signup.placeholder.displayName"]" />
     </div>
 
     <div class="auth-field">
-        <label class="auth-label" for="signup-confirm">@L["identity.signup.label.confirmPassword"]</label>
-        <div class="auth-input-wrap">
-            <input id="signup-confirm"
-                   class="auth-input has-suffix @(_confirmInvalid ? "invalid" : "")"
-                   type="@(_revealConfirm ? "text" : "password")"
-                   autocomplete="new-password"
-                   placeholder="@L["identity.signup.placeholder.confirmPassword"]"
-                   @bind="_confirmPassword" @bind:event="oninput" />
-            <button type="button" class="auth-suffix" title="@(_revealConfirm ? L["identity.signin.hidePassword"] : L["identity.signin.showPassword"])" @onclick="ToggleRevealConfirm">
-                @if (_revealConfirm)
-                {
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 3l14 14" />
-                        <path d="M8.2 5.3A9 9 0 0 1 10 5c5 0 8 5 8 5a13 13 0 0 1-2.2 2.6M5.1 6.3A13 13 0 0 0 2 10s3 5 8 5c1 0 1.9-.2 2.7-.5" />
-                    </svg>
-                }
-                else
-                {
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M2 10s3-5 8-5 8 5 8 5-3 5-8 5-8-5-8-5Z" />
-                        <circle cx="10" cy="10" r="2.5" />
-                    </svg>
-                }
-            </button>
-        </div>
-        @if (_confirmInvalid)
-        {
-            <span class="validation-message">@L["identity.signup.validation.passwordMismatch"]</span>
-        }
+        <BitTextField @bind-Value="_password"
+                      Label="@L["identity.signin.label.password"]"
+                      Type="BitInputType.Password"
+                      CanRevealPassword
+                      Placeholder="@L.GetString("identity.signup.placeholder.password", _passwordMinLength)"
+                      Invalid="@_passwordInvalid"
+                      ErrorMessage="@L.GetString("identity.signup.validation.passwordMinLength", _passwordMinLength)" />
     </div>
 
-    <button type="button" class="auth-btn" disabled="@_busy" @onclick="RegisterAsync">
-        @(_busy ? L["identity.signup.submitting"] : L["identity.signup.submit"])
-    </button>
+    <div class="auth-field">
+        <BitTextField @bind-Value="_confirmPassword"
+                      Label="@L["identity.signup.label.confirmPassword"]"
+                      Type="BitInputType.Password"
+                      CanRevealPassword
+                      Placeholder="@L["identity.signup.placeholder.confirmPassword"]"
+                      Invalid="@_confirmInvalid"
+                      ErrorMessage="@L["identity.signup.validation.passwordMismatch"]" />
+    </div>
+
+    <BitButton Color="BitColor.Primary" FullWidth IsLoading="@_busy" OnClick="RegisterAsync">
+        @L["identity.signup.submit"]
+    </BitButton>
 
     <p class="auth-foot">
-        @L["identity.signup.hasAccount"]<button type="button" class="auth-link" @onclick="GoToSignIn">@L["identity.signup.signInNow"]</button>
+        @L["identity.signup.hasAccount"]<BitButton Variant="BitVariant.Text" Class="auth-link" OnClick="GoToSignIn">@L["identity.signup.signInNow"]</BitButton>
     </p>
 }
-

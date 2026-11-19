@@ -30,8 +30,6 @@ public partial class SignUp
     private string _displayName = string.Empty;
     private string _password = string.Empty;
     private string _confirmPassword = string.Empty;
-    private bool _revealPassword;
-    private bool _revealConfirm;
     private bool _busy;
     private bool _sendingCode;
     private int _cooldownSeconds;
@@ -207,9 +205,6 @@ public partial class SignUp
             : $"/sign-in?return-url={Uri.EscapeDataString(_returnUrl)}";
         Navigation.NavigateTo(url);
     }
-
-    private void ToggleRevealPassword() => _revealPassword = !_revealPassword;
-    private void ToggleRevealConfirm() => _revealConfirm = !_revealConfirm;
 
     private static string? NormalizeReturnUrl(string? returnUrl, string baseUri)
     {

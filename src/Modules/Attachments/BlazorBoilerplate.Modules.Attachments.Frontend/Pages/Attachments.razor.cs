@@ -1,3 +1,5 @@
+
+using Bit.BlazorUI;
 using BlazorBoilerplate.Application.Localization;
 using BlazorBoilerplate.Shared.Features.Attachments;
 using BlazorBoilerplate.Web.Shared.Localization;
@@ -47,6 +49,21 @@ public partial class Attachments
     private AttachmentKind _uploadKind = AttachmentKind.General;
     private string? _ownerIdText;
     private string _filterKind = string.Empty;
+
+    // 下拉选项用计算属性，切语言时随 L[] 自动更新。
+    private List<BitDropdownItem<string>> FilterKindItems =>
+    [
+        new() { Text = L["attachments.filter.all"], Value = string.Empty },
+        new() { Text = L["attachments.kind.general"], Value = AttachmentKind.General.ToString() },
+        new() { Text = L["attachments.kind.userAvatar"], Value = AttachmentKind.UserProfileImage.ToString() },
+        new() { Text = L["attachments.kind.productImage"], Value = AttachmentKind.ProductPrimaryImage.ToString() }
+    ];
+    private List<BitDropdownItem<AttachmentKind>> UploadKindItems =>
+    [
+        new() { Text = L["attachments.kind.general"], Value = AttachmentKind.General },
+        new() { Text = L["attachments.kind.userAvatarSelf"], Value = AttachmentKind.UserProfileImage },
+        new() { Text = L["attachments.kind.productImage"], Value = AttachmentKind.ProductPrimaryImage }
+    ];
     private string _searchText = string.Empty;
     private bool _loading;
     private bool _uploading;
