@@ -21,92 +21,114 @@
 
 @if (_message is not null)
 {
-    <BitCallout Class="@("auth-msg " + (_messageIsError ? "error" : ""))">@_message</BitCallout>
+    <div class="@("auth-msg " + (_messageIsError ? "error" : ""))">@_message</div>
 }
 
 @* 第三方身份提供商 *@
 <div class="ext-providers">
-    <button type="button" class="ext-btn" title="@L["identity.signin.external.google"]" @onclick="ExternalGoogleAsync">
+    <BitButton Variant="BitVariant.Outline" Class="ext-btn" Title="@L["identity.signin.external.google"]" OnClick="ExternalGoogleAsync">
         <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="#4285F4" d="M23.52 12.27c0-.79-.07-1.54-.2-2.27H12v4.51h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.88c2.27-2.09 3.57-5.17 3.57-8.87Z" />
             <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3c-1.08.72-2.45 1.16-4.05 1.16-3.13 0-5.78-2.11-6.72-4.96H1.28v3.09A12 12 0 0 0 12 24Z" />
             <path fill="#FBBC05" d="M5.28 14.29a7.2 7.2 0 0 1 0-4.58V6.62H1.28a12 12 0 0 0 0 10.76l4-3.09Z" />
             <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.44-3.44A11.98 11.98 0 0 0 12 0 12 12 0 0 0 1.28 6.62l4 3.09C6.22 6.86 8.87 4.75 12 4.75Z" />
         </svg>
-    </button>
-    <button type="button" class="ext-btn" title="@L["identity.signin.external.microsoft"]" @onclick="ExternalMicrosoftAsync">
+    </BitButton>
+    <BitButton Variant="BitVariant.Outline" Class="ext-btn" Title="@L["identity.signin.external.microsoft"]" OnClick="ExternalMicrosoftAsync">
         <svg viewBox="0 0 24 24" aria-hidden="true">
             <path fill="#F25022" d="M1 1h10v10H1z" />
             <path fill="#7FBA00" d="M13 1h10v10H13z" />
             <path fill="#00A4EF" d="M1 13h10v10H1z" />
             <path fill="#FFB900" d="M13 13h10v10H13z" />
         </svg>
-    </button>
-    <button type="button" class="ext-btn" title="@L["identity.signin.external.github"]" @onclick="ExternalGitHubAsync">
+    </BitButton>
+    <BitButton Variant="BitVariant.Outline" Class="ext-btn" Title="@L["identity.signin.external.github"]" OnClick="ExternalGitHubAsync">
         <svg viewBox="0 0 16 16" aria-hidden="true">
             <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
         </svg>
-    </button>
-    <button type="button" class="ext-btn" title="@L["identity.signin.external.apple"]" @onclick="ExternalAppleAsync">
+    </BitButton>
+    <BitButton Variant="BitVariant.Outline" Class="ext-btn" Title="@L["identity.signin.external.apple"]" OnClick="ExternalAppleAsync">
         <svg viewBox="0 0 16 16" aria-hidden="true">
             <path fill="currentColor" d="M11.18 8.46c.02 2.06 1.8 2.74 1.82 2.75-.02.05-.29.98-.94 1.94-.57.83-1.16 1.66-2.09 1.68-.91.02-1.2-.54-2.24-.54s-1.36.52-2.22.56c-.9.03-1.58-.9-2.15-1.73C2.2 11.2 1.05 7.88 2.88 5.66c.9-1.1 2.32-1.79 3.66-1.79.86 0 1.67.58 2.2.58.53 0 1.53-.72 2.58-.61.44.02 1.67.18 2.46 1.35-.06.04-1.47.86-1.45 2.57ZM9.6 2.9c.47-.57.79-1.36.7-2.15-.68.03-1.5.45-1.99 1.02-.43.5-.81 1.3-.71 2.07.76.06 1.53-.38 2-.94Z" />
         </svg>
-    </button>
+    </BitButton>
 </div>
 
 <div class="or-sep">@L["identity.signin.orAccount"]</div>
 
-@* 邮箱 / 手机号 切换 *@
+@* 邮箱 / 手机号 切换：对齐 Bluebird 的 BitPivot（居中 + 下划线，宽度随内容而非整行平分） *@
 <div class="auth-tabs">
-    <BitButton Variant="@(_tab == AccountTab.Email ? BitVariant.Fill : BitVariant.Text)"
-               OnClick="SelectEmail">@L["identity.signin.tab.email"]</BitButton>
-    <BitButton Variant="@(_tab == AccountTab.Phone ? BitVariant.Fill : BitVariant.Text)"
-               OnClick="SelectPhone">@L["identity.signin.tab.phone"]</BitButton>
+    <BitPivot Alignment="BitAlignment.Center" HeaderOnly OnChange="OnTabChange"
+              DefaultSelectedKey="@AccountTab.Email.ToString()">
+        <BitPivotItem HeaderText="@L["identity.signin.tab.email"]" Key="@AccountTab.Email.ToString()" />
+        <BitPivotItem HeaderText="@L["identity.signin.tab.phone"]" Key="@AccountTab.Phone.ToString()" />
+    </BitPivot>
 </div>
 
-<div class="auth-field">
-    <BitTextField @bind-Value="_account"
-                  Label="@(_tab == AccountTab.Email ? L["identity.signin.label.email"] : L["identity.signin.label.phone"])"
-                  Type="@(_tab == AccountTab.Email ? BitInputType.Email : BitInputType.Tel)"
-                  Placeholder="@(_tab == AccountTab.Email ? "admin@example.com" : "138 0000 0000")"
-                  Invalid="@_accountInvalid"
-                  ErrorMessage="@(_tab == AccountTab.Email ? L["identity.signin.validation.email"] : L["identity.signin.validation.phone"])" />
-</div>
-
-<div class="auth-field">
-    <div class="auth-label-row">
-        <BitTextField @bind-Value="_password"
-                      Label="@L["identity.signin.label.password"]"
-                      Type="BitInputType.Password"
-                      CanRevealPassword
-                      Placeholder="@L["identity.signin.placeholder.password"]"
-                      Invalid="@_passwordInvalid"
-                      ErrorMessage="@L["identity.signin.validation.password"]" />
-        <BitButton Variant="BitVariant.Text" Class="auth-link" OnClick="ForgotPassword">@L["identity.signin.forgotPassword"]</BitButton>
+@if (_tab == AccountTab.Email)
+{
+    <div class="auth-field">
+        <BitTextField @bind-Value="_account"
+                      Label="@L["identity.signin.label.email"]"
+                      Type="BitInputType.Email"
+                      Placeholder="admin@example.com"
+                      Invalid="@_accountInvalid"
+                      ErrorMessage="@(_accountInvalid ? L["identity.signin.validation.email"] : null)" />
     </div>
+}
+else
+{
+    @* 电话：对齐 Bluebird BitPhoneInput，国旗 + 区号下拉 + 号码输入一体；Value 为 E.164 完整号码 *@
+    <div class="auth-field">
+        <BitPhoneInput @bind-Value="_phoneNumber"
+                       Label="@L["identity.signin.label.phone"]"
+                       Placeholder="138 0000 0000"
+                       DefaultCountry="BitCountries.China"
+                       Invalid="@_accountInvalid"
+                       ErrorMessage="@(_accountInvalid ? L["identity.signin.validation.phone"] : null)" />
+    </div>
+}
+
+<div class="auth-field">
+    @* 对齐 Bluebird SignInPanel：忘记密码放在密码 Label 行，输入框独占整行 *@
+    <BitTextField @bind-Value="_password"
+                  Type="BitInputType.Password"
+                  CanRevealPassword
+                  Placeholder="@L["identity.signin.placeholder.password"]"
+                  Invalid="@_passwordInvalid"
+                  ErrorMessage="@(_passwordInvalid ? L["identity.signin.validation.password"] : null)">
+        <LabelTemplate>
+            <div class="auth-label-row">
+                <BitText Element="span" Class="auth-label">@L["identity.signin.label.password"]</BitText>
+                <BitLink Class="auth-link" OnClick="ForgotPassword">@L["identity.signin.forgotPassword"]</BitLink>
+            </div>
+        </LabelTemplate>
+    </BitTextField>
 </div>
 
 <div class="auth-row">
     <BitCheckbox @bind-Value="_remember" Label="@L["identity.signin.rememberMe"]" />
     <span class="spacer"></span>
-    <BitButton Variant="BitVariant.Text" Title="@L["identity.signin.passkey"]" OnClick="Passkey">@L["identity.signin.passkey"]</BitButton>
+    @* 对齐 Bluebird：通行密钥用指纹图标按钮，避免长文案挤压复选框 *@
+    <BitButton IconOnly
+               Variant="BitVariant.Text"
+               Color="BitColor.Tertiary"
+               IconName="@BitIconName.Fingerprint"
+               Title="@L["identity.signin.passkey"]"
+               AriaLabel="@L["identity.signin.passkey"]"
+               OnClick="Passkey" />
 </div>
 
-<BitButton Color="BitColor.Primary" FullWidth IsLoading="@_busy" OnClick="SignInAsync">
+<BitButton Class="auth-primary-btn" Color="BitColor.Primary" FullWidth IsLoading="@_busy" OnClick="SignInAsync">
     @L["identity.signin.submit"]
 </BitButton>
-<BitButton Variant="BitVariant.Outline" FullWidth Disabled="@_busy" OnClick="MagicLinkAsync">
+<BitButton Class="auth-magic-link" Variant="BitVariant.Outline" Color="BitColor.Primary" FullWidth Disabled="@_busy" OnClick="MagicLinkAsync">
     @L["identity.signin.magicLink"]
 </BitButton>
-
-@if (_supportedCultures.Length > 0)
-{
-    <BitText Class="auth-foot">@L["platform.common.language"]：@string.Join("、", _supportedCultures)</BitText>
-}
 
 @if (_registerEnabled)
 {
     <p class="auth-foot">
-        @L["identity.signin.noAccount"]<BitButton Variant="BitVariant.Text" Class="auth-link" OnClick="SignUp">@L["identity.signin.signUpNow"]</BitButton>
+        @L["identity.signin.noAccount"]<BitLink Underlined Class="auth-link" OnClick="SignUp">@L["identity.signin.signUpNow"]</BitLink>
     </p>
 }

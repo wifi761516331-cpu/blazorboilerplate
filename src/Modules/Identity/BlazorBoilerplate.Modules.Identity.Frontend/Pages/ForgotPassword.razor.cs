@@ -39,6 +39,10 @@ public partial class ForgotPassword
     private bool _registerEnabled = true;
     private int _passwordMinLength = 6;
 
+    private bool SendCodeDisabled =>
+        _sendingCode || _cooldownSeconds > 0 ||
+        string.IsNullOrWhiteSpace(_email) || !_email.Contains('@');
+
     protected override async Task OnInitializedAsync()
     {
         await FrontendLoc.EnsureLoadedAsync();
@@ -93,7 +97,8 @@ public partial class ForgotPassword
         }
         catch (Exception ex)
         {
-            _message = ex.Message;
+            // 后端错误带稳定错误码时按当前界面语言翻译（GetUserMessage 词典未命中时回落原始消息）。
+            _message = ex.GetUserMessage(L);
             _messageIsError = true;
         }
         finally
@@ -129,7 +134,8 @@ public partial class ForgotPassword
         }
         catch (Exception ex)
         {
-            _message = ex.Message;
+            // 后端错误带稳定错误码时按当前界面语言翻译（GetUserMessage 词典未命中时回落原始消息）。
+            _message = ex.GetUserMessage(L);
             _messageIsError = true;
         }
         finally

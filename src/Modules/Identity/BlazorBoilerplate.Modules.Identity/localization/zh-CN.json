@@ -1,5 +1,6 @@
 {
   "identity.common.defaultSystemName": "BlazorBoilerplate 平台",
+  "identity.common.error.emailSendFailed": "验证码邮件发送失败，请稍后重试或联系管理员。原因：{0}",
   "identity.common.tab.general": "常规",
   "identity.common.saveChanges": "保存修改",
   "identity.common.selectAll": "全选",
@@ -180,9 +181,9 @@
   "identity.menus.selectPrompt": "请从左侧选择一个菜单，或点击上方「新建顶级菜单」。",
   "identity.menus.systemBuiltIn": "系统内置",
   "identity.menus.modulePrefix": "模块：{0}",
-  "identity.menus.field.nameRequired": "名称 *",
+  "identity.menus.field.nameRequired": "名称",
   "identity.menus.placeholder.name": "例如：系统设置",
-  "identity.menus.field.pathRequired": "路由 *",
+  "identity.menus.field.pathRequired": "路由",
   "identity.menus.placeholder.path": "例如：/system/settings",
   "identity.menus.field.icon": "图标名称",
   "identity.menus.placeholder.icon": "如 Home / People / Settings",

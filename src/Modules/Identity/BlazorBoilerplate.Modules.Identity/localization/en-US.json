@@ -1,5 +1,6 @@
 {
   "identity.common.defaultSystemName": "BlazorBoilerplate Platform",
+  "identity.common.error.emailSendFailed": "Failed to send the verification code email. Please try again later or contact the administrator. Reason: {0}",
   "identity.common.tab.general": "General",
   "identity.common.saveChanges": "Save Changes",
   "identity.common.selectAll": "Select All",
@@ -180,9 +181,9 @@
   "identity.menus.selectPrompt": "Please select a menu from the left, or click \"New Top Menu\" above.",
   "identity.menus.systemBuiltIn": "Built-in",
   "identity.menus.modulePrefix": "Module: {0}",
-  "identity.menus.field.nameRequired": "Name *",
+  "identity.menus.field.nameRequired": "Name",
   "identity.menus.placeholder.name": "e.g. System Settings",
-  "identity.menus.field.pathRequired": "Route *",
+  "identity.menus.field.pathRequired": "Route",
   "identity.menus.placeholder.path": "e.g. /system/settings",
   "identity.menus.field.icon": "Icon Name",
   "identity.menus.placeholder.icon": "e.g. Home / People / Settings",

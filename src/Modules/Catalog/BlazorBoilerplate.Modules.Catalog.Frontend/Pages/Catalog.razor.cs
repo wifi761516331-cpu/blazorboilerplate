@@ -58,7 +58,12 @@ public partial class Catalog
             FilterOpIn = L["catalog.grid.op.in"],
             FilterOpNotIn = L["catalog.grid.op.notIn"],
             FilterListPlaceholder = L["catalog.grid.listPlaceholder"],
-            NoMatchesText = L["catalog.grid.noMatches"]
+            NoMatchesText = L["catalog.grid.noMatches"],
+            // 内置分页文案（Bit fork QuickGrid 默认硬编码英文）：词条在平台内置词典 platform.grid.*
+            PagerRangeFormat = L.GetString("platform.grid.pagerRange"),
+            PagerPageFormat = L.GetString("platform.grid.pagerPage"),
+            PerPageFormat = L.GetString("platform.grid.perPage"),
+            RowsPerPageLabel = L.GetString("platform.grid.rowsPerPage")
         };
     }
 

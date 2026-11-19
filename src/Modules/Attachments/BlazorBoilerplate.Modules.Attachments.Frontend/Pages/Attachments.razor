@@ -2,262 +2,15 @@
 @rendermode RenderMode.InteractiveServer
 @using Microsoft.JSInterop
 
-<style>
-    .att-modal-form {
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-        width: 100%;
-    }
-
-    .att-modal-form .auth-field,
-    .att-modal-form .auth-input {
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-    .att-dropzone {
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        box-sizing: border-box;
-        min-height: 120px;
-        padding: 1.25rem 1rem;
-        border: 1.5px dashed var(--bit-clr-brd-pri, #c8c6c4);
-        border-radius: 8px;
-        background: var(--bit-clr-bg-sec, rgba(127, 127, 127, 0.04));
-        cursor: pointer;
-        text-align: center;
-        transition: border-color 0.15s ease, background-color 0.15s ease;
-    }
-
-    .att-pending-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.4rem;
-        max-height: 180px;
-        overflow-y: auto;
-    }
-
-    .att-pending-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-        padding: 0.45rem 0.75rem;
-        border: 1px solid var(--bit-clr-brd-sec, rgba(127, 127, 127, 0.18));
-        border-radius: 6px;
-        font-size: 0.85rem;
-    }
-
-    .att-pending-name {
-        flex: 1;
-        min-width: 0;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .att-dropzone:hover {
-        border-color: var(--bit-clr-pri, #0078d4);
-        background: rgba(0, 120, 212, 0.06);
-    }
-
-    .att-dropzone.is-uploading {
-        opacity: 0.72;
-        cursor: wait;
-    }
-
-    .att-dropzone input[type="file"] {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        opacity: 0;
-        cursor: pointer;
-    }
-
-    .att-dropzone-content {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-        pointer-events: none;
-    }
-
-    .att-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-        gap: 1rem;
-        margin-top: 1rem;
-    }
-
-    .att-bit-card {
-        padding: 0 !important;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    .att-bit-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.09);
-    }
-
-    .att-card-media {
-        position: relative;
-        width: 100%;
-        height: 156px;
-        background: var(--bit-clr-bg-sec, rgba(127, 127, 127, 0.06));
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        border-bottom: 1px solid var(--bit-clr-brd-sec, rgba(127, 127, 127, 0.14));
-    }
-
-    .att-card-media.is-clickable {
-        cursor: zoom-in;
-    }
-
-    .att-card-media img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-    }
-
-    .att-file-badge {
-        width: 64px;
-        height: 64px;
-        border-radius: 12px;
-        background: rgba(0, 120, 212, 0.12);
-        color: var(--bit-clr-pri, #0078d4);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-size: 0.9rem;
-        letter-spacing: 0.04em;
-    }
-
-    .att-kind-tag {
-        position: absolute;
-        top: 0.5rem;
-        right: 0.5rem;
-    }
-
-    .att-card-body {
-        padding: 0.85rem 1rem 0.6rem;
-        flex: 1;
-        min-width: 0;
-    }
-
-    .att-card-name {
-        display: block;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        font-weight: 600;
-    }
-
-    .att-card-actions {
-        padding: 0.45rem 0.75rem 0.65rem;
-        border-top: 1px solid var(--bit-clr-brd-sec, rgba(127, 127, 127, 0.14));
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.25rem;
-        flex-wrap: wrap;
-    }
-
-    .att-preview-modal {
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-        align-items: center;
-    }
-
-    .att-preview-modal img {
-        max-width: 100%;
-        max-height: 65vh;
-        border-radius: 8px;
-        object-fit: contain;
-    }
-
-    .att-kpi-item {
-        display: flex !important;
-        flex-direction: row !important;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-    }
-
-    .att-kpi-meta {
-        display: flex;
-        flex-direction: column;
-        gap: 0.2rem;
-        min-width: 0;
-    }
-
-    .att-kpi-icon {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        flex-shrink: 0;
-        font-size: 1.15rem;
-    }
-
-    .att-kpi-icon.is-total {
-        color: #0078d4;
-        background: rgba(0, 120, 212, 0.1);
-    }
-
-    .att-kpi-icon.is-image {
-        color: #107c10;
-        background: rgba(16, 124, 16, 0.1);
-    }
-
-    .att-dropzone-content {
-        max-width: 100%;
-        white-space: normal;
-        overflow-wrap: anywhere;
-        word-break: break-word;
-        line-height: 1.5;
-    }
-
-    .att-kpi-icon.is-other {
-        color: #8a5100;
-        background: rgba(180, 110, 0, 0.1);
-    }
-
-    .att-kpi-icon.is-size {
-        color: #5c2d91;
-        background: rgba(92, 45, 145, 0.1);
-    }
-
-    @@media (max-width: 720px) {
-        .att-upload-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-</style>
-
 <BitCallout Class="page-callout">
     <BitText Element="h1" Class="page-title">@L["attachments.title"]</BitText>
     <BitText Class="muted">@L.GetString("attachments.subtitle", _storageLabel, _maxUploadSizeMb)</BitText>
 </BitCallout>
 
 <div class="bb-toolbar">
-    <div class="bb-search">
+    <div class="bb-search" style="flex:1; max-width:none;">
         <BitSearchBox @bind-Value="_searchText" Immediate DebounceTime="200" Placeholder="@L["attachments.searchPlaceholder"]" />
     </div>
-    <div class="bb-spacer"></div>
     <BitDropdown TItem="BitDropdownItem<string>" TValue="string" Items="FilterKindItems"
                  @bind-Value="_filterKind" @bind-Value:after="LoadAsync"
                  Style="width:180px;" />
@@ -266,8 +19,9 @@
             @L["attachments.upload"]
         </BitButton>
     </PermissionGate>
-    <BitButton Variant="BitVariant.Outline" IconName="Refresh" OnClick="LoadAsync" IsEnabled="!_loading">
-        @(_loading ? L["platform.common.loading"] : L["platform.common.refresh"])
+    @* 加载态用 IsLoading 转圈而非切换文字：文字宽度变化会撑动工具栏布局，导致下拉框与按钮闪动 *@
+    <BitButton Variant="BitVariant.Outline" IconName="Refresh" OnClick="LoadAsync" IsLoading="@_loading" IsEnabled="!_loading">
+        @L["platform.common.refresh"]
     </BitButton>
 </div>
 
@@ -363,10 +117,10 @@ else
                     }
                     else
                     {
-                        <a class="bb-link-btn" href="@previewUrl" target="_blank" rel="noopener noreferrer">@L["attachments.action.open"]</a>
+                        <BitLink Class="bb-link-btn" Href="@previewUrl" Target="_blank" Rel="@(BitLinkRels.NoOpener | BitLinkRels.NoReferrer)">@L["attachments.action.open"]</BitLink>
                     }
                     <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick="() => CopyUrlAsync(previewUrl)">@L["attachments.action.copyUrl"]</BitButton>
-                    <a class="bb-link-btn" href="@downloadUrl" download="@item.FileName">@L["attachments.action.download"]</a>
+                    <BitLink Class="bb-link-btn" Href="@downloadUrl" download="@item.FileName">@L["attachments.action.download"]</BitLink>
                     <PermissionGate Code="attachments.delete">
                         <BitButton Size="BitSize.Small" Variant="BitVariant.Text" Color="BitColor.Error" OnClick="() => ConfirmDelete(item)">@L["platform.common.delete"]</BitButton>
                     </PermissionGate>
@@ -438,7 +192,7 @@ else
             <img src="@_previewUrl" alt="@_previewItem.FileName" />
             <BitText Typography="BitTypography.Caption1" Class="muted">
                 @GetKindLabel(_previewItem.Kind) · @FormatSize(_previewItem.SizeBytes) ·
-                <a class="bb-link-btn" href="@Api.GetAttachmentUrl(_previewItem.Id, _previewItem.Kind, download: true)" download="@_previewItem.FileName">@L["attachments.preview.downloadOriginal"]</a>
+                <BitLink Class="bb-link-btn" Href="@Api.GetAttachmentUrl(_previewItem.Id, _previewItem.Kind, download: true)" download="@_previewItem.FileName">@L["attachments.preview.downloadOriginal"]</BitLink>
             </BitText>
         </div>
     }

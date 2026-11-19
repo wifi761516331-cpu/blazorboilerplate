@@ -1,3 +1,4 @@
+using Bit.BlazorUI;
 using BlazorBoilerplate.Application.Localization;
 using BlazorBoilerplate.Shared.Features.Identity;
 using BlazorBoilerplate.Web.Shared.Localization;
@@ -32,6 +33,7 @@ public partial class SignIn
 
     private AccountTab _tab = AccountTab.Email;
     private string _account = string.Empty;
+    private string _phoneNumber = string.Empty; // E.164 完整号码（含 + 与区号），来自 BitPhoneInput.Value
     private string _password = string.Empty;
     private bool _remember;
     private bool _busy;
@@ -40,7 +42,6 @@ public partial class SignIn
     private string? _message;
     private bool _messageIsError;
     private string? _returnUrl;
-    private string[] _supportedCultures = [];
     private string _systemName = "BlazorBoilerplate";
     private bool _registerEnabled = true;
 
@@ -74,9 +75,7 @@ public partial class SignIn
         // 仅允许站内跳转，杜绝开放重定向；跨站或非法 return-url 回落到首页。
         _returnUrl = NormalizeReturnUrl(_returnUrl, Navigation.BaseUri);
 
-        // 可选：显示平台支持的语言与站点配置。匿名阶段该接口可能不可用，失败时静默，不影响登录。
-        try { _supportedCultures = [.. await Api.GetSupportedCulturesAsync()]; }
-        catch { /* 忽略：登录页不依赖语言列表 */ }
+        // 站点配置（匿名阶段可能不可用，失败时静默，不影响登录）。
         try
         {
             var pub = await Api.GetPublicSystemSettingsAsync();
@@ -89,10 +88,21 @@ public partial class SignIn
 
     private string TabClass(AccountTab tab) => _tab == tab ? "active" : string.Empty;
 
+    /// <summary>BitPivot 切换：Key 为 AccountTab 枚举名。切换时清掉上一 tab 遗留的校验态。</summary>
+    private void OnTabChange(BitPivotItem item)
+    {
+        if (Enum.TryParse<AccountTab>(item.Key, ignoreCase: true, out var tab))
+            _tab = tab;
+        _accountInvalid = false;
+    }
+
     private async Task SignInAsync()
     {
-        _accountInvalid = string.IsNullOrWhiteSpace(_account) ||
-                          (_tab == AccountTab.Email && !_account.Contains('@'));
+        // 当前提交的账号：邮箱 tab 用邮箱文本；电话 tab 用 BitPhoneInput 的 E.164 完整号码。
+        var account = _tab == AccountTab.Email ? _account.Trim() : _phoneNumber.Trim();
+        _accountInvalid = _tab == AccountTab.Email
+            ? string.IsNullOrWhiteSpace(account) || !account.Contains('@')
+            : string.IsNullOrWhiteSpace(account) || account.Length <= 1; // E.164 至少 "+" + 区号
         _passwordInvalid = _password.Length < 6;
         if (_accountInvalid || _passwordInvalid)
         {
@@ -109,7 +119,7 @@ public partial class SignIn
             // 内部调用 POST /auth/login 写入鉴权 cookie。
             var result = await JS.InvokeAsync<LoginResult>("blazorAuth.login", new
             {
-                userName = _account.Trim(),
+                userName = account,
                 password = _password,
                 rememberMe = _remember,
                 tenantId = (string?)null
@@ -184,9 +194,6 @@ public partial class SignIn
         _message = L["identity.signin.error.methodUnavailable"];
         _messageIsError = false;
     }
-
-    private void SelectEmail() => _tab = AccountTab.Email;
-    private void SelectPhone() => _tab = AccountTab.Phone;
 
     /// <summary>
     /// 规范化登录成功后的回跳地址，杜绝开放重定向。

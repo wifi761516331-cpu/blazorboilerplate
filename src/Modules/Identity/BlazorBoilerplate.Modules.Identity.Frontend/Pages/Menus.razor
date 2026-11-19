@@ -5,151 +5,6 @@
 @using BlazorBoilerplate.Shared.Features.Account
 @using BlazorBoilerplate.Shared.Features.Identity
 
-<style>
-    .menu-icon-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 0.5rem;
-        align-items: end;
-    }
-
-    .menu-icon-picker-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.45rem;
-    }
-
-    .menu-sort-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto auto;
-        gap: 0.5rem;
-        align-items: end;
-    }
-
-    .menu-tree-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 0.25rem 0.6rem;
-        margin-bottom: 0.4rem;
-        border-bottom: 1px solid var(--bb-brd-ter, rgba(127, 127, 127, 0.18));
-        font-size: 0.8rem;
-        color: var(--bb-fg-ter);
-    }
-
-    .menu-tree-item {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        min-width: 0;
-        width: 100%;
-    }
-
-    .menu-tree-icon {
-        width: 1rem;
-        height: 1rem;
-        opacity: 0.85;
-        flex-shrink: 0;
-    }
-
-    .menu-tree-text {
-        flex: 1;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .menu-tree-tag {
-        font-size: 0.7rem;
-        line-height: 1.4;
-        padding: 0 0.4rem;
-        border-radius: 999px;
-        background: rgba(127, 127, 127, 0.14);
-        color: var(--bb-fg-sec, #666);
-        flex-shrink: 0;
-    }
-
-    .icon-picker-body {
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-        width: 100%;
-    }
-
-    .icon-picker-scroll {
-        max-height: 380px;
-        overflow-y: auto;
-        padding: 0.25rem;
-    }
-
-    .icon-picker-grid-row {
-        display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 0.5rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .icon-picker-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 0.35rem;
-        min-width: 0;
-        padding: 0.6rem 0.4rem;
-        border-radius: 6px;
-        border: 1px solid var(--bb-brd-ter, rgba(127, 127, 127, 0.25));
-        background: transparent;
-        color: inherit;
-        cursor: pointer;
-        transition: border-color 0.15s, background-color 0.15s;
-    }
-
-    .icon-picker-item:hover,
-    .icon-picker-item.active {
-        border-color: var(--bb-pri, #0078d4);
-        background: rgba(0, 120, 212, 0.08);
-    }
-
-    .icon-picker-glyph {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.25rem;
-        width: 1.5rem;
-        height: 1.5rem;
-    }
-
-    .icon-picker-name {
-        font-size: 0.72rem;
-        line-height: 1.25;
-        max-width: 100%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        text-align: center;
-        opacity: 0.85;
-    }
-
-    .icon-picker-footer {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.5rem;
-    }
-
-    @@media (max-width: 720px) {
-        .menu-icon-row {
-            grid-template-columns: 1fr;
-        }
-
-        .icon-picker-body {
-            min-width: 0;
-        }
-    }
-</style>
-
 <div class="page-callout">
     <BitText Element="h1" Class="page-title">@L["identity.menus.title"]</BitText>
     <BitText Class="muted">@L["identity.menus.subtitle"]</BitText>
@@ -245,44 +100,46 @@
                         </BitTag>
                     </BitStack>
 
-                    <BitTextField @bind-Value="EditName" Label="@L["identity.menus.field.nameRequired"]" Placeholder="@L["identity.menus.placeholder.name"]" Required />
-                    <BitTextField @bind-Value="EditPath" Label="@L["identity.menus.field.pathRequired"]" Placeholder="@L["identity.menus.placeholder.path"]" Required />
+                    <div class="menu-form-grid">
+                        <BitTextField @bind-Value="EditName" Label="@L["identity.menus.field.nameRequired"]" Placeholder="@L["identity.menus.placeholder.name"]" Required />
+                        <BitTextField @bind-Value="EditPath" Label="@L["identity.menus.field.pathRequired"]" Placeholder="@L["identity.menus.placeholder.path"]" Required />
 
-                    <div class="menu-icon-row">
-                        <BitTextField @bind-Value="EditIcon" Label="@L["identity.menus.field.icon"]" Placeholder="@L["identity.menus.placeholder.icon"]" />
-                        <BitButton Variant="BitVariant.Outline"
-                                   Title="@L["identity.menus.pickIconTitle"]"
-                                   OnClick="OpenIconPicker">
-                            <span class="menu-icon-picker-btn">
-                                <AppIcon Name="@(string.IsNullOrWhiteSpace(EditIcon) ? "EditList" : EditIcon.Trim())" />
-                                <span>@L["identity.menus.pickIcon"]</span>
-                            </span>
-                        </BitButton>
-                    </div>
+                        <BitDropdown Label="@L["identity.menus.field.parent"]" @bind-Value="EditParentId" Items="_parentItems" />
+                        <BitDropdown Label="@L["identity.menus.field.permissionCode"]" @bind-Value="EditPermissionCode" Items="_permissionItems" />
 
-                    <BitDropdown Label="@L["identity.menus.field.parent"]" @bind-Value="EditParentId" Items="_parentItems" />
-                    <BitDropdown Label="@L["identity.menus.field.permissionCode"]" @bind-Value="EditPermissionCode" Items="_permissionItems" />
-                    <BitDropdown Label="@L["identity.menus.field.kind"]" @bind-Value="EditKind" Items="_kindItems" />
+                        <BitDropdown Label="@L["identity.menus.field.kind"]" @bind-Value="EditKind" Items="_kindItems" />
+                        <div class="menu-sort-row">
+                            <BitNumberField @bind-Value="EditSort" Label="@L["identity.menus.field.sort"]" />
+                            @if (!_creating && _selected is not null)
+                            {
+                                <PermissionGate Code="identity.menu.update">
+                                    <BitButton Variant="BitVariant.Outline"
+                                               IconName="@BitIconName.Up"
+                                               Disabled="@(_busy || !CanMoveSibling(-1))"
+                                               OnClick="@(() => MoveSiblingAsync(-1))">
+                                        @L["identity.menus.action.moveUp"]
+                                    </BitButton>
+                                    <BitButton Variant="BitVariant.Outline"
+                                               IconName="@BitIconName.Down"
+                                               Disabled="@(_busy || !CanMoveSibling(1))"
+                                               OnClick="@(() => MoveSiblingAsync(1))">
+                                        @L["identity.menus.action.moveDown"]
+                                    </BitButton>
+                                </PermissionGate>
+                            }
+                        </div>
 
-                    <div class="menu-sort-row">
-                        <BitNumberField @bind-Value="EditSort" Label="@L["identity.menus.field.sort"]" />
-                        @if (!_creating && _selected is not null)
-                        {
-                            <PermissionGate Code="identity.menu.update">
-                                <BitButton Variant="BitVariant.Outline"
-                                           IconName="@BitIconName.Up"
-                                           Disabled="@(_busy || !CanMoveSibling(-1))"
-                                           OnClick="@(() => MoveSiblingAsync(-1))">
-                                    @L["identity.menus.action.moveUp"]
-                                </BitButton>
-                                <BitButton Variant="BitVariant.Outline"
-                                           IconName="@BitIconName.Down"
-                                           Disabled="@(_busy || !CanMoveSibling(1))"
-                                           OnClick="@(() => MoveSiblingAsync(1))">
-                                    @L["identity.menus.action.moveDown"]
-                                </BitButton>
-                            </PermissionGate>
-                        }
+                        <div class="menu-icon-row menu-form-full">
+                            <BitTextField @bind-Value="EditIcon" Label="@L["identity.menus.field.icon"]" Placeholder="@L["identity.menus.placeholder.icon"]" />
+                            <BitButton Variant="BitVariant.Outline"
+                                       Title="@L["identity.menus.pickIconTitle"]"
+                                       OnClick="OpenIconPicker">
+                                <span class="menu-icon-picker-btn">
+                                    <AppIcon Name="@(string.IsNullOrWhiteSpace(EditIcon) ? "EditList" : EditIcon.Trim())" />
+                                    <span>@L["identity.menus.pickIcon"]</span>
+                                </span>
+                            </BitButton>
+                        </div>
                     </div>
 
                     <BitCheckbox @bind-Value="EditIsVisible" Label="@L["identity.menus.field.isVisible"]" />
@@ -332,7 +189,7 @@
 
         @{
             var filtered = GetFilteredIcons();
-            var rows = filtered.Chunk(5).ToList();
+            var rows = filtered.Chunk(10).ToList();
         }
 
         @if (filtered.Count == 0)
@@ -342,20 +199,19 @@
         else
         {
             <div class="icon-picker-scroll">
-                <Virtualize Items="@rows" Context="row" ItemSize="74" OverscanCount="4">
+                <Virtualize Items="@rows" Context="row" ItemSize="48" OverscanCount="4">
                     <div class="icon-picker-grid-row">
                         @foreach (var icon in row)
                         {
                             var isActive = string.Equals(EditIcon?.Trim(), icon.Value, StringComparison.OrdinalIgnoreCase);
-                            <button type="button"
-                                    class="icon-picker-item @(isActive ? "active" : "")"
-                                    title="@icon.Value"
-                                    @onclick="@(() => SelectIcon(icon.Value))">
+                            <BitButton Variant="BitVariant.Text"
+                                       Class="@($"icon-picker-item {(isActive ? "active" : "")}")"
+                                       Title="@icon.Value"
+                                       OnClick="@(() => SelectIcon(icon.Value))">
                                 <span class="icon-picker-glyph">
                                     <AppIcon Name="@icon.Value" />
                                 </span>
-                                <span class="icon-picker-name">@icon.Name</span>
-                            </button>
+                            </BitButton>
                         }
                     </div>
                 </Virtualize>
