@@ -338,11 +338,11 @@ public sealed class ModuleLifecycleManager(
 
             await RegisterModuleLocalizationAsync(id, entry.Descriptor.PackagePath, provider, cancellationToken);
 
-            // 若模块注册了持久化 ILocalizationStore，在自身词条登记完成后再挂载到宿主桥接器：
-            // 避免模块首次加载时表尚未迁移（ModuleDataHooks.OnLoadedAsync 在 LoadAsync 返回后执行）就触发 SyncModuleResourcesAsync 报表不存在；
-            // 随后的迁移步骤会从 ILocalizationRegistry 统一同步包括本模块在内的全部存量词条。
-            if (provider.GetService<IServiceProviderIsService>()?.IsService(typeof(ILocalizationStore)) == true)
-                hostServices.GetService<ILocalizationStoreBridge>()?.Attach(id, provider);
+            // 持久化 ILocalizationStore 的桥接器挂载推迟到宿主数据钩子（ModuleDataHooks.OnLoadedAsync）：
+            // LoadAllAsync 会连续 LoadAsync 全部模块，而建表迁移在全部加载完才由钩子逐模块执行；
+            // 若在此处 attach，后加载的模块（如 catalog）同步词条时会命中尚未迁移的 LocResources 表
+            // → SQLite Error 1: 'no such table: LocResources'。钩子里的迁移步骤会从 ILocalizationRegistry
+            // 统一同步包括本模块在内的全部存量词条，因此推迟挂载不会丢词条。
 
             // 扫描模块程序集中标记 [Subscribe] 的处理器，注册到宿主 EventBus 的弱引用表。
             // 强引用由 handle.EventHandlers 持有（生命周期跟随模块）；卸载时显式摘除订阅。

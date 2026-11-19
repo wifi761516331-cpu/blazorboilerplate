@@ -1,5 +1,6 @@
 using System.Text.Json;
 using BlazorBoilerplate.ApiHost.Setup;
+using BlazorBoilerplate.Application.Localization;
 using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.Modules.Identity.Domain;
 using BlazorBoilerplate.Modules.Identity.Persistence;
@@ -216,6 +217,15 @@ public static class ModuleDataHooks
         try
         {
             await services.GetRequiredService<ModuleMigrationRunner>().ApplyAsync(moduleId, ct);
+
+            // 本地化存储桥接器必须等迁移建表完成后再挂载：
+            // LoadAllAsync 会连续 LoadAsync 全部模块，后加载模块在 RegisterModuleLocalizationAsync 中
+            // 同步词条时会调用桥接器；若在 LoadAsync 内提前挂载，就会命中尚未迁移的 LocResources 表。
+            // Localization 模块的迁移步骤会从 ILocalizationRegistry 统一回灌全部存量词条，故不丢数据。
+            var moduleServices = services.GetRequiredService<ModuleLifecycleManager>().GetModuleServices(moduleId);
+            if (moduleServices?.GetService<IServiceProviderIsService>()?.IsService(typeof(ILocalizationStore)) == true)
+                services.GetService<ILocalizationStoreBridge>()?.Attach(moduleId, moduleServices);
+
             await services.GetRequiredService<ModuleMenuSyncService>().SyncAsync(moduleId, packagePath, ct);
         }
         catch (Exception ex)

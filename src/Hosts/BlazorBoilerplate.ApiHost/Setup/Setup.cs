@@ -1,7 +1,9 @@
 using System.Text.Json;
 using BlazorBoilerplate.ApiHost.Modules;
+using BlazorBoilerplate.ApiHost.Services;
 using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.ModuleRuntime.Runtime;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -115,6 +117,20 @@ public static class SetupEndpoints
             }
 
             setup.Complete(request.AdminEmail, request.SystemName);
+
+            // 首装填写的系统名称同步到系统设置，使 /system/settings 与安装向导保持一致。
+            // 此时 system-settings.json 通常尚未生成，SystemSettingsStore 会从 IConfiguration
+            // 继承默认值后写入；这里把 SystemName 覆盖为首装值并落盘。
+            if (!string.IsNullOrWhiteSpace(request.SystemName))
+            {
+                var settingsStore = serviceProvider.GetRequiredService<SystemSettingsStore>();
+                var current = settingsStore.GetRaw();
+                if (!string.Equals(current.SystemName, request.SystemName.Trim(), StringComparison.Ordinal))
+                {
+                    current.SystemName = request.SystemName.Trim();
+                    settingsStore.Update(current);
+                }
+            }
 
             // 安装完成后进入 Normal 模式：按 nopCommerce 风格自动加载全部已安装模块，
             // 使首次运行完成配置后无需重启即可使用。
