@@ -12,10 +12,32 @@
             <AppIcon Name="Home" /> @L["platform.nav.backHome"]
         </a>
         <div class="spacer"></div>
-        <span class="identity-brand"><span class="nav-brand-mark">L</span> @L["platform.app.name"]</span>
-        <button type="button" class="icon-btn" title="@L["platform.common.themeToggle"]" @onclick="() => _dark = !_dark">
+        @* 语言下拉：对齐 Bluebird IdentityHeader 右上角国旗+箭头样式，就地切换语言不整页刷新。
+           国旗直接用 Extras 包自带的静态图片（BitFlag 组件在本环境未渲染出图片）。 *@
+        <div class="identity-lang">
+            <BitButton Variant="BitVariant.Text" Class="lang-trigger" Title="@L["platform.common.language"]"
+                       aria-expanded="@_langOpen" OnClick="() => _langOpen = !_langOpen">
+                <img class="lang-flag" src="@FlagSrc(CurrentFlag())" alt="" />
+                <AppIcon Name="ChevronDown" />
+            </BitButton>
+            @if (_langOpen)
+            {
+                <div class="lang-menu" role="menu">
+                    @foreach (var culture in _cultures)
+                    {
+                        <BitButton Variant="BitVariant.Text"
+                                   Class="@($"lang-item {(culture.Code == _culture ? "selected" : "")}")"
+                                   role="menuitem" OnClick="() => SelectLanguage(culture)">
+                            <img class="lang-flag" src="@FlagSrc(FlagOf(culture))" alt="" />
+                            <span>@culture.Text</span>
+                        </BitButton>
+                    }
+                </div>
+            }
+        </div>
+        <BitButton Variant="BitVariant.Text" Class="icon-btn" Title="@L["platform.common.themeToggle"]" OnClick="() => _dark = !_dark">
             <AppIcon Name="@(_dark ? "Sunny" : "ClearNight")" />
-        </button>
+        </BitButton>
     </div>
 
     <main class="identity-main">
@@ -27,26 +49,6 @@
         </div>
 
         <div class="identity-panel">
-            <svg class="identity-art" viewBox="0 0 320 220" fill="none" aria-hidden="true">
-                <g stroke="rgba(255,255,255,.35)" stroke-width="1.5">
-                    <path d="M160 110 64 52M160 110 256 52M160 110 64 168M160 110 256 168" />
-                </g>
-                <g fill="rgba(255,255,255,.14)" stroke="rgba(255,255,255,.55)" stroke-width="1.5">
-                    <rect x="112" y="82" width="96" height="56" rx="10" />
-                    <rect x="24" y="24" width="80" height="56" rx="10" />
-                    <rect x="216" y="24" width="80" height="56" rx="10" />
-                    <rect x="24" y="140" width="80" height="56" rx="10" />
-                    <rect x="216" y="140" width="80" height="56" rx="10" />
-                </g>
-                <g fill="rgba(255,255,255,.7)">
-                    <circle cx="64" cy="52" r="4" />
-                    <circle cx="256" cy="52" r="4" />
-                    <circle cx="64" cy="168" r="4" />
-                    <circle cx="256" cy="168" r="4" />
-                </g>
-                <text x="160" y="116" text-anchor="middle" fill="rgba(255,255,255,.9)"
-                      font-size="15" font-weight="600" font-family="Segoe UI, sans-serif">BlazorBoilerplate</text>
-            </svg>
             <h2 class="panel-title">@L["platform.identityPanel.title"]</h2>
             <p class="panel-sub">@L["platform.identityPanel.subtitle"]</p>
             <div class="panel-badges">

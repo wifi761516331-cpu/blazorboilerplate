@@ -33,8 +33,36 @@
    同时覆盖 :hover 以压过全局 .icon-btn:hover 的 --bb-fg-pri。 */
 .identity-header .icon-btn,
 .identity-header .icon-btn:hover { color: var(--bb-pri); }
-.identity-brand { display: flex; align-items: center; gap: .5rem; font-weight: 600; }
-.identity-brand .nav-brand-mark { width: 1.75rem; height: 1.75rem; flex-basis: 1.75rem; font-size: .875rem; }
+
+/* 语言下拉：右上角「国旗 + 箭头」透明触发，贴合蓝色渐变背景（对齐参考图）。 */
+.identity-lang { position: relative; display: flex; align-items: center; }
+.identity-lang .lang-trigger {
+    display: flex; align-items: center; gap: .375rem;
+    padding: .25rem; border: 0; border-radius: .375rem;
+    background: transparent; color: #fff; cursor: pointer;
+}
+.identity-lang .lang-trigger:hover { background: rgba(255, 255, 255, .14); }
+.identity-lang .lang-trigger ::deep .app-icon { width: 1rem; height: 1rem; color: #fff; }
+.identity-lang .lang-flag {
+    width: 1.5rem; height: 1rem; border-radius: 2px;
+    object-fit: cover; border: 1px solid rgba(0, 0, 0, .12); flex-shrink: 0;
+}
+/* 下拉菜单：白底大圆角卡片 + 明显阴影，项内「国旗 + 大字语言名」，选中项加粗。 */
+.identity-lang .lang-menu {
+    position: absolute; inset-block-start: calc(100% + .75rem); inset-inline-end: 0;
+    z-index: var(--bb-z-overlay); min-width: 11.5rem; padding: .5rem;
+    border: 0; border-radius: .875rem;
+    background: #fff; box-shadow: 0 12px 36px rgba(0, 0, 0, .22);
+}
+.identity-lang .lang-item {
+    display: flex; align-items: center; gap: .75rem; width: 100%;
+    padding: .5rem .625rem; border: 0; border-radius: .5rem;
+    background: transparent; color: #1a1a1a; font-family: var(--bb-font);
+    font-size: 1rem; text-align: start; cursor: pointer;
+}
+.identity-lang .lang-item .lang-flag { width: 1.75rem; height: 1.1667rem; }
+.identity-lang .lang-item:hover { background: #f0f0f0; }
+.identity-lang .lang-item.selected { color: #1a1a1a; font-weight: 700; background: #f0f0f0; }
 
 .identity-main { display: flex; flex: 1; min-height: 100vh; }
 .identity-body {
@@ -51,8 +79,11 @@
 }
 /* margin-block:auto 而非 justify-content:center：内容超高时仍可滚动，不会裁掉顶部 */
 .identity-form { width: min(100%, 21rem); margin-block: auto; }
-/* 穿透：Bit 按钮由 @Body 子内容渲染，不带本组件作用域属性 */
-.identity-form ::deep .bit-btn { width: 100%; }
+/* 说明：原先这里有 `.identity-form ::deep .bit-btn { width:100% }`，已删除。
+   原因：@Body 里渲染的 Bit 按钮不带本组件作用域属性，::deep 会无差别撑满所有
+   内联按钮（tab / 忘记密码 / 通行密钥 / 验证码 / 底部链接），把同一 flex 行里的
+   输入框挤扁、复选框文字挤到换行。主操作按钮（登录/注册/重置）已自带 FullWidth
+   参数，全宽由组件自身处理，无需此规则。 */
 
 .identity-panel {
     flex: 1;
@@ -67,7 +98,6 @@
                 radial-gradient(circle at 80% 75%, #7c3aed 0%, transparent 55%),
                 linear-gradient(135deg, #0f6cbd, #0a3f74);
 }
-.identity-art { width: min(70%, 24rem); margin-bottom: 1.5rem; opacity: .9; }
 .panel-title { font-size: 2rem; font-weight: 600; text-align: center; }
 .panel-sub { font-size: 1rem; opacity: .85; text-align: center; max-width: 30rem; line-height: 1.6; }
 .panel-badges { display: flex; gap: .5rem; flex-wrap: wrap; justify-content: center; margin-top: 1.5rem; }

@@ -9,7 +9,7 @@
         <div class="blazorboilerplate-toast @ToastClass(item.Type)" role="alert">
             <span class="blazorboilerplate-toast-icon"><AppIcon Name="@IconOf(item.Type)" /></span>
             <span class="blazorboilerplate-toast-msg">@item.Message</span>
-            <button type="button" class="blazorboilerplate-toast-close" aria-label="关闭" @onclick="() => Toast.Remove(item.Id)">✕</button>
+            <BitButton Variant="BitVariant.Text" Class="blazorboilerplate-toast-close" aria-label="关闭" OnClick="() => Toast.Remove(item.Id)">✕</BitButton>
         </div>
     }
 </div>

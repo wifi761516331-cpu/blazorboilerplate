@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <PackageReference Include="Bit.BlazorUI" />
+    <PackageReference Include="Bit.BlazorUI.Extras" />
   </ItemGroup>
 
   <ItemGroup>

@@ -37,6 +37,18 @@ public sealed class BlazorBoilerplateApiClient(HttpClient http)
         return list ?? [];
     }
 
+    /// <summary>重新扫描安装目录发现新放入的模块，返回 rescan 发现数与最新模块列表。</summary>
+    public async Task<(int Found, IReadOnlyList<ModuleDescriptor> Modules)> RescanModulesAsync(CancellationToken cancellationToken = default)
+    {
+        var response = await http.PostAsync("api/modules/rescan", content: null, cancellationToken);
+        using var doc = await ReadOrThrowDocumentAsync(response, cancellationToken);
+        var found = doc.RootElement.TryGetProperty("found", out var f) && f.TryGetInt32(out var n) ? n : 0;
+        var modules = doc.RootElement.TryGetProperty("modules", out var m)
+            ? m.Deserialize<List<ModuleDescriptor>>(JsonOptions) ?? []
+            : [];
+        return (found, modules);
+    }
+
     public async Task<ModuleDescriptor?> GetModuleAsync(string id, CancellationToken cancellationToken = default)
     {
         var response = await http.GetAsync($"api/modules/{Uri.EscapeDataString(id)}", cancellationToken);
@@ -427,8 +439,47 @@ public sealed class BlazorBoilerplateApiClient(HttpClient http)
         if (!response.IsSuccessStatusCode)
         {
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new HttpRequestException($"ApiHost 返回 {(int)response.StatusCode} {response.StatusCode}: {body}");
+            // 后端 ApiExceptionFilter 统一返回 { "error": "...", "errorCode": "...", "errorArgs": [...] }；
+            // 优先取出可读消息与错误码，避免把状态码、JSON 大括号等原始技术信息直接暴给用户。
+            var (message, errorCode, errorArgs) = ReadError(body);
+            message ??= $"服务返回 {(int)response.StatusCode} {response.StatusCode}。";
+            throw new ApiRequestException(message, errorCode, errorArgs);
         }
+    }
+
+    private static (string? message, string? errorCode, object[] errorArgs) ReadError(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body)) return (null, null, []);
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            var root = doc.RootElement;
+            if (root.ValueKind == JsonValueKind.Object)
+            {
+                string? message = null, errorCode = null;
+                if (root.TryGetProperty("error", out var error) && error.ValueKind == JsonValueKind.String)
+                    message = error.GetString();
+                // ProblemDetails 形如 { "title": ..., "detail": ... }
+                else if (root.TryGetProperty("detail", out var detail) && detail.ValueKind == JsonValueKind.String)
+                    message = detail.GetString();
+                else if (root.TryGetProperty("title", out var title) && title.ValueKind == JsonValueKind.String)
+                    message = title.GetString();
+
+                if (root.TryGetProperty("errorCode", out var code) && code.ValueKind == JsonValueKind.String)
+                    errorCode = code.GetString();
+
+                object[] args = [];
+                if (root.TryGetProperty("errorArgs", out var a) && a.ValueKind == JsonValueKind.Array)
+                    args = [.. a.EnumerateArray().Select(v => v.ValueKind == JsonValueKind.String ? (object)(v.GetString() ?? string.Empty) : v.GetRawText())];
+
+                return (message, errorCode, args);
+            }
+        }
+        catch (JsonException)
+        {
+            // 非 JSON 响应体：回落为纯文本（去掉首尾空白与引号）
+        }
+        return (body.Trim().Trim('"'), null, []);
     }
 
     private static async Task<T> ReadOrThrowAsync<T>(HttpResponseMessage response, CancellationToken cancellationToken)
@@ -436,6 +487,13 @@ public sealed class BlazorBoilerplateApiClient(HttpClient http)
         await EnsureSuccessAsync(response, cancellationToken);
         var result = await response.Content.ReadFromJsonAsync<T>(JsonOptions, cancellationToken);
         return result ?? throw new InvalidOperationException("ApiHost 返回了空响应体。");
+    }
+
+    private static async Task<JsonDocument> ReadOrThrowDocumentAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        await EnsureSuccessAsync(response, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        return JsonDocument.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
     }
 }
 

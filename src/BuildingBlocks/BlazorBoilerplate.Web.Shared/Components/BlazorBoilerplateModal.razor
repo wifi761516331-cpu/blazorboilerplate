@@ -15,7 +15,7 @@
                 <h3 class="blazorboilerplate-modal-title">@Title</h3>
                 @if (ShowClose)
                 {
-                    <button type="button" class="blazorboilerplate-modal-close" aria-label="@L["platform.common.close"]" @onclick="Cancel">✕</button>
+                    <BitButton Variant="BitVariant.Text" Class="blazorboilerplate-modal-close" aria-label="@L["platform.common.close"]" OnClick="Cancel">✕</BitButton>
                 }
             </header>
             <div class="blazorboilerplate-modal-body">
@@ -28,16 +28,14 @@
             <footer class="blazorboilerplate-modal-footer">
                 @if (ShowCancel)
                 {
-                    <button type="button" class="blazorboilerplate-btn ghost" @onclick="Cancel" disabled="@_busy">@(CancelText ?? L["platform.common.cancel"])</button>
+                    <BitButton Variant="BitVariant.Outline" OnClick="Cancel" IsEnabled="!_busy">@(CancelText ?? L["platform.common.cancel"])</BitButton>
                 }
-                <button type="button" class="blazorboilerplate-btn @(Danger ? "danger" : "primary")"
-                        @onclick="HandleOk" disabled="@(_busy || Disabled)">
-                    @if (_busy)
-                    {
-                        <span class="blazorboilerplate-spinner"></span>
-                    }
-                    <span>@(OkText ?? L["platform.common.confirm"])</span>
-                </button>
+                <BitButton Color="@(Danger ? BitColor.Error : BitColor.Primary)"
+                           IsLoading="@_busy"
+                           IsEnabled="@(!_busy && !Disabled)"
+                           OnClick="HandleOk">
+                    @(OkText ?? L["platform.common.confirm"])
+                </BitButton>
             </footer>
         </div>
     </div>
