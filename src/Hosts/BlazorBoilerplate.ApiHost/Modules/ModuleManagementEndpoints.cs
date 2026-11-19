@@ -17,6 +17,16 @@ public static class ModuleManagementEndpoints
         group.MapGet("/", (ModuleLifecycleManager manager) => Results.Ok(manager.List()))
             .WithSummary("List all modules (stable descriptors only)");
 
+        // 页面「刷新」按钮：重新扫描安装目录发现新模块（List 只列已登记条目，
+        // 手动放入 installed 目录的模块不 rescan 永远不会出现在列表里）。
+        group.MapPost("/rescan", async (ModuleLifecycleManager manager, HttpContext context, CancellationToken ct) =>
+            {
+                var found = await manager.RefreshCatalogAsync(ct);
+                return Results.Ok(new { found, modules = manager.List() });
+            })
+            .WithSummary("Re-scan the installed directory to discover newly added modules")
+            .RequirePermission("module.load");
+
         group.MapGet("/load-order", (ModuleLifecycleManager manager) => Results.Ok(manager.ListOrdered()))
             .WithSummary("List modules in resolved nopCommerce-style load order (dependencies first, then DisplayOrder)");
 

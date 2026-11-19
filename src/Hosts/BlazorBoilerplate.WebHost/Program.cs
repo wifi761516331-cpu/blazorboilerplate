@@ -95,6 +95,10 @@ app.UseAntiforgery();
 // 同源 /auth/*：登录、刷新、切换账号/租户、多账号列表、登出（JS 只拿 accountId，不接触令牌）。
 app.MapWebAuthEndpoints();
 
+app.MapGet("/_modules/styles.css", (ModuleAssemblyCatalog catalog) =>
+    Results.Content(catalog.GetCombinedCss(), "text/css; charset=utf-8"))
+    .AllowAnonymous();
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 // 注意：模块组件不走静态 AdditionalAssemblies —— SSR 由 ModuleHost.razor（/{**path} catch-all）

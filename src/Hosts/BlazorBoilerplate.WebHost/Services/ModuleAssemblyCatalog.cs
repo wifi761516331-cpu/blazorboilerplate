@@ -188,9 +188,10 @@ public sealed class ModuleAssemblyCatalog
             throw;
         }
 
+        var cssPath = ResolveScopedCssPath(dll);
         lock (_gate)
         {
-            _active[moduleId] = new ModuleEntry(loaded, context, packageVersion);
+            _active[moduleId] = new ModuleEntry(loaded, context, packageVersion, cssPath);
             _assemblies = [.. _active.Values.Select(e => e.Assembly)]; // 整体替换引用：Router 下次导航重建路由表
         }
 
@@ -251,8 +252,65 @@ public sealed class ModuleAssemblyCatalog
         return Path.Combine(packagePath, "backend", $"BlazorBoilerplate.Modules.{id}.dll");
     }
 
-    /// <summary>激活条目：程序集 + 承载它的可回收 ALC（静态引用为 null）+ 已加载版本。</summary>
-    private sealed record ModuleEntry(Assembly Assembly, ModuleLoadContext? Context = null, Version? Version = null);
+    /// <summary>聚合全部已加载动态模块前端程序集的隔离 CSS，供 /_modules/styles.css 输出。</summary>
+    public string GetCombinedCss()
+    {
+        EnsureLoadedOnDemand();
+        List<string> paths;
+        lock (_gate)
+        {
+            paths = _active.Values
+                .Select(e => e.CssPath)
+                .Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p))
+                .Cast<string>()
+                .ToList();
+        }
+
+        if (paths.Count == 0)
+            return string.Empty;
+
+        var sb = new System.Text.StringBuilder();
+        foreach (var path in paths)
+        {
+            sb.AppendLine($"/* {Path.GetFileName(path)} */");
+            sb.AppendLine(File.ReadAllText(path));
+        }
+        return sb.ToString();
+    }
+
+    private static string? ResolveScopedCssPath(string dllPath)
+    {
+        var dir = Path.GetDirectoryName(dllPath);
+        if (string.IsNullOrEmpty(dir)) return null;
+        var baseName = Path.GetFileNameWithoutExtension(dllPath);
+
+        var packaged = Path.Combine(dir, baseName + ".styles.css");
+        if (File.Exists(packaged)) return packaged;
+
+        // 开发期：从 modules/installed/{id}/{ver}/frontend 向上找到仓库根，匹配 src/Modules/*/{baseName}/obj/*/net10.0/scopedcss
+        var cursor = dir;
+        for (var i = 0; i < 6 && !string.IsNullOrEmpty(cursor); i++)
+        {
+            var modulesSrc = Path.Combine(cursor, "src", "Modules");
+            if (Directory.Exists(modulesSrc))
+            {
+                foreach (var modDir in Directory.EnumerateDirectories(modulesSrc))
+                {
+                    foreach (var config in new[] { "Debug", "Release" })
+                    {
+                        var projectBundle = Path.Combine(modDir, baseName, "obj", config, "net10.0", "scopedcss", "projectbundle", baseName + ".bundle.scp.css");
+                        if (File.Exists(projectBundle)) return projectBundle;
+                    }
+                }
+                break;
+            }
+            cursor = Path.GetDirectoryName(cursor);
+        }
+        return null;
+    }
+
+    /// <summary>激活条目：程序集 + 承载它的可回收 ALC（静态引用为 null）+ 已加载版本 + 隔离 CSS 路径。</summary>
+    private sealed record ModuleEntry(Assembly Assembly, ModuleLoadContext? Context = null, Version? Version = null, string? CssPath = null);
 
     /// <summary>
     /// 模块插件 ALC（官方 creating-app-with-plugin-support 模式）：

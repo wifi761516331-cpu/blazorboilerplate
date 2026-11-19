@@ -76,6 +76,8 @@ if ($manifest.frontend -and $manifest.frontend.assembly) {
         Copy-Item (Join-Path $frontendOut $frontendAsm) $frontendStage.FullName
         $frontendDeps = Join-Path $frontendOut "$frontendBase.deps.json"
         if (Test-Path $frontendDeps) { Copy-Item $frontendDeps $frontendStage.FullName }
+        $scopedCss = Join-Path $frontendDir "obj\Release\net10.0\scopedcss\projectbundle\$frontendBase.bundle.scp.css"
+        if (Test-Path $scopedCss) { Copy-Item $scopedCss (Join-Path $frontendStage.FullName "$frontendBase.styles.css") }
     }
 }
 

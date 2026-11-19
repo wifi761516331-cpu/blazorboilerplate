@@ -128,6 +128,12 @@ public sealed class ModulePackService(
                         Path.GetFileNameWithoutExtension(frontendName) + ".deps.json");
                     if (File.Exists(frontendDeps))
                         File.Copy(frontendDeps, Path.Combine(frontendStage, Path.GetFileName(frontendDeps)), overwrite: true);
+
+                    var frontendBase = Path.GetFileNameWithoutExtension(frontendName);
+                    var frontendProjDir = Path.GetDirectoryName(frontendCsproj)!;
+                    var scopedCss = FindScopedCssBundle(frontendProjDir, frontendBase);
+                    if (scopedCss is not null)
+                        File.Copy(scopedCss, Path.Combine(frontendStage, frontendBase + ".styles.css"), overwrite: true);
                 }
             }
             var checksums = Path.Combine(sourceDir, "checksums.sha256");
@@ -347,6 +353,23 @@ public sealed class ModulePackService(
             logger.LogWarning(ex, "开发期自动编译模块前端异常：{Csproj}", csproj);
             return null;
         }
+    }
+
+    private static string? FindScopedCssBundle(string projectDir, string assemblyBaseName)
+    {
+        foreach (var config in new[] { "Release", "Debug" })
+        {
+            var objDir = Path.Combine(projectDir, "obj", config);
+            if (!Directory.Exists(objDir)) continue;
+            foreach (var tfmDir in Directory.EnumerateDirectories(objDir))
+            {
+                var projectBundle = Path.Combine(tfmDir, "scopedcss", "projectbundle", assemblyBaseName + ".bundle.scp.css");
+                if (File.Exists(projectBundle)) return projectBundle;
+                var bundle = Path.Combine(tfmDir, "scopedcss", "bundle", assemblyBaseName + ".styles.css");
+                if (File.Exists(bundle)) return bundle;
+            }
+        }
+        return null;
     }
 
     private static string? FindFrontendProjectDir(string sourceDir, string frontendAssembly)
