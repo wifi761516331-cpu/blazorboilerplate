@@ -1,4 +1,5 @@
 <Solution>
+  <Folder Name="/src/" />
   <Folder Name="/src/BuildingBlocks/">
     <Project Path="src/BuildingBlocks/BlazorBoilerplate.Domain/BlazorBoilerplate.Domain.csproj" />
     <Project Path="src/BuildingBlocks/BlazorBoilerplate.Application/BlazorBoilerplate.Application.csproj" />
@@ -12,6 +13,7 @@
     <Project Path="src/Hosts/BlazorBoilerplate.ApiHost/BlazorBoilerplate.ApiHost.csproj" />
     <Project Path="src/Hosts/BlazorBoilerplate.WebHost/BlazorBoilerplate.WebHost.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/" />
   <Folder Name="/src/Modules/Attachments/">
     <Project Path="src/Modules/Attachments/BlazorBoilerplate.Modules.Attachments/BlazorBoilerplate.Modules.Attachments.csproj" />
     <Project Path="src/Modules/Attachments/BlazorBoilerplate.Modules.Attachments.Frontend/BlazorBoilerplate.Modules.Attachments.Frontend.csproj" />
@@ -24,9 +26,9 @@
     <Project Path="src/Modules/Identity/BlazorBoilerplate.Modules.Identity/BlazorBoilerplate.Modules.Identity.csproj" />
     <Project Path="src/Modules/Identity/BlazorBoilerplate.Modules.Identity.Frontend/BlazorBoilerplate.Modules.Identity.Frontend.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Localization/">
-    <Project Path="src/Modules/Localization/BlazorBoilerplate.Modules.Localization/BlazorBoilerplate.Modules.Localization.csproj" />
+  <Folder Name="/src/Modules/Localizations/" Id="dd990e86-da83-a215-8beb-0957c9bdcd04">
     <Project Path="src/Modules/Localization/BlazorBoilerplate.Modules.Localization.Frontend/BlazorBoilerplate.Modules.Localization.Frontend.csproj" />
+    <Project Path="src/Modules/Localization/BlazorBoilerplate.Modules.Localization/BlazorBoilerplate.Modules.Localization.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/BlazorBoilerplate.ModuleRuntime.Tests/BlazorBoilerplate.ModuleRuntime.Tests.csproj" />
