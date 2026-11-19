@@ -31,8 +31,9 @@ public sealed class ProductEndpoints(ProductService service)
             return;
         }
 
-        var all = await service.QueryAsync(
-            new ODataQuery { Filter = $"id eq '{id}'", Top = 1 }, context.RequestAborted);
+        var filter = new ODataQueryBuilder(new ODataFieldMap(["id"]))
+            .Equal("id", id.ToString()).Top(1).Build();
+        var all = await service.QueryAsync(filter, context.RequestAborted);
         if (all.Value.Count == 0)
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
