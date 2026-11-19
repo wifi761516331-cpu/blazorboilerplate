@@ -1,11 +1,13 @@
 using System.Globalization;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using System.Web;
 using Bit.BlazorUI;
 using BlazorBoilerplate.Application.Localization;
 using BlazorBoilerplate.Modules.Localization.Models;
 using BlazorBoilerplate.Web.Shared.Localization;
+using BlazorBoilerplate.Web.Shared.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 
@@ -17,6 +19,7 @@ public partial class Localization
     [Inject] private ILocalizationService L { get; set; } = default!;
     [Inject] private FrontendLocalizationService FrontendLoc { get; set; } = default!;
     [Inject] private NavigationManager Nav { get; set; } = default!;
+    [Inject] private ToastService Toast { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -61,30 +64,27 @@ public partial class Localization
     private int _page = 1;
     private int _pageSize = 10;
 
-    // 资源页工具栏下拉项。语言项复用 _cultureDropdownItems；模块/分页在此构造。
+    // 资源页工具栏下拉项。
+    private List<BitDropdownItem<string>> TargetLanguageItems =>
+        _languages.Select(l => new BitDropdownItem<string> { Text = $"{l.DisplayName} ({l.Culture})", Value = l.Culture }).ToList();
+
     private List<BitDropdownItem<string>> ModuleItems =>
     [
         new() { Text = L["localization.res.allModules"], Value = string.Empty },
         .. _modules.Select(m => new BitDropdownItem<string> { Text = GetModuleDisplayName(m), Value = m })
     ];
-    private static readonly List<BitDropdownItem<int>> PageSizeItems =
-    [
-        new() { Text = "10 / 页", Value = 10 },
-        new() { Text = "20 / 页", Value = 20 },
-        new() { Text = "50 / 页", Value = 50 },
-        new() { Text = "100 / 页", Value = 100 }
-    ];
+    private int _gridVersion;
+    private BitDataGridStrings _gridStrings = new();
     private int _totalResources;
     private List<ResourceRowModel> _resources = [];
 
     private bool _importDialogOpen;
     private string _importJson = string.Empty;
 
-    private int TotalPages => Math.Max(1, (int)Math.Ceiling(_totalResources / (double)_pageSize));
-
     protected override async Task OnInitializedAsync()
     {
         await FrontendLoc.EnsureLoadedAsync();
+        _gridStrings = L.CreateGridStrings();
 
         var query = HttpUtility.ParseQueryString(new Uri(Nav.Uri).Query);
         var tab = query["tab"];
@@ -108,7 +108,6 @@ public partial class Localization
         if (_activeTabKey == "resources")
         {
             await LoadModulesAsync();
-            await LoadResourcesAsync();
         }
     }
 
@@ -139,13 +138,14 @@ public partial class Localization
         else
         {
             await LoadModulesAsync();
-            await LoadResourcesAsync();
         }
     }
 
     private async Task LoadLanguagesAsync()
     {
         _error = null;
+        _busy = true;
+        StateHasChanged();
         try
         {
             _languages = await Http.GetFromJsonAsync<List<LanguageDto>>("api/localization/admin/languages", JsonOptions) ?? [];
@@ -153,6 +153,11 @@ public partial class Localization
         catch (Exception ex)
         {
             _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+            StateHasChanged();
         }
     }
 
@@ -196,24 +201,64 @@ public partial class Localization
             : moduleId;
     }
 
-    private async Task LoadResourcesAsync()
+    private Task RefreshGridAsync()
+    {
+        _gridVersion++;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private async Task<BitDataGridReadResult<ResourceRowModel>> ReadResourcesAsync(BitDataGridReadRequest req)
     {
         _error = null;
+        var take = Math.Clamp(req.Take is > 0 ? req.Take.Value : _pageSize, 10, 200);
+        var page = (req.Skip / take) + 1;
+        _page = page;
+        _pageSize = take;
+
+        var moduleFilter = _selectedModule;
+        var keywordFilter = _keyword;
+        foreach (var filter in req.Filters)
+        {
+            var val = Convert.ToString(filter.Value, CultureInfo.InvariantCulture)?.Trim();
+            if (string.IsNullOrWhiteSpace(val))
+                continue;
+
+            if (string.Equals(filter.ColumnId, "moduleId", StringComparison.OrdinalIgnoreCase))
+                moduleFilter = val;
+            else
+                keywordFilter = val;
+        }
+
         try
         {
-            var url = $"api/localization/admin/resources?culture={Uri.EscapeDataString(_targetCulture)}&page={_page}&pageSize={_pageSize}&onlyMissing={_onlyMissing}";
-            if (!string.IsNullOrWhiteSpace(_selectedModule))
-                url += $"&moduleId={Uri.EscapeDataString(_selectedModule)}";
-            if (!string.IsNullOrWhiteSpace(_keyword))
-                url += $"&keyword={Uri.EscapeDataString(_keyword)}";
+            var url = $"api/localization/admin/resources?culture={Uri.EscapeDataString(_targetCulture)}&page={page}&pageSize={take}&onlyMissing={_onlyMissing}";
+            if (!string.IsNullOrWhiteSpace(moduleFilter))
+                url += $"&moduleId={Uri.EscapeDataString(moduleFilter)}";
+            if (!string.IsNullOrWhiteSpace(keywordFilter))
+                url += $"&keyword={Uri.EscapeDataString(keywordFilter)}";
 
             var result = await Http.GetFromJsonAsync<PagedResourcesResult>(url, JsonOptions);
             _totalResources = result?.TotalCount ?? 0;
             _resources = result?.Items.ToList() ?? [];
+
+            if (req.Sorts.FirstOrDefault() is { } sort)
+            {
+                var desc = sort.Direction == BitDataGridSortDirection.Descending;
+                _resources = sort.ColumnId switch
+                {
+                    "moduleId" => (desc ? _resources.OrderByDescending(r => r.ModuleId) : _resources.OrderBy(r => r.ModuleId)).ToList(),
+                    "key" => (desc ? _resources.OrderByDescending(r => r.Key) : _resources.OrderBy(r => r.Key)).ToList(),
+                    _ => _resources
+                };
+            }
+
+            return new BitDataGridReadResult<ResourceRowModel>(_resources, _totalResources);
         }
         catch (Exception ex)
         {
             _error = ex.Message;
+            return new BitDataGridReadResult<ResourceRowModel>([], 0);
         }
     }
 
@@ -411,6 +456,7 @@ public partial class Localization
             _langDialogOpen = false;
             await LoadLanguagesAsync();
             await FrontendLoc.InvalidateAsync();
+            Toast.Success(L["localization.toast.langSaved"]);
         }
         catch (Exception ex)
         {
@@ -440,6 +486,7 @@ public partial class Localization
             await EnsureSuccessAsync(resp);
             await LoadLanguagesAsync();
             await FrontendLoc.InvalidateAsync();
+            Toast.Success(L["localization.toast.langSaved"]);
         }
         catch (Exception ex)
         {
@@ -465,6 +512,7 @@ public partial class Localization
             _deletingLang = null;
             await LoadLanguagesAsync();
             await FrontendLoc.InvalidateAsync();
+            Toast.Success(L["localization.toast.langDeleted"]);
         }
         catch (Exception ex)
         {
@@ -480,21 +528,21 @@ public partial class Localization
     {
         _page = 1;
         SyncUrlQuery();
-        await LoadResourcesAsync();
+        await RefreshGridAsync();
     }
 
     private async Task OnModuleChangedAsync()
     {
         _page = 1;
         SyncUrlQuery();
-        await LoadResourcesAsync();
+        await RefreshGridAsync();
     }
 
     private async Task OnKeywordChangedAsync(string? value)
     {
         _keyword = value ?? string.Empty;
         _page = 1;
-        await LoadResourcesAsync();
+        await RefreshGridAsync();
     }
 
     private async Task OnOnlyMissingChangedAsync(bool value)
@@ -502,7 +550,7 @@ public partial class Localization
         _onlyMissing = value;
         _page = 1;
         SyncUrlQuery();
-        await LoadResourcesAsync();
+        await RefreshGridAsync();
     }
 
     private static void OnRowValueInput(ResourceRowModel row, string? value)
@@ -542,7 +590,8 @@ public partial class Localization
                 r.IsMissing = string.IsNullOrWhiteSpace(r.TargetValue);
             }
 
-            await FrontendLoc.InvalidateAsync(_targetCulture);
+            await FrontendLoc.RefreshCacheAsync(_targetCulture);
+            Toast.Success(L.GetString("localization.toast.saved", rows.Count));
         }
         catch (Exception ex)
         {
@@ -565,8 +614,20 @@ public partial class Localization
                 new ResetResourceRequest(row.ModuleId, _targetCulture, row.Key),
                 JsonOptions);
             await EnsureSuccessAsync(resp);
-            await LoadResourcesAsync();
-            await FrontendLoc.InvalidateAsync(_targetCulture);
+
+            var checkUrl = $"api/localization/admin/resources?culture={Uri.EscapeDataString(_targetCulture)}&moduleId={Uri.EscapeDataString(row.ModuleId)}&keyword={Uri.EscapeDataString(row.Key)}&page=1&pageSize=10";
+            var refreshed = await Http.GetFromJsonAsync<PagedResourcesResult>(checkUrl, JsonOptions);
+            var latest = refreshed?.Items.FirstOrDefault(i =>
+                string.Equals(i.ModuleId, row.ModuleId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(i.Key, row.Key, StringComparison.OrdinalIgnoreCase));
+
+            row.TargetValue = latest?.TargetValue;
+            row.IsOverridden = latest?.IsOverridden ?? false;
+            row.IsMissing = latest?.IsMissing ?? true;
+            row.IsDirty = false;
+
+            await FrontendLoc.RefreshCacheAsync(_targetCulture);
+            Toast.Success(L["localization.toast.reset"]);
         }
         catch (Exception ex)
         {
@@ -587,8 +648,9 @@ public partial class Localization
             var resp = await Http.PostAsync("api/localization/admin/resources/sync", null);
             await EnsureSuccessAsync(resp);
             await LoadModulesAsync();
-            await LoadResourcesAsync();
+            await RefreshGridAsync();
             await FrontendLoc.InvalidateAsync(_targetCulture);
+            Toast.Success(L["localization.toast.synced"]);
         }
         catch (Exception ex)
         {
@@ -612,8 +674,13 @@ public partial class Localization
 
             var dict = await Http.GetFromJsonAsync<Dictionary<string, string>>(url, JsonOptions) ?? [];
             var json = JsonSerializer.Serialize(dict, JsonOptions);
-            await JS.InvokeVoidAsync("navigator.clipboard.writeText", json);
-            _notice = $"{_targetCulture} JSON ({dict.Count})";
+            var fileName = string.IsNullOrWhiteSpace(_selectedModule)
+                ? $"{_targetCulture}.json"
+                : $"{_targetCulture}.{_selectedModule}.json";
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+            using var streamRef = new DotNetStreamReference(stream);
+            await JS.InvokeVoidAsync("blazorDownloadFile", fileName, "application/json", streamRef);
+            Toast.Success(L.GetString("localization.toast.exported", _targetCulture, dict.Count));
         }
         catch (Exception ex)
         {
@@ -649,8 +716,9 @@ public partial class Localization
             await EnsureSuccessAsync(resp);
 
             _importDialogOpen = false;
-            await LoadResourcesAsync();
+            await RefreshGridAsync();
             await FrontendLoc.InvalidateAsync(_targetCulture);
+            Toast.Success(L["localization.toast.imported"]);
         }
         catch (Exception ex)
         {
@@ -660,26 +728,6 @@ public partial class Localization
         {
             _busy = false;
         }
-    }
-
-    private async Task OnPageSizeChangedAsync()
-    {
-        _page = 1;
-        await LoadResourcesAsync();
-    }
-
-    private async Task PrevPageAsync()
-    {
-        if (_page <= 1) return;
-        _page--;
-        await LoadResourcesAsync();
-    }
-
-    private async Task NextPageAsync()
-    {
-        if (_page >= TotalPages) return;
-        _page++;
-        await LoadResourcesAsync();
     }
 
     private static async Task EnsureSuccessAsync(HttpResponseMessage resp)

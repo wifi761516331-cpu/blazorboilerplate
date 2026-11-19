@@ -49,6 +49,15 @@
   "localization.common.confirm": "确认",
   "localization.common.prev": "上一页",
   "localization.common.next": "下一页",
-  "localization.common.total": "共 {0} 条"
+  "localization.common.total": "共 {0} 条",
+  "identity.roles.permissionGroup.localization_language": "语言管理",
+  "identity.roles.permissionGroup.localization_resource": "词条管理",
+  "localization.toast.langSaved": "语言配置已保存。",
+  "localization.toast.langDeleted": "语言已删除。",
+  "localization.toast.saved": "已保存 {0} 条翻译。",
+  "localization.toast.reset": "已重置为默认词条。",
+  "localization.toast.synced": "内置词条同步完成。",
+  "localization.toast.exported": "已导出 {0}（{1} 条）JSON 文件。",
+  "localization.toast.imported": "JSON 译文导入成功。"
 }
 

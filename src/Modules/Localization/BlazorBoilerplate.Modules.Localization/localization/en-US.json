@@ -49,6 +49,15 @@
   "localization.common.confirm": "Confirm",
   "localization.common.prev": "Previous",
   "localization.common.next": "Next",
-  "localization.common.total": "Total {0} items"
+  "localization.common.total": "Total {0} items",
+  "identity.roles.permissionGroup.localization_language": "Languages",
+  "identity.roles.permissionGroup.localization_resource": "Localization Resources",
+  "localization.toast.langSaved": "Language saved.",
+  "localization.toast.langDeleted": "Language deleted.",
+  "localization.toast.saved": "Saved {0} translation(s).",
+  "localization.toast.reset": "Reset to built-in default.",
+  "localization.toast.synced": "Built-in resources synced.",
+  "localization.toast.exported": "Exported {0} ({1} items) JSON file.",
+  "localization.toast.imported": "JSON translations imported."
 }
 

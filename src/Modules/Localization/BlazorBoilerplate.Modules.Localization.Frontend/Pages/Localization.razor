@@ -22,6 +22,7 @@
                 <BitButton Variant="BitVariant.Outline"
                            IconName="@BitIconName.Refresh"
                            OnClick="LoadLanguagesAsync"
+                           IsLoading="@_busy"
                            IsEnabled="!_busy">
                     @L["platform.common.refresh"]
                 </BitButton>
@@ -34,99 +35,100 @@
                 </PermissionGate>
             </div>
 
-            <div class="grid-container">
-                <table class="loc-table" style="width:100%; border-collapse:collapse;">
-                    <thead>
-                        <tr>
-                            <th style="text-align:left; padding:0.65rem 0.75rem;">@L["localization.lang.flag"]</th>
-                            <th style="text-align:left; padding:0.65rem 0.75rem;">@L["localization.lang.culture"]</th>
-                            <th style="text-align:left; padding:0.65rem 0.75rem;">@L["localization.lang.name"]</th>
-                            <th style="text-align:left; padding:0.65rem 0.75rem;">@L["localization.lang.displayName"]</th>
-                            <th style="text-align:left; padding:0.65rem 0.75rem;">@L["localization.lang.order"]</th>
-                            <th style="text-align:left; padding:0.65rem 0.75rem;">@L["localization.lang.rtl"]</th>
-                            <th style="text-align:left; padding:0.65rem 0.75rem;">@L["localization.lang.default"]</th>
-                            <th style="text-align:left; padding:0.65rem 0.75rem;">@L["localization.lang.enabled"]</th>
-                            <th style="text-align:left; padding:0.65rem 0.75rem;">@L["localization.common.actions"]</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var lang in _languages)
-                        {
-                            <tr style="border-top:1px solid var(--bb-border, #e5e7eb);">
-                                <td style="padding:0.6rem 0.75rem;">
-                                    @if (!string.IsNullOrWhiteSpace(lang.FlagCode))
+            <BitDataGrid TItem="LanguageDto"
+                         Items="_languages"
+                         Strings="@_gridStrings"
+                         Pageable="true" PageSize="_pageSize"
+                         Sortable="true" Filterable="true" FilterDebounce="300"
+                         Bordered="true" Hoverable="true" Striped="true"
+                         ShowHeader="true">
+                <Columns>
+                    <BitDataGridColumn TItem="LanguageDto" Property="l => l.FlagCode" ColumnId="flag" Title="@L["localization.lang.flag"]" Sortable="false" Filterable="false">
+                        <Template Context="lang">
+                            @if (!string.IsNullOrWhiteSpace(lang.FlagCode))
+                            {
+                                <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.35rem" Style="white-space:nowrap;">
+                                    <BitFlag Iso2="@lang.FlagCode" />
+                                    <BitTag Color="BitColor.TertiaryBackground">@lang.FlagCode</BitTag>
+                                </BitStack>
+                            }
+                            else
+                            {
+                                <span class="muted">—</span>
+                            }
+                        </Template>
+                    </BitDataGridColumn>
+                    <BitDataGridColumn TItem="LanguageDto" Property="l => l.Culture" ColumnId="culture" Title="@L["localization.lang.culture"]" Sortable="true">
+                        <Template Context="lang">
+                            <BitStack VerticalAlign="BitAlignment.Start" Gap="0.25rem">
+                                <strong>@lang.Culture</strong>
+                                @if (lang.IsFallbackProtected)
+                                {
+                                    <BitBadge Color="BitColor.SevereWarning">@L["localization.lang.protected"]</BitBadge>
+                                }
+                            </BitStack>
+                        </Template>
+                    </BitDataGridColumn>
+                    <BitDataGridColumn TItem="LanguageDto" Property="l => l.Name" ColumnId="name" Title="@L["localization.lang.name"]" Sortable="true" />
+                    <BitDataGridColumn TItem="LanguageDto" Property="l => l.DisplayName" ColumnId="displayName" Title="@L["localization.lang.displayName"]" Sortable="true" />
+                    <BitDataGridColumn TItem="LanguageDto" Property="l => l.DisplayOrder" ColumnId="displayOrder" Title="@L["localization.lang.order"]" Sortable="true" Filterable="false" />
+                    <BitDataGridColumn TItem="LanguageDto" Property="l => l.IsRtl" ColumnId="isRtl" Title="@L["localization.lang.rtl"]" Sortable="false" Filterable="false">
+                        <Template Context="lang">
+                            <BitTag Color="BitColor.TertiaryBackground">@(lang.IsRtl ? "RTL" : "LTR")</BitTag>
+                        </Template>
+                    </BitDataGridColumn>
+                    <BitDataGridColumn TItem="LanguageDto" Property="l => l.IsDefault" ColumnId="isDefault" Title="@L["localization.lang.default"]" Sortable="false" Filterable="false">
+                        <Template Context="lang">
+                            @if (lang.IsDefault)
+                            {
+                                <BitBadge Color="BitColor.Info">@L["localization.lang.default"]</BitBadge>
+                            }
+                            else
+                            {
+                                <span class="muted">—</span>
+                            }
+                        </Template>
+                    </BitDataGridColumn>
+                    <BitDataGridColumn TItem="LanguageDto" Property="l => l.IsEnabled" ColumnId="isEnabled" Title="@L["localization.lang.enabled"]" Sortable="false" Filterable="false">
+                        <Template Context="lang">
+                            <BitBadge Color="@(lang.IsEnabled ? BitColor.Success : BitColor.TertiaryBackground)">
+                                @(lang.IsEnabled ? L["localization.lang.enabled"] : "-")
+                            </BitBadge>
+                        </Template>
+                    </BitDataGridColumn>
+                    <BitDataGridColumn TItem="LanguageDto" Property="l => l.Culture" ColumnId="actions" Title="@L["localization.common.actions"]" Sortable="false" Filterable="false">
+                        <Template Context="lang">
+                            <PermissionGate Code="localization.language.write">
+                                <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.35rem" Style="white-space:nowrap;">
+                                    <BitButton Variant="BitVariant.Text" Size="BitSize.Small" OnClick="() => OpenEditLanguage(lang)">
+                                        @L["localization.common.edit"]
+                                    </BitButton>
+                                    @if (!lang.IsDefault)
                                     {
-                                        <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.4rem">
-                                            <BitFlag Iso2="@lang.FlagCode" />
-                                            <BitTag Color="BitColor.TertiaryBackground">@lang.FlagCode</BitTag>
-                                        </BitStack>
+                                        <BitButton Variant="BitVariant.Text" Size="BitSize.Small" OnClick="() => SetDefaultLanguageAsync(lang)">
+                                            @L["localization.lang.setDefault"]
+                                        </BitButton>
                                     }
-                                    else
+                                    @if (!lang.IsFallbackProtected && !lang.IsDefault)
                                     {
-                                        <span class="muted">—</span>
+                                        <BitButton Variant="BitVariant.Text" Color="BitColor.Error" Size="BitSize.Small" OnClick="() => AskDeleteLanguage(lang)">
+                                            @L["localization.common.delete"]
+                                        </BitButton>
                                     }
-                                </td>
-                                <td style="padding:0.6rem 0.75rem;">
-                                    <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.5rem">
-                                        <strong>@lang.Culture</strong>
-                                        @if (lang.IsFallbackProtected)
-                                        {
-                                            <BitBadge Color="BitColor.SevereWarning">@L["localization.lang.protected"]</BitBadge>
-                                        }
-                                    </BitStack>
-                                </td>
-                                <td style="padding:0.6rem 0.75rem;">@lang.Name</td>
-                                <td style="padding:0.6rem 0.75rem;">@lang.DisplayName</td>
-                                <td style="padding:0.6rem 0.75rem;">@lang.DisplayOrder</td>
-                                <td style="padding:0.6rem 0.75rem;">
-                                    <BitTag Color="BitColor.TertiaryBackground">@(lang.IsRtl ? "RTL" : "LTR")</BitTag>
-                                </td>
-                                <td style="padding:0.6rem 0.75rem;">
-                                    @if (lang.IsDefault)
-                                    {
-                                        <BitBadge Color="BitColor.Info">@L["localization.lang.default"]</BitBadge>
-                                    }
-                                    else
-                                    {
-                                        <span class="muted">—</span>
-                                    }
-                                </td>
-                                <td style="padding:0.6rem 0.75rem;">
-                                    <BitBadge Color="@(lang.IsEnabled ? BitColor.Success : BitColor.TertiaryBackground)">
-                                        @(lang.IsEnabled ? L["localization.lang.enabled"] : "-")
-                                    </BitBadge>
-                                </td>
-                                <td style="padding:0.6rem 0.75rem;">
-                                    <PermissionGate Code="localization.language.write">
-                                        <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.5rem">
-                                            <BitButton Variant="BitVariant.Text" Size="BitSize.Small" OnClick="() => OpenEditLanguage(lang)">
-                                                @L["localization.common.edit"]
-                                            </BitButton>
-                                            @if (!lang.IsDefault)
-                                            {
-                                                <BitButton Variant="BitVariant.Text" Size="BitSize.Small" OnClick="() => SetDefaultLanguageAsync(lang)">
-                                                    @L["localization.lang.setDefault"]
-                                                </BitButton>
-                                            }
-                                            @if (!lang.IsFallbackProtected && !lang.IsDefault)
-                                            {
-                                                <BitButton Variant="BitVariant.Text" Color="BitColor.Error" Size="BitSize.Small" OnClick="() => AskDeleteLanguage(lang)">
-                                                    @L["localization.common.delete"]
-                                                </BitButton>
-                                            }
-                                        </BitStack>
-                                    </PermissionGate>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+                                </BitStack>
+                            </PermissionGate>
+                        </Template>
+                    </BitDataGridColumn>
+                </Columns>
+                <EmptyTemplate>
+                    <BitText Class="muted">@L["platform.grid.empty"]</BitText>
+                </EmptyTemplate>
+            </BitDataGrid>
         </BitPivotItem>
 
         <BitPivotItem Key="resources" HeaderText="@L["localization.tab.resources"]">
             <div class="bb-toolbar" style="margin-top: 0.75rem; flex-wrap: nowrap; align-items: center; gap: 0.5rem; min-width: 0;">
-                <BitDropdown TItem="BitDropdownItem<string>" TValue="string" Items="_cultureDropdownItems"
+                <BitDropdown TItem="BitDropdownItem<string>" TValue="string" Items="TargetLanguageItems"
                              @bind-Value="_targetCulture" @bind-Value:after="OnTargetCultureChangedAsync"
                              Title="@L["localization.res.targetCulture"]" Style="flex-shrink:0; width:11.5rem;" />
 
@@ -166,86 +168,77 @@
                 </BitStack>
             </div>
 
-            <div class="grid-container">
-                <table class="data-grid">
-                    <thead>
-                        <tr>
-                            <th>@L["localization.res.col.module"]</th>
-                            <th>@L["localization.res.col.key"]</th>
-                            <th>@L["localization.res.col.fallback"]</th>
-                            <th>@L["localization.res.col.target"]</th>
-                            <th>@L["localization.res.col.status"]</th>
-                            <th>@L["localization.res.col.actions"]</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var row in _resources)
-                        {
-                            <tr>
-                                <td>
-                                    <BitTag Color="BitColor.TertiaryBackground">@GetModuleDisplayName(row.ModuleId)</BitTag>
-                                </td>
-                                <td class="mono" style="word-break:break-all;">
-                                    @row.Key
-                                </td>
-                                <td style="max-width:260px; word-break:break-word;" class="muted">
-                                    @row.FallbackValue
-                                </td>
-                                <td style="min-width:260px;">
-                                    <BitTextField Value="@row.TargetValue"
-                                                  OnInput="e => OnRowValueInput(row, e.Value?.ToString())"
-                                                  Class="@(row.IsDirty ? "loc-input dirty" : "loc-input")" />
-                                </td>
-                                <td>
+            <BitDataGrid @key="_gridVersion"
+                         TItem="ResourceRowModel"
+                         OnRead="ReadResourcesAsync"
+                         Strings="@_gridStrings"
+                         Pageable="true" PageSize="_pageSize"
+                         Sortable="true" Filterable="true" FilterDebounce="300"
+                         Bordered="true" Hoverable="true" Striped="true"
+                         ShowHeader="true">
+                <Columns>
+                    <BitDataGridColumn TItem="ResourceRowModel" Property="r => r.ModuleId" ColumnId="moduleId" Title="@L["localization.res.col.module"]" Sortable="true">
+                        <Template Context="row">
+                            <BitTag Color="BitColor.TertiaryBackground">@GetModuleDisplayName(row.ModuleId)</BitTag>
+                        </Template>
+                    </BitDataGridColumn>
+                    <BitDataGridColumn TItem="ResourceRowModel" Property="r => r.Key" ColumnId="key" Title="@L["localization.res.col.key"]" Sortable="true">
+                        <Template Context="row">
+                            <span class="mono" style="word-break:break-all;">@row.Key</span>
+                        </Template>
+                    </BitDataGridColumn>
+                    <BitDataGridColumn TItem="ResourceRowModel" Property="r => r.FallbackValue" ColumnId="fallbackValue" Title="@L["localization.res.col.fallback"]" Sortable="false">
+                        <Template Context="row">
+                            <span class="muted" style="word-break:break-word;">@row.FallbackValue</span>
+                        </Template>
+                    </BitDataGridColumn>
+                    <BitDataGridColumn TItem="ResourceRowModel" Property="r => r.TargetValue" ColumnId="targetValue" Title="@L["localization.res.col.target"]" Sortable="false">
+                        <Template Context="row">
+                            <BitTextField Value="@row.TargetValue"
+                                          OnInput="e => OnRowValueInput(row, e.Value?.ToString())"
+                                          Class="@(row.IsDirty ? "loc-input dirty" : "loc-input")" />
+                        </Template>
+                    </BitDataGridColumn>
+                    <BitDataGridColumn TItem="ResourceRowModel" Property="r => r.IsOverridden" ColumnId="status" Title="@L["localization.res.col.status"]" Sortable="false" Filterable="false">
+                        <Template Context="row">
+                            @if (row.IsOverridden)
+                            {
+                                <BitBadge Color="BitColor.Info">@L["localization.res.status.overridden"]</BitBadge>
+                            }
+                            else if (row.IsMissing)
+                            {
+                                <BitBadge Color="BitColor.Warning">@L["localization.res.status.missing"]</BitBadge>
+                            }
+                            else
+                            {
+                                <BitBadge Color="BitColor.Success">@L["localization.res.status.builtin"]</BitBadge>
+                            }
+                        </Template>
+                    </BitDataGridColumn>
+                    <BitDataGridColumn TItem="ResourceRowModel" Property="r => r.Key" ColumnId="actions" Title="@L["localization.res.col.actions"]" Sortable="false" Filterable="false">
+                        <Template Context="row">
+                            <PermissionGate Code="localization.resource.write">
+                                <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.5rem">
+                                    <BitButton Variant="BitVariant.Text" Size="BitSize.Small"
+                                               Disabled="@(_busy || !row.IsDirty)" OnClick="() => SaveSingleRowAsync(row)">
+                                        @L["localization.res.save"]
+                                    </BitButton>
                                     @if (row.IsOverridden)
                                     {
-                                        <BitBadge Color="BitColor.Info">@L["localization.res.status.overridden"]</BitBadge>
+                                        <BitButton Variant="BitVariant.Text" Color="BitColor.Error" Size="BitSize.Small"
+                                                   Disabled="@_busy" OnClick="() => ResetRowAsync(row)">
+                                            @L["localization.res.reset"]
+                                        </BitButton>
                                     }
-                                    else if (row.IsMissing)
-                                    {
-                                        <BitBadge Color="BitColor.Warning">@L["localization.res.status.missing"]</BitBadge>
-                                    }
-                                    else
-                                    {
-                                        <BitBadge Color="BitColor.Success">@L["localization.res.status.builtin"]</BitBadge>
-                                    }
-                                </td>
-                                <td>
-                                    <PermissionGate Code="localization.resource.write">
-                                        <BitStack Horizontal VerticalAlign="BitAlignment.Center" Gap="0.5rem">
-                                            <BitButton Variant="BitVariant.Text" Size="BitSize.Small"
-                                                       Disabled="@(_busy || !row.IsDirty)" OnClick="() => SaveSingleRowAsync(row)">
-                                                @L["localization.res.save"]
-                                            </BitButton>
-                                            @if (row.IsOverridden)
-                                            {
-                                                <BitButton Variant="BitVariant.Text" Color="BitColor.Error" Size="BitSize.Small"
-                                                           Disabled="@_busy" OnClick="() => ResetRowAsync(row)">
-                                                    @L["localization.res.reset"]
-                                                </BitButton>
-                                            }
-                                        </BitStack>
-                                    </PermissionGate>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="pager">
-                <BitText Class="muted" Style="white-space:nowrap;">@L.GetString("localization.common.total", _totalResources)</BitText>
-                <BitDropdown TItem="BitDropdownItem<int>" TValue="int" Items="PageSizeItems"
-                             @bind-Value="_pageSize" @bind-Value:after="OnPageSizeChangedAsync"
-                             Style="width:6rem;" />
-                <BitButton Color="BitColor.Secondary" IsEnabled="@(_page > 1 && !_busy)" OnClick="PrevPageAsync">
-                    @L["localization.common.prev"]
-                </BitButton>
-                <BitText Style="white-space:nowrap;">@_page / @TotalPages</BitText>
-                <BitButton Color="BitColor.Secondary" IsEnabled="@(_page < TotalPages && !_busy)" OnClick="NextPageAsync">
-                    @L["localization.common.next"]
-                </BitButton>
-            </div>
+                                </BitStack>
+                            </PermissionGate>
+                        </Template>
+                    </BitDataGridColumn>
+                </Columns>
+                <EmptyTemplate>
+                    <BitText Class="muted">@L["platform.grid.empty"]</BitText>
+                </EmptyTemplate>
+            </BitDataGrid>
         </BitPivotItem>
     </BitPivot>
 </div>
