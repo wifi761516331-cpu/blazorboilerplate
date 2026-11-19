@@ -2,55 +2,68 @@
 @using Microsoft.AspNetCore.Components.Forms
 
 <section style="padding: 1rem 0;">
-    <BitStack HorizontalAlign="BitAlignment.Center" Gap="1rem">
-        @if (_loading)
-        {
-            <BitShimmer Height="4.5rem" Circle />
-            <BitShimmer Height="1.5rem" Width="12.5rem" />
-            <BitShimmer Height="2.25rem" Width="22rem" />
-            <BitShimmer Height="2.25rem" Width="22rem" />
-        }
-        else if (Account.CurrentUser is null)
-        {
-            <BitCallout Class="page-callout error">@L["platform.profile.error.noUser"]</BitCallout>
-        }
-        else
-        {
-            <div class="settings-avatar-wrap" title="@L["platform.settings.profile.clickChangeAvatar"]">
-                @if (_uploadingAvatar)
+    @if (_loading)
+    {
+        <div class="settings-profile-layout">
+            <div class="settings-avatar-col">
+                <BitShimmer Height="4.5rem" Circle />
+                <BitShimmer Height="1.25rem" Width="5rem" />
+            </div>
+            <div class="settings-form">
+                <BitStack Gap="0.85rem">
+                    <BitShimmer Height="2.25rem" Width="100%" />
+                    <BitShimmer Height="2.25rem" Width="100%" />
+                    <BitShimmer Height="2.25rem" Width="100%" />
+                </BitStack>
+            </div>
+        </div>
+    }
+    else if (Account.CurrentUser is null)
+    {
+        <BitCallout Class="page-callout error">@L["platform.profile.error.noUser"]</BitCallout>
+    }
+    else
+    {
+        <div class="settings-profile-layout">
+            <div class="settings-avatar-col">
+                <div class="settings-avatar-wrap" title="@L["platform.settings.profile.clickChangeAvatar"]">
+                    @if (_uploadingAvatar)
+                    {
+                        <BitShimmer Height="4.5rem" Circle />
+                        <BitText Typography="BitTypography.Caption1" Color="BitColor.SecondaryForeground">@L["platform.settings.profile.uploading"]</BitText>
+                    }
+                    else
+                    {
+                        <BitPersona HidePersonaDetails
+                                    ImageUrl="@_avatarUrl"
+                                    PrimaryText="@_displayName"
+                                    Size="BitPersonaSize.Size72" />
+                        <span class="settings-avatar-action">
+                            <AppIcon Name="Upload" />
+                            <span>@L["platform.settings.profile.uploadAvatar"]</span>
+                        </span>
+                        <InputFile @key="_avatarInputKey"
+                                   class="settings-avatar-input"
+                                   OnChange="UploadAvatarAsync"
+                                   accept=".jpg,.jpeg,.png,.webp,.gif,.bmp"
+                                   disabled="@_uploadingAvatar" />
+                    }
+                </div>
+
+                @if (_avatarUrl is not null)
                 {
-                    <BitShimmer Height="4.5rem" Circle />
-                    <BitText Typography="BitTypography.Caption1" Color="BitColor.SecondaryForeground">@L["platform.settings.profile.uploading"]</BitText>
-                }
-                else
-                {
-                    <BitPersona HidePersonaDetails
-                                ImageUrl="@_avatarUrl"
-                                PrimaryText="@_displayName"
-                                Size="BitPersonaSize.Size72"
-                                Presence="BitPersonaPresence.Online" />
-                    <BitText Typography="BitTypography.Body2" Color="BitColor.Primary">@L["platform.settings.profile.uploadAvatar"]</BitText>
-                    <InputFile @key="_avatarInputKey"
-                               class="settings-avatar-input"
-                               OnChange="UploadAvatarAsync"
-                               accept=".jpg,.jpeg,.png,.webp,.gif,.bmp"
-                               disabled="@_uploadingAvatar" />
+                    <BitButton Variant="BitVariant.Outline"
+                               Color="BitColor.Error"
+                               Size="BitSize.Small"
+                               IsLoading="_uploadingAvatar"
+                               OnClick="DeleteAvatarAsync">
+                        @L["platform.profile.removeAvatar"]
+                    </BitButton>
                 }
             </div>
 
-            @if (_avatarUrl is not null)
-            {
-                <BitButton Variant="BitVariant.Outline"
-                           Color="BitColor.Error"
-                           Size="BitSize.Small"
-                           IsLoading="_uploadingAvatar"
-                           OnClick="DeleteAvatarAsync">
-                    @L["platform.profile.removeAvatar"]
-                </BitButton>
-            }
-
             <div class="settings-form">
-                <BitStack FillContent Gap="0.85rem">
+                <BitStack Gap="0.85rem">
                     <BitTextField @bind-Value="_displayName"
                                   Label="@L["platform.profile.displayName"]"
                                   Placeholder="@L["platform.settings.profile.displayNamePlaceholder"]"
@@ -66,16 +79,18 @@
                                   Label="@L["platform.settings.profile.userName"]"
                                   ReadOnly />
 
-                    <PermissionView Code="identity.user.update">
-                        <BitButton IsLoading="_saving"
-                                   Color="BitColor.Primary"
-                                   OnClick="SaveProfileAsync">
-                            @L["platform.common.save"]
-                        </BitButton>
-                    </PermissionView>
+                    <div class="settings-form-actions">
+                        <PermissionView Code="identity.user.update">
+                            <BitButton IsLoading="_saving"
+                                       Color="BitColor.Primary"
+                                       OnClick="SaveProfileAsync">
+                                @L["platform.common.save"]
+                            </BitButton>
+                        </PermissionView>
+                    </div>
                 </BitStack>
             </div>
-        }
-    </BitStack>
+        </div>
+    }
 </section>
 

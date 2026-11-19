@@ -56,7 +56,7 @@
                 <div class="notif-foot">
                     @if (!string.IsNullOrWhiteSpace(n.PageUrl))
                     {
-                        <a class="bit-link" href="@n.PageUrl">@L["platform.notifications.viewDetails"]</a>
+                        <BitLink Href="@n.PageUrl">@L["platform.notifications.viewDetails"]</BitLink>
                     }
                     @if (!n.IsRead)
                     {

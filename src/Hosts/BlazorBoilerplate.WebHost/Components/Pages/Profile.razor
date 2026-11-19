@@ -80,7 +80,7 @@
         <BitText Element="h2" Typography="BitTypography.H5" Class="section-title">@L["platform.profile.sessionsTitle"]</BitText>
         <BitButton Variant="BitVariant.Outline" OnClick="LoadSessionsAsync">@L["platform.common.refresh"]</BitButton>
     </div>
-    <BitDataGrid TItem="UserSessionDto" Items="_sessions" Bordered="true" Hoverable="true" Striped="true">
+    <BitDataGrid TItem="UserSessionDto" Items="_sessions" Bordered="true" Hoverable="true" Striped="true" Strings="@L.CreateGridStrings()">
         <Columns>
             <BitDataGridColumn TItem="UserSessionDto" Field="DeviceInfo" Title="@L["platform.profile.col.device"]">
                 <Template Context="s">@(string.IsNullOrWhiteSpace(s.DeviceInfo) ? "—" : s.DeviceInfo)</Template>

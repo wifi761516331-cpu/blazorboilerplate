@@ -36,21 +36,11 @@ else
                 @(_loadAllBusy ? L["platform.modules.loadingAll"] : L["platform.modules.loadAll"])
             </BitButton>
         </PermissionView>
-        <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="RefreshAsync">@L["platform.common.refresh"]</BitButton>
+        <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="RefreshAsync" IsLoading="@_refreshing" Disabled="@_refreshing">@L["platform.common.refresh"]</BitButton>
     </div>
 
     <div class="module-summary">
-        <style>
-            .module-summary-item.module-kpi-item { flex-direction: row; align-items: center; justify-content: space-between; gap: .75rem; }
-            .module-kpi-meta { display: flex; flex-direction: column; gap: .25rem; min-width: 0; }
-            .module-kpi-icon { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0; font-size: 1.15rem; }
-            .module-kpi-icon svg { width: 1.15rem; height: 1.15rem; }
-            .module-kpi-icon.is-total { color: #0078d4; background: rgba(0, 120, 212, 0.1); }
-            .module-kpi-icon.is-running { color: #107c10; background: rgba(16, 124, 16, 0.1); }
-            .module-kpi-icon.is-essential { color: #5c2d91; background: rgba(92, 45, 145, 0.1); }
-            .module-kpi-icon.is-pending { color: #b46e00; background: rgba(180, 110, 0, 0.1); }
-        </style>
-        <div class="module-summary-item module-kpi-item">
+<div class="module-summary-item module-kpi-item">
             <div class="module-kpi-meta">
                 <span class="module-summary-label">@L["platform.modules.stat.total"]</span>
                 <strong>@_modules.Count</strong>

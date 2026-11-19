@@ -4,9 +4,9 @@
               OverflowBehavior="BitPivotOverflowBehavior.Menu"
               DefaultSelectedKey="password">
         <BitPivotItem Key="email" HeaderText="@L["platform.profile.email"]">
-            <div style="display:flex;justify-content:center;padding-top:1rem;width:100%;">
+            <div class="settings-account-panel">
                 <div class="settings-form">
-                    <BitStack FillContent Gap="0.85rem">
+                    <BitStack Gap="0.85rem">
                         <BitTextField Value="@_currentEmail"
                                       Label="@L["platform.settings.account.currentEmail"]"
                                       ReadOnly />
@@ -16,22 +16,24 @@
                                       Type="BitInputType.Email"
                                       Placeholder="@L["platform.settings.account.newEmailPlaceholder"]" />
 
-                        <PermissionView Code="identity.user.update">
-                            <BitButton IsLoading="_savingEmail"
-                                       Color="BitColor.Primary"
-                                       OnClick="SaveEmailAsync">
-                                @L["platform.settings.account.changeEmail"]
-                            </BitButton>
-                        </PermissionView>
+                        <div class="settings-form-actions">
+                            <PermissionView Code="identity.user.update">
+                                <BitButton IsLoading="_savingEmail"
+                                           Color="BitColor.Primary"
+                                           OnClick="SaveEmailAsync">
+                                    @L["platform.settings.account.changeEmail"]
+                                </BitButton>
+                            </PermissionView>
+                        </div>
                     </BitStack>
                 </div>
             </div>
         </BitPivotItem>
 
         <BitPivotItem Key="password" HeaderText="@L["platform.settings.account.password"]">
-            <div style="display:flex;justify-content:center;padding-top:1rem;width:100%;">
+            <div class="settings-account-panel">
                 <div class="settings-form">
-                    <BitStack FillContent Gap="0.85rem">
+                    <BitStack Gap="0.85rem">
                         <BitTextField @bind-Value="_oldPassword"
                                       Label="@L["platform.profile.oldPassword"]"
                                       Type="BitInputType.Password"
@@ -50,13 +52,15 @@
                                       CanRevealPassword
                                       Placeholder="@L["platform.settings.account.confirmPasswordPlaceholder"]" />
 
-                        <PermissionView Code="identity.user.change-password">
-                            <BitButton IsLoading="_savingPassword"
-                                       Color="BitColor.Primary"
-                                       OnClick="ChangePasswordAsync">
-                                @L["platform.profile.changePassword"]
-                            </BitButton>
-                        </PermissionView>
+                        <div class="settings-form-actions">
+                            <PermissionView Code="identity.user.change-password">
+                                <BitButton IsLoading="_savingPassword"
+                                           Color="BitColor.Primary"
+                                           OnClick="ChangePasswordAsync">
+                                    @L["platform.profile.changePassword"]
+                                </BitButton>
+                            </PermissionView>
+                        </div>
                     </BitStack>
                 </div>
             </div>

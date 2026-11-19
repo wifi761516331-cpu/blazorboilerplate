@@ -1,25 +1,28 @@
 /* AccountMenu 独占样式（persona-* / header-persona / menu-* / account-* / accent-* 仅本组件使用）。
    注意：.account-check（Tenants 页面复用）、.icon-btn、@keyframes 及 894 行处的
    .header-sub/.persona-name 响应式规则（与 MainLayout 混写）仍留在 app.css。 */
-.header-persona { display: flex; align-items: center; gap: .5rem; padding: .25rem .5rem; }
 .persona-avatar {
     width: 2rem; height: 2rem; border-radius: 50%;
     background: var(--bb-pri); color: #fff;
     display: grid; place-items: center;
-    font-size: .75rem; font-weight: 600;
+    font-size: .6875rem; font-weight: 600;
+    flex-shrink: 0;
 }
-.persona-name { font-size: .875rem; color: var(--bb-fg-pri); white-space: nowrap; }
+.persona-name { font-size: .875rem; color: var(--bb-fg-pri); white-space: nowrap; margin-inline-start: .375rem; }
 
 .account-menu-root { position: relative; }
-.header-persona {
+.account-menu-root ::deep .header-persona.bit-btn {
     display: flex; align-items: center; gap: .5rem;
-    padding: .25rem .5rem;
+    min-width: 0; padding: .25rem .5rem;
     border: 0; border-radius: var(--bb-radius-sm);
     background: transparent;
-    font-family: var(--bb-font); color: var(--bb-fg-pri);
+    font-family: var(--bb-font); font-weight: 400; color: var(--bb-fg-pri);
     cursor: pointer;
 }
-.header-persona:hover { background: var(--bb-bg-sec); }
+.account-menu-root ::deep .header-persona.bit-btn:hover { background: var(--bb-bg-sec); color: var(--bb-fg-pri); }
+.account-menu-root ::deep .header-persona .bit-btn-cnt {
+    display: flex; align-items: center; gap: .5rem;
+}
 .header-persona .persona-avatar { position: relative; }
 .persona-presence {
     position: absolute; inset-inline-end: -1px; bottom: -1px;
@@ -60,15 +63,20 @@
 }
 
 .account-identity { display: flex; align-items: center; gap: .75rem; padding: .25rem .25rem .75rem; }
-.account-avatar-lg {
+.account-menu ::deep .account-avatar-lg.bit-btn {
     position: relative;
-    width: 3rem; height: 3rem; flex: 0 0 3rem;
+    width: 3rem; height: 3rem; min-width: 3rem; min-height: 3rem; flex: 0 0 3rem;
     padding: 0;
     display: grid; place-items: center;
     border: 0; border-radius: 50%;
     background: var(--bb-pri); color: #fff;
     font-size: 1rem; font-weight: 600;
     cursor: pointer;
+}
+.account-menu ::deep .account-avatar-lg.bit-btn:hover { background: var(--bb-pri); color: #fff; }
+.account-menu ::deep .account-avatar-lg .bit-btn-cnt {
+    width: 100%; height: 100%;
+    display: grid; place-items: center;
 }
 .avatar-overlay {
     position: absolute; inset: 0; z-index: 2;
@@ -99,20 +107,25 @@
 }
 .account-separator { height: 1px; margin: .5rem 0; background: var(--bb-brd-ter); }
 
-.account-action {
-    display: flex; align-items: center; gap: .625rem;
-    width: 100%; min-height: 2.25rem;
+.account-menu ::deep .account-action.bit-btn {
+    display: flex; align-items: center; justify-content: flex-start;
+    width: 100%; min-width: 0; min-height: 2.25rem;
     padding: .375rem .5rem;
     border: 0; border-radius: var(--bb-radius-sm);
     background: transparent;
-    font-family: var(--bb-font); font-size: .8125rem; text-align: start;
+    font-family: var(--bb-font); font-size: .8125rem; font-weight: 400; text-align: start;
     color: var(--bb-fg-pri); cursor: pointer;
 }
-.account-action:hover { background: var(--bb-bg-sec); }
-.account-action .app-icon { width: 1.125rem; height: 1.125rem; flex: 0 0 1.125rem; color: var(--bb-fg-sec); }
-.account-action.danger { color: var(--bb-err); }
-.account-action.danger .app-icon { color: var(--bb-err); }
-.account-action.danger:hover { background: var(--bb-err-bg); }
+.account-menu ::deep .account-action.bit-btn:hover { background: var(--bb-bg-sec); color: var(--bb-fg-pri); }
+.account-menu ::deep .account-action .bit-btn-cnt,
+.account-menu ::deep .account-action .bit-btn-txt {
+    width: 100%;
+    display: flex; align-items: center; justify-content: flex-start; gap: .625rem;
+}
+.account-menu ::deep .account-action .app-icon { width: 1.125rem; height: 1.125rem; flex: 0 0 1.125rem; color: var(--bb-fg-sec); }
+.account-menu ::deep .account-action.danger.bit-btn { color: var(--bb-err); }
+.account-menu ::deep .account-action.danger .app-icon { color: var(--bb-err); }
+.account-menu ::deep .account-action.danger.bit-btn:hover { background: var(--bb-err-bg); color: var(--bb-err); }
 .account-action-text { display: flex; flex-direction: column; gap: .0625rem; min-width: 0; text-align: start; }
 .account-action-text strong { font-weight: 600; }
 .account-action-text small { font-size: .6875rem; color: var(--bb-fg-ter); }
@@ -126,7 +139,7 @@
 .account-chevron .app-icon { width: 1rem; height: 1rem; }
 .account-back { font-weight: 600; }
 
-.account-row { display: flex; align-items: center; gap: .5rem; min-height: 2.25rem; padding: .25rem .5rem; font-size: .8125rem; }
+.account-row { display: flex; align-items: center; gap: .625rem; min-height: 2.25rem; padding: .375rem .5rem; font-size: .8125rem; }
 .account-row > .app-icon { width: 1.125rem; height: 1.125rem; flex: 0 0 1.125rem; color: var(--bb-fg-sec); }
 .account-row-label { color: var(--bb-fg-pri); }
 .account-spacer { flex: 1; }
@@ -159,30 +172,40 @@
 .accent-block { padding: .25rem .5rem .5rem; }
 .accent-block .account-section-label { padding-inline: 0; }
 .accent-swatches { display: flex; gap: .5rem; flex-wrap: wrap; }
-.accent-swatch {
-    width: 1.25rem; height: 1.25rem;
+.account-menu ::deep .accent-swatch.bit-btn {
+    width: 1.5rem; height: 1.5rem; min-width: 1.5rem; min-height: 1.5rem;
     display: grid; place-items: center;
     border: 2px solid transparent; border-radius: 50%;
     cursor: pointer; padding: 0;
     box-shadow: var(--bb-shd-1);
 }
-.accent-swatch:hover { transform: scale(1.1); }
-.accent-swatch.selected { border-color: var(--bb-fg-pri); outline: 2px solid var(--bb-bg-pri); }
-.accent-swatch .app-icon { width: .75rem; height: .75rem; color: #fff; stroke-width: 2.5; }
+.account-menu ::deep .accent-swatch .bit-btn-cnt {
+    width: 100%; height: 100%;
+    display: grid; place-items: center;
+    color: #fff;
+}
+.account-menu ::deep .accent-swatch.bit-btn:hover { transform: scale(1.1); }
+.account-menu ::deep .accent-swatch.selected.bit-btn { border-color: var(--bb-fg-pri); outline: 2px solid var(--bb-bg-pri); }
+.account-menu ::deep .accent-swatch .app-icon { width: .875rem; height: .875rem; color: #fff; stroke-width: 2.5; }
 
-.account-choice {
-    display: flex; align-items: center; gap: .625rem;
-    width: 100%; min-height: 2.25rem;
+.account-menu ::deep .account-choice.bit-btn {
+    display: flex; align-items: center; justify-content: flex-start;
+    width: 100%; min-width: 0; min-height: 2.25rem;
     padding: .375rem .5rem;
     border: 0; border-radius: var(--bb-radius-sm);
     background: transparent;
-    font-family: var(--bb-font); font-size: .8125rem; text-align: start;
+    font-family: var(--bb-font); font-size: .8125rem; font-weight: 400; text-align: start;
     color: var(--bb-fg-pri); cursor: pointer;
 }
-.account-choice:hover { background: var(--bb-bg-sec); }
-.account-choice.selected { color: var(--bb-pri); font-weight: 600; }
-.account-choice .app-icon { width: 1.125rem; height: 1.125rem; flex: 0 0 1.125rem; }
-.account-choice > .app-icon:last-child { margin-inline-start: auto; color: var(--bb-pri); }
+.account-menu ::deep .account-choice .bit-btn-cnt,
+.account-menu ::deep .account-choice .bit-btn-txt {
+    width: 100%;
+    display: flex; align-items: center; justify-content: flex-start; gap: .625rem;
+}
+.account-menu ::deep .account-choice.bit-btn:hover { background: var(--bb-bg-sec); color: var(--bb-fg-pri); }
+.account-menu ::deep .account-choice.selected.bit-btn { color: var(--bb-pri); font-weight: 600; }
+.account-menu ::deep .account-choice .app-icon { width: 1.125rem; height: 1.125rem; flex: 0 0 1.125rem; }
+.account-menu ::deep .account-choice .app-icon:last-child { margin-inline-start: auto; color: var(--bb-pri); }
 .account-choice .pending-badge {
     margin-inline-start: auto; padding: .125rem .375rem;
     border: 1px solid var(--bb-wrn); border-radius: 9999px;
@@ -191,13 +214,16 @@
 
 /* ===== 账号菜单扩展（原 app.css「账号菜单扩展」块；.nav-signin-avatar 为死样式已删） ===== */
 .account-empty { padding: .375rem .5rem; font-size: .75rem; color: var(--bb-fg-ter); }
-.account-row-link {
-    display: inline-flex; align-items: center; gap: .375rem;
+.account-menu ::deep .account-row-link.bit-btn {
+    min-width: 0; min-height: 0;
     padding: 0; border: 0; background: transparent;
-    font-family: var(--bb-font); font-size: .8125rem; color: var(--bb-fg-pri);
+    font-family: var(--bb-font); font-size: .8125rem; font-weight: 400; color: var(--bb-fg-pri);
     cursor: pointer;
 }
-.account-row-link:hover { color: var(--bb-pri); }
+.account-menu ::deep .account-row-link.bit-btn:hover { background: transparent; color: var(--bb-pri); }
+.account-menu ::deep .account-row-link .bit-btn-cnt {
+    display: inline-flex; align-items: center; justify-content: flex-start; gap: .375rem;
+}
 .account-unread {
     min-width: 1.05rem; height: 1.05rem; padding: 0 .3rem;
     display: inline-grid; place-items: center;

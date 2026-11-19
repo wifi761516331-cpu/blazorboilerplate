@@ -37,7 +37,11 @@ window.blazorDownloadFile = async (fileName, contentType, contentStreamReference
 
     function applyPrefs(theme, accentColor, culture) {
         const root = document.documentElement;
-        if (theme) root.dataset.bbTheme = String(theme) === 'dark' ? 'dark' : 'light';
+        if (theme) {
+            const isDark = String(theme) === 'dark';
+            root.dataset.bbTheme = isDark ? 'dark' : 'light';
+            root.setAttribute('bit-theme', isDark ? 'dark' : 'light');
+        }
         if (accentColor) root.style.setProperty('--bb-accent', accentColor);
         else root.style.removeProperty('--bb-accent');
         if (culture) {
@@ -52,7 +56,15 @@ window.blazorDownloadFile = async (fileName, contentType, contentStreamReference
             try { localStorage.setItem(PREFS_KEY, JSON.stringify(payload || {})); } catch { /* 隐私模式 */ }
             applyPrefs(payload && payload.theme, payload && payload.accentColor, payload && payload.culture);
         },
-        apply: (theme, accentColor, culture) => applyPrefs(theme, accentColor, culture)
+        apply: (theme, accentColor, culture) => applyPrefs(theme, accentColor, culture),
+        // 只更新语言字段：保留已有的主题/强调色/时区偏好，仅改 culture 并写 cookie 供 SSR 首屏。
+        // 登录页等匿名页面的语言下拉用它，避免用 set() 整体覆盖丢掉其他字段。
+        setCulture: (culture) => {
+            const p = readPrefs() || {};
+            p.culture = culture;
+            try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch { /* 隐私模式 */ }
+            applyPrefs(p.theme, p.accentColor, culture);
+        }
     };
 
     // 首屏（Blazor 接管前）立即应用本地主题，避免明暗闪烁。

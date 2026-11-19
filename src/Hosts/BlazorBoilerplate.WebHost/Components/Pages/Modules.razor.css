@@ -94,6 +94,25 @@
 .module-card-foot .bit-btn .bit-icon { font-size: 1rem; }
 .module-protected { display: flex; align-items: center; gap: .375rem; font-size: .8125rem; color: var(--bb-fg-ter); }
 .module-protected .app-icon { width: 1rem; height: 1rem; }
+/* 搜索框宽度对齐 KPI 卡片网格第一列（4 列 + gap 1rem×3），窄屏回退为弹性布局 */
+.bb-toolbar .bb-search {
+    flex: 0 1 auto;
+    width: calc((100% - 3rem) / 4);
+    min-width: 12rem;
+    max-width: none;
+}
+@media (max-width: 599px) {
+    .bb-toolbar .bb-search { flex: 1 1 12rem; width: auto; }
+}
 @media (max-width: 599px) {
     .module-grid { grid-template-columns: 1fr; }
 }
+
+.module-summary-item.module-kpi-item { flex-direction: row; align-items: center; justify-content: space-between; gap: .75rem; }
+    .module-kpi-meta { display: flex; flex-direction: column; gap: .25rem; min-width: 0; }
+    .module-kpi-icon { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0; font-size: 1.15rem; }
+    .module-kpi-icon svg { width: 1.15rem; height: 1.15rem; }
+    .module-kpi-icon.is-total { color: #0078d4; background: rgba(0, 120, 212, 0.1); }
+    .module-kpi-icon.is-running { color: #107c10; background: rgba(16, 124, 16, 0.1); }
+    .module-kpi-icon.is-essential { color: #5c2d91; background: rgba(92, 45, 145, 0.1); }
+    .module-kpi-icon.is-pending { color: #b46e00; background: rgba(180, 110, 0, 0.1); }

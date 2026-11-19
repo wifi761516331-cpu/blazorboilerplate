@@ -8,6 +8,7 @@
 @* 注入与布局/导航/守卫逻辑在 MainLayout.razor.cs；RenderNavNode 因含 Razor 标记语法留在本文件。 *@
 
 <div class="app-shell @(_dark ? "bb-dark" : "") @(_navToggled ? "nav-toggled" : "") @(_navOpen ? "nav-open" : "")"
+     bit-theme="@(_dark ? "dark" : "light")"
      data-accent="@_accent" style="@AccentStyle">
     <main class="app-main-frame">
         <div class="main-container">
@@ -28,7 +29,7 @@
                         var tenantLabel = !string.IsNullOrWhiteSpace(Account.CurrentUser?.TenantName)
                             ? Account.CurrentUser!.TenantName
                             : L["platform.nav.myTenant"];
-                        <a href="/tenants" class="nav-item" title="@L["platform.nav.manageTenant"]" @onclick="CloseNav">
+                        <a href="/tenants" class="nav-item @NavClass("/tenants")" title="@L["platform.nav.manageTenant"]" @onclick="CloseNav">
                             <AppIcon Name="Org" />
                             <span class="nav-text">@tenantLabel</span>
                         </a>
@@ -51,12 +52,12 @@
 
             <div class="main-body">
                 <header class="app-header">
-                    <button type="button" class="icon-btn menu-btn" title="@L["platform.nav.open"]" @onclick="OpenNav">
+                    <BitButton Variant="BitVariant.Text" Class="icon-btn menu-btn" Title="@L["platform.nav.open"]" OnClick="OpenNav">
                         <AppIcon Name="CollapseMenu" />
-                    </button>
-                    <button type="button" class="icon-btn toggle-btn" title="@L["platform.nav.toggleSidebar"]" @onclick="() => _navToggled = !_navToggled">
+                    </BitButton>
+                    <BitButton Variant="BitVariant.Text" Class="icon-btn toggle-btn" Title="@L["platform.nav.toggleSidebar"]" OnClick="() => _navToggled = !_navToggled">
                         <AppIcon Name="CollapseMenu" />
-                    </button>
+                    </BitButton>
                     <div class="header-titles">
                         <h1 class="header-title">@HeaderTitle</h1>
                         @if (!string.IsNullOrWhiteSpace(HeaderSubtitle))
@@ -109,7 +110,7 @@
             </div>
         </div>
 
-        <button type="button" class="nav-overlay" aria-label="@L["platform.nav.close"]" @onclick="CloseNav"></button>
+        <div class="nav-overlay" role="presentation" aria-label="@L["platform.nav.close"]" @onclick="CloseNav"></div>
 
         <section class="nav-bar">
             @foreach (var item in FlattenLeafNodes(_navTree).Take(5))
@@ -135,25 +136,12 @@
 
         <div class="nav-node">
             <div class="nav-item-row">
-                @if (hasChildren)
-                {
-                    <button type="button"
-                            class="nav-chevron"
-                            title="@(isExpanded ? L["platform.nav.collapse"] : L["platform.nav.expand"])"
-                            @onclick="() => ToggleExpand(node.Id)">
-                        <AppIcon Name="@(isExpanded ? "ChevronDown" : "ChevronRight")" />
-                    </button>
-                }
-                else
-                {
-                    <span class="nav-chevron-spacer" aria-hidden="true"></span>
-                }
                 @if (isGroup)
                 {
-                    <button type="button" class="nav-item nav-item-btn" title="@node.Text" @onclick="() => ToggleExpand(node.Id)">
+                    <BitButton Variant="BitVariant.Text" Class="nav-item nav-item-btn" Title="@node.Text" OnClick="() => ToggleExpand(node.Id)">
                         <AppIcon Name="@node.Icon" />
                         <span class="nav-text">@node.Text</span>
-                    </button>
+                    </BitButton>
                 }
                 else
                 {
@@ -161,6 +149,15 @@
                         <AppIcon Name="@node.Icon" />
                         <span class="nav-text">@node.Text</span>
                     </a>
+                }
+                @if (hasChildren)
+                {
+                    <BitButton Variant="BitVariant.Text"
+                               Class="nav-chevron"
+                               Title="@(isExpanded ? L["platform.nav.collapse"] : L["platform.nav.expand"])"
+                               OnClick="() => ToggleExpand(node.Id)">
+                        <AppIcon Name="@(isExpanded ? "ChevronDown" : "ChevronRight")" />
+                    </BitButton>
                 }
             </div>
             @if (hasChildren && isExpanded)

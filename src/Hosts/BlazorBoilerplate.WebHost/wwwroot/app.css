@@ -48,6 +48,7 @@
     --bb-radius: .25rem;
     --bb-radius-md: .5rem;
     --bb-radius-lg: .75rem;
+    --bb-auth-control-height: 2.5rem;
     --bb-gap: 1rem;
 
     /* ---- 排版 ---- */
@@ -224,22 +225,37 @@ select:focus-visible,
 .or-sep { display: flex; align-items: center; gap: .75rem; margin: 1.25rem 0; font-size: .75rem; color: var(--bb-fg-ter); }
 .or-sep::before, .or-sep::after { content: ""; flex: 1; height: 1px; background: var(--bb-brd-ter); }
 
-.auth-tabs { display: flex; border-bottom: 1px solid var(--bb-brd-ter); margin-bottom: 1.25rem; }
-.auth-tab {
-    position: relative; flex: 1;
-    padding: .625rem .5rem;
-    border: 0; background: transparent;
-    color: var(--bb-fg-sec); font-size: .875rem; font-family: var(--bb-font);
-    cursor: pointer;
+/* 邮箱/电话 tab：BitPivot 自带居中对齐 + 选中下划线，容器只留间距 */
+.auth-tabs { margin-bottom: 1.25rem; }
+
+/* 切换 tab 不闪动：邮箱 BitTextField(.bit-tfl-*) 与手机号 BitPhoneInput(.bit-phi-*)
+   的 label / 输入框 / 说明区是两套样式，默认行高与 padding 不同，切换时表单高度跳变。
+   这里把紧随 tabs 的账号字段区统一成同一尺寸，并固定高度。 */
+.auth-tabs + .auth-field { min-height: 4.75rem; }
+.auth-tabs + .auth-field .bit-tfl-lbl,
+.auth-tabs + .auth-field .bit-phi-lbl {
+    line-height: 1.25rem !important;
+    padding: .3125rem 0 !important;
+    font-size: .8125rem !important;
+    font-weight: 600 !important;
 }
-.auth-tab:hover { color: var(--bb-fg-pri); }
-.auth-tab.active { color: var(--bb-pri); font-weight: 600; }
-.auth-tab.active::after {
-    content: ""; position: absolute; inset-inline: 0; bottom: -1px;
-    height: 2px; border-radius: 2px; background: var(--bb-pri);
+/* 说明/错误区平时不占位；出现错误时两者用同样的行高，避免高度突变 */
+.auth-tabs + .auth-field .bit-tfl-des,
+.auth-tabs + .auth-field .bit-phi-des {
+    font-size: .75rem !important;
+    line-height: 1.125rem !important;
+    padding-block-start: .125rem !important;
 }
+.auth-tabs + .auth-field .bit-tfl-des:empty,
+.auth-tabs + .auth-field .bit-phi-des:empty { display: none; }
 
 .auth-field { display: flex; flex-direction: column; gap: .375rem; margin-bottom: 1rem; }
+/* 认证表单输入框统一高度：普通字段与验证码输入框保持同一视觉尺寸。 */
+.identity-form .auth-field .bit-tfl-fgp,
+.identity-form .auth-field .bit-tfl-inp { min-height: var(--bb-auth-control-height) !important; }
+/* 手机号 BitPhoneInput 用 .bit-phi-* 类名（非 .bit-tfl-*），需单独统一到同一高度 */
+.identity-form .auth-field .bit-phi-fgp,
+.identity-form .auth-field .bit-phi-inp { min-height: var(--bb-auth-control-height) !important; }
 .auth-label-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
 .auth-label { font-size: .8125rem; font-weight: 600; color: var(--bb-fg-pri); }
 .auth-link {
@@ -300,6 +316,30 @@ select:focus-visible,
 .auth-btn + .auth-btn { margin-top: .75rem; }
 .auth-btn.outline { background: transparent; color: var(--bb-fg-pri); border-color: var(--bb-brd-sec); }
 .auth-btn.outline:hover { background: var(--bb-bg-ter); }
+/* 登录主按钮 + 魔法链接按钮：对齐 Bluebird 的按钮组（圆角、左右留白、上下间距、淡边灰字）。 */
+.auth-primary-btn.bit-btn,
+.auth-magic-link.bit-btn {
+    --bit-btn-radius: .5rem;
+    height: 2.75rem !important;
+    min-height: 2.75rem !important;
+    width: 100% !important;
+    margin-inline: 0 !important;
+    border-radius: .5rem !important;
+    font-size: .875rem;
+}
+.auth-primary-btn.bit-btn { font-weight: 600; }
+.auth-magic-link.bit-btn {
+    --bit-btn-sfg: var(--bb-fg-sec);
+    --bit-btn-sbr: #d7e6f7;
+    --bit-btn-sbg: transparent;
+    font-weight: 500;
+    margin-top: 1.875rem;
+}
+.auth-magic-link.bit-btn:hover:not(:disabled):not(.bit-dis) {
+    --bit-btn-sfg: var(--bb-pri);
+    --bit-btn-sbr: var(--bb-pri);
+    --bit-btn-sbg: var(--bb-pri-tint);
+}
 .auth-foot { text-align: center; font-size: .8125rem; color: var(--bb-fg-sec); margin-top: 1.5rem; }
 .auth-msg {
     margin-bottom: 1rem; padding: .625rem .75rem;
@@ -307,19 +347,77 @@ select:focus-visible,
     background: var(--bb-pri-tint); color: var(--bb-pri); font-size: .8125rem; line-height: 1.5;
 }
 .auth-msg.error { border-color: var(--bb-err-brd); background: var(--bb-err-bg); color: var(--bb-err); }
-.auth-code-row { display: flex; gap: .5rem; align-items: center; }
-.auth-code-row .auth-input-wrap { flex: 1; min-width: 0; }
-.auth-code-btn {
-    flex-shrink: 0; height: 2.5rem; padding: 0 .875rem;
-    border: 1px solid var(--bb-brd-sec); border-radius: var(--bb-radius-sm);
-    background: transparent; color: var(--bb-fg-pri);
-    font-family: var(--bb-font); font-size: .8125rem; font-weight: 600;
-    white-space: nowrap; cursor: pointer;
+/* 验证码行：BitTextField 与 BitButton 同高（40px）、同圆角（6px）、同边框色；按钮底部对齐输入框。 */
+.auth-code-row {
+    /* 与邮箱/密码输入框对齐：Bit 默认 --bit-shp-brd-radius 为 .125rem（2px） */
+    --code-radius: .125rem;
+    display: flex;
+    gap: 0;
+    align-items: flex-end;
+}
+.auth-code-row > :first-child { flex: 1; min-width: 0; }
+
+/* BitTextField：只覆盖验证码输入框，不影响其他字段。 */
+.auth-code-row .bit-tfl-md {
+    --bit-tfl-min-height: var(--bb-auth-control-height);
+    --bit-tfl-inp-min-height: var(--bb-auth-control-height);
+    --bit-tfl-font-size: .875rem;
+    --bit-TextField-border-color: var(--bb-brd-sec);
+    --bit-TextField-border-width: 1px;
+    --bit-TextField-radius: var(--code-radius);
+    --bit-TextField-label-font-weight: 500;
+    --bit-TextField-label-font-size: .8125rem;
+}
+.auth-code-row .bit-tfl-fgp {
+    min-height: var(--bb-auth-control-height) !important;
+    position: relative;
+    z-index: 1;
+    border-color: var(--bb-brd-sec) !important;
+    border-right-color: var(--bb-brd-ter) !important;
+    border-radius: var(--code-radius) 0 0 var(--code-radius) !important;
+}
+.auth-code-row .bit-tfl-inp { min-height: var(--bb-auth-control-height) !important; font-size: .875rem !important; }
+
+/* BitButton：白底灰边 + 13px/500 文字，和输入框同高同圆角。 */
+.auth-code-row .auth-code-btn.bit-btn {
+    --bit-btn-min-height: var(--bb-auth-control-height);
+    --bit-btn-radius: var(--code-radius);
+    --bit-btn-lbl-fontsize: .8125rem;
+    --bit-btn-padding: 0 .875rem;
+    --bit-btn-clr: var(--bb-brd-sec);
+    --bit-btn-sbr: var(--bb-brd-sec);
+    --bit-btn-sfg: var(--bb-fg-pri);
+    --bit-btn-sbg: var(--bb-bg-sec);
+    height: var(--bb-auth-control-height) !important;
+    min-height: var(--bb-auth-control-height) !important;
+    flex: 0 0 auto;
+    margin-left: -1px !important;
+    border-radius: 0 var(--code-radius) var(--code-radius) 0 !important;
+    padding-block: 0 !important;
+    background-color: var(--bb-bg-sec) !important;
+    font-weight: 500;
+    white-space: nowrap;
     transition: background-color .15s, border-color .15s, color .15s;
 }
-.auth-code-btn:hover:not(:disabled) { background: var(--bb-bg-ter); border-color: var(--bb-pri); color: var(--bb-pri); }
-.auth-code-btn:disabled { opacity: .6; cursor: not-allowed; }
+.auth-code-row .auth-code-btn.bit-btn:hover:not(.bit-dis):not(:disabled) {
+    --bit-btn-sfg: var(--bb-pri);
+    --bit-btn-sbr: var(--bb-pri);
+    --bit-btn-sbg: var(--bb-pri-tint);
+    background-color: var(--bb-pri-tint) !important;
+}
+.auth-code-row .auth-code-btn.bit-btn:disabled,
+.auth-code-row .auth-code-btn.bit-btn.bit-dis { opacity: .6; cursor: not-allowed; }
 .auth-links-inline { display: flex; align-items: center; justify-content: center; gap: .5rem; margin-top: 1.25rem; font-size: .8125rem; color: var(--bb-fg-sec); }
+
+/* Bit 化后的内联布局修正：Bit 组件是自定义元素，原「label + 链接」两栏 CSS 已不适用，
+   这里按子元素位置约束宽度。主操作按钮全宽由 BitButton 的 FullWidth 参数负责。 */
+/* 密码 Label 行：文案吃掉剩余宽度，忘记密码 BitLink 靠右（对齐 Bluebird LabelTemplate） */
+.auth-label-row > :first-child { flex: 1; min-width: 0; }
+/* 记住我 + 通行密钥图标行：复选框文案不换行 */
+.auth-row > :first-child { flex: 0 0 auto; white-space: nowrap; }
+/* 表单字段宽度一致：BitPhoneInput（区号+号码）与 BitTextField 都撑满表单栏，
+   左右边界与密码框对齐（对齐 Bluebird：区号区与号码区同一输入框、总宽一致）。 */
+.auth-field > :first-child { width: 100%; }
 
 /* =========================================================================================
    页面通用块（对齐 Bluebird 页面：<AppPageData> 把标题交给 Header，页面内只有内容）

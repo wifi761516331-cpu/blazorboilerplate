@@ -6,7 +6,7 @@
 @implements IDisposable
 
 <div class="account-menu-root">
-    <button type="button" class="header-persona" title="@L["platform.accountMenu.title"]" aria-expanded="@_isOpen" @onclick="Toggle">
+    <BitButton Variant="BitVariant.Text" Class="header-persona" Title="@L["platform.accountMenu.title"]" aria-expanded="@_isOpen" OnClick="Toggle">
         @if (Account.IsAuthenticated)
         {
             <span class="persona-avatar">
@@ -28,9 +28,9 @@
             <span class="persona-name">@L["platform.auth.signIn"]</span>
         }
         <span class="menu-chevron"><AppIcon Name="ChevronDown" /></span>
-    </button>
+    </BitButton>
 
-    <button type="button" class="menu-backdrop" hidden="@(!_isOpen)" aria-label="@L["platform.accountMenu.close"]" @onclick="Close"></button>
+    <div class="menu-backdrop" role="presentation" hidden="@(!_isOpen)" aria-label="@L["platform.accountMenu.close"]" @onclick="Close"></div>
 
     <div class="account-menu" hidden="@(!_isOpen)" role="menu">
         @if (_hint is not null)
@@ -41,7 +41,7 @@
         @if (_panel == MenuPanel.Main)
         {
             <div class="account-identity">
-                <button type="button" class="account-avatar-lg" title="@L["platform.accountMenu.editProfile"]" @onclick="GoToProfile">
+                <BitButton Variant="BitVariant.Text" Class="account-avatar-lg" Title="@L["platform.accountMenu.editProfile"]" OnClick="GoToProfile">
                     @if (!string.IsNullOrWhiteSpace(Account.AvatarUrl))
                     {
                         <img src="@Account.AvatarUrl" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" alt="" />
@@ -52,7 +52,7 @@
                     }
                     <span class="avatar-overlay">@L["platform.common.edit"]</span>
                     <span class="presence-dot" title="@L["platform.accountMenu.online"]"></span>
-                </button>
+                </BitButton>
                 <div class="account-identity-text">
                     <strong>@(Account.CurrentUser?.DisplayName ?? L["platform.accountMenu.notSignedIn"])</strong>
                     <span>@(Account.CurrentUser?.Email ?? "")</span>
@@ -66,35 +66,35 @@
             }
             @foreach (var account in _accounts)
             {
-                <button type="button" class="account-action" @onclick="() => SwitchAccount(account)">
+                <BitButton Variant="BitVariant.Text" Class="account-action" OnClick="() => SwitchAccount(account)">
                     <span class="account-mini-avatar">@MakeInitials(LabelOf(account))</span>
                     <span class="account-action-text">
                         <strong>@LabelOf(account)</strong>
                         <small>@account.Email</small>
                     </span>
-                </button>
+                </BitButton>
             }
-            <button type="button" class="account-action" @onclick="AddAccount">
+            <BitButton Variant="BitVariant.Text" Class="account-action" OnClick="AddAccount">
                 <AppIcon Name="AddFriend" />
                 <span>@L["platform.accountMenu.addAccount"]</span>
-            </button>
+            </BitButton>
 
             <div class="account-separator"></div>
 
-            <button type="button" class="account-action" @onclick="GoToSettings">
+            <BitButton Variant="BitVariant.Text" Class="account-action" OnClick="GoToSettings">
                 <AppIcon Name="Settings" />
                 <span>@L["platform.accountMenu.settings"]</span>
-            </button>
-            <button type="button" class="account-action has-chevron" @onclick="OpenLanguages">
+            </BitButton>
+            <BitButton Variant="BitVariant.Text" Class="account-action has-chevron" OnClick="OpenLanguages">
                 <AppIcon Name="Globe" />
                 <span>@L["platform.common.language"]</span>
                 <span class="account-chevron"><AppIcon Name="ChevronRight" /></span>
-            </button>
-            <button type="button" class="account-action has-chevron" @onclick="OpenTenants">
+            </BitButton>
+            <BitButton Variant="BitVariant.Text" Class="account-action has-chevron" OnClick="OpenTenants">
                 <AppIcon Name="Org" />
                 <span>@L["platform.accountMenu.tenant"]</span>
                 <span class="account-chevron"><AppIcon Name="ChevronRight" /></span>
-            </button>
+            </BitButton>
 
             <div class="account-row">
                 <AppIcon Name="Clock" />
@@ -109,28 +109,24 @@
 
             <div class="account-row">
                 <AppIcon Name="@(_notifications ? "Bell" : "RingerOff")" />
-                <button type="button" class="account-row-link" title="@L["platform.accountMenu.viewNotifications"]" @onclick="GoToNotifications">
+                <BitButton Variant="BitVariant.Text" Class="account-row-link" Title="@L["platform.accountMenu.viewNotifications"]" OnClick="GoToNotifications">
                     @L["platform.nav.notifications"]
                     @if (_unreadCount > 0)
                     {
                         <span class="account-unread">@(_unreadCount > 99 ? "99+" : _unreadCount.ToString())</span>
                     }
-                </button>
+                </BitButton>
                 <span class="account-spacer"></span>
-                <button type="button" class="account-switch @(_notifications ? "on" : "")" role="switch"
-                        aria-checked="@_notifications" title="@L["platform.accountMenu.receiveNotifications"]" @onclick="ToggleNotifications">
-                    <span></span>
-                </button>
+                <BitToggle Value="@_notifications" ValueChanged="@(_ => ToggleNotifications())"
+                           Title="@L["platform.accountMenu.receiveNotifications"]" Class="account-toggle" />
             </div>
 
             <div class="account-row">
                 <AppIcon Name="@(Dark ? "Sunny" : "ClearNight")" />
                 <span class="account-row-label">@(Dark ? L["platform.accountMenu.darkTheme"] : L["platform.accountMenu.lightTheme"])</span>
                 <span class="account-spacer"></span>
-                <button type="button" class="account-switch @(Dark ? "on" : "")" role="switch"
-                        aria-checked="@Dark" title="@L["platform.common.themeToggle"]" @onclick="ToggleTheme">
-                    <span></span>
-                </button>
+                <BitToggle Value="@Dark" ValueChanged="@(_ => ToggleTheme())"
+                           Title="@L["platform.common.themeToggle"]" Class="account-toggle" />
             </div>
 
             <div class="accent-block">
@@ -138,43 +134,46 @@
                 <div class="accent-swatches">
                     @foreach (var color in AccentColors)
                     {
-                        <button type="button" class="accent-swatch @(CurrentAccent == color.Hex ? "selected" : "")"
-                                style="background:@color.Hex" title="@color.Name"
-                                @onclick="() => SetAccent(color.Hex)">
+                        <BitButton Variant="BitVariant.Text"
+                                   Class="@($"accent-swatch {(CurrentAccent == color.Hex ? "selected" : "")}")"
+                                   Style="@($"background:{color.Hex}")"
+                                   Title="@color.Name"
+                                   OnClick="() => SetAccent(color.Hex)">
                             @if (CurrentAccent == color.Hex)
                             {
                                 <AppIcon Name="Check" />
                             }
-                        </button>
+                        </BitButton>
                     }
                 </div>
             </div>
 
             <div class="account-separator"></div>
 
-            <button type="button" class="account-action danger" @onclick="OpenSignOut">
+            <BitButton Variant="BitVariant.Text" Class="account-action danger" OnClick="OpenSignOut">
                 <AppIcon Name="SignOut" />
                 <span>@L["platform.auth.signOut"]</span>
-            </button>
+            </BitButton>
         }
         else if (_panel == MenuPanel.Languages)
         {
-            <button type="button" class="account-action account-back" @onclick="BackToMain">
+            <BitButton Variant="BitVariant.Text" Class="account-action account-back" OnClick="BackToMain">
                 <AppIcon Name="ChevronLeft" />
                 <span>@L["platform.accountMenu.chooseLanguage"]</span>
-            </button>
+            </BitButton>
             <div class="account-separator"></div>
             @foreach (var culture in _cultures)
             {
-                <button type="button" class="account-choice @(_culture == culture.Code ? "selected" : "")"
-                        @onclick="() => SelectLanguage(culture)">
+                <BitButton Variant="BitVariant.Text"
+                           Class="@($"account-choice {(_culture == culture.Code ? "selected" : "")}")"
+                           OnClick="() => SelectLanguage(culture)">
                     <BitFlag Iso2="@(culture.FlagCode ?? RegionIso2(culture.Code))" />
                     <span>@culture.Text</span>
                     @if (_culture == culture.Code)
                     {
                         <AppIcon Name="Check" />
                     }
-                </button>
+                </BitButton>
             }
         }
     </div>

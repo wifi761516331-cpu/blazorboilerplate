@@ -28,11 +28,11 @@ else
         @* 1. 新建租户（始终可用）。 *@
         <PermissionView Code="tenant.create">
             <div class="mt-section @(_expanded == "create" ? "expanded" : "")">
-                <button type="button" class="mt-section-header" @onclick="ToggleCreate">
+                <BitButton Variant="BitVariant.Text" FullWidth Class="mt-section-header" OnClick="ToggleCreate">
                     <AppIcon Name="Add" />
                     <span class="mt-section-title">@L["platform.tenants.createTitle"]</span>
                     <AppIcon Name="ChevronDown" Class="mt-chevron" />
-                </button>
+                </BitButton>
                 @if (_expanded == "create")
                 {
                     <div class="mt-section-body">
@@ -55,12 +55,12 @@ else
         @* 2. 邀请成员（仅租户管理员，且需先有当前租户）。 *@
         <PermissionView Code="tenant.invite">
             <div class="mt-section @(_expanded == "invite" ? "expanded" : "") @(_currentTenant is null ? "disabled" : "")">
-                <button type="button" class="mt-section-header" disabled="@(_currentTenant is null)"
-                        @onclick="ToggleInvite">
+                <BitButton Variant="BitVariant.Text" FullWidth Class="mt-section-header" IsEnabled="@(_currentTenant is not null)"
+                           OnClick="ToggleInvite">
                     <AppIcon Name="People" />
                     <span class="mt-section-title">@InviteSectionTitle</span>
                     <AppIcon Name="ChevronDown" Class="mt-chevron" />
-                </button>
+                </BitButton>
                 @if (_expanded == "invite" && _currentTenant is not null)
                 {
                     <div class="mt-section-body">
@@ -80,12 +80,12 @@ else
         @* 3. 编辑当前租户（仅租户管理员，且需先有当前租户）。 *@
         <PermissionView Code="tenant.update">
             <div class="mt-section @(_expanded == "update" ? "expanded" : "") @(_currentTenant is null ? "disabled" : "")">
-                <button type="button" class="mt-section-header" disabled="@(_currentTenant is null)"
-                        @onclick="ToggleUpdate">
+                <BitButton Variant="BitVariant.Text" FullWidth Class="mt-section-header" IsEnabled="@(_currentTenant is not null)"
+                           OnClick="ToggleUpdate">
                     <AppIcon Name="Edit" />
                     <span class="mt-section-title">@L["platform.tenants.editCurrentTitle"]</span>
                     <AppIcon Name="ChevronDown" Class="mt-chevron" />
-                </button>
+                </BitButton>
                 @if (_expanded == "update" && _currentTenant is not null)
                 {
                     <div class="mt-section-body">
@@ -188,7 +188,7 @@ else
                 <BitButton IconPlacement="BitPlacement.End" IconName="@BitIconName.Add" OnClick="OpenAdminCreate">@L["platform.tenants.addTenant"]</BitButton>
             </div>
 
-            <BitDataGrid TItem="TenantDto" Items="_allTenants" Bordered="true" Hoverable="true" Striped="true">
+            <BitDataGrid TItem="TenantDto" Items="_allTenants" Bordered="true" Hoverable="true" Striped="true" Strings="@L.CreateGridStrings()">
                 <Columns>
                     <BitDataGridColumn TItem="TenantDto" Field="Name" Title="@L["platform.tenants.field.name"]">
                         <Template Context="t"><strong>@t.Name</strong></Template>

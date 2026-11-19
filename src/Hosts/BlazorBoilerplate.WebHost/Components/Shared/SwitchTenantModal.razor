@@ -5,13 +5,13 @@
    注入与租户加载/切换逻辑在 SwitchTenantModal.razor.cs。 *@
 
 <div class="switch-tenant-root">
-    <button type="button" class="switch-tenant-backdrop" hidden="@(!IsOpen)" aria-label="@L["platform.tenant.closeSwitch"]" @onclick="CloseAsync"></button>
+    <div class="switch-tenant-backdrop" role="presentation" hidden="@(!IsOpen)" aria-label="@L["platform.tenant.closeSwitch"]" @onclick="CloseAsync"></div>
 
     <div class="switch-tenant-modal" hidden="@(!IsOpen)" role="dialog" aria-modal="true" aria-label="@L["platform.tenant.switchTitle"]">
         <header class="switch-tenant-header">
-            <button type="button" class="switch-tenant-back" title="@L["platform.common.back"]" aria-label="@L["platform.common.back"]" @onclick="CloseAsync">
+            <BitButton Variant="BitVariant.Text" Class="switch-tenant-back" Title="@L["platform.common.back"]" aria-label="@L["platform.common.back"]" OnClick="CloseAsync">
                 <AppIcon Name="ChevronLeft" />
-            </button>
+            </BitButton>
             <span class="switch-tenant-title">@L["platform.tenant.switchTitle"]</span>
         </header>
 
@@ -28,8 +28,9 @@
             {
                 @foreach (var tenant in _tenants)
                 {
-                    <button type="button" class="switch-tenant-item @(IsCurrent(tenant) ? "selected" : "")"
-                            @onclick="() => SelectAsync(tenant)" disabled="@(_busy || IsCurrent(tenant))">
+                    <BitButton Variant="BitVariant.Text"
+                               Class="@($"switch-tenant-item {(IsCurrent(tenant) ? "selected" : "")}")"
+                               OnClick="() => SelectAsync(tenant)" IsEnabled="@(!(_busy || IsCurrent(tenant)))">
                         <AppIcon Name="@(tenant.Accepted ? "Org" : "Mail")"
                                   Class="@(tenant.Accepted ? "" : "pending")" />
                         <span class="switch-tenant-name">@(string.IsNullOrWhiteSpace(tenant.Title) ? tenant.Name : tenant.Title)</span>
@@ -41,15 +42,15 @@
                         {
                             <AppIcon Name="Check" Class="current" />
                         }
-                    </button>
+                    </BitButton>
                 }
             }
         </div>
 
-        <button type="button" class="switch-tenant-manage" @onclick="ManageTenants">
+        <BitButton Variant="BitVariant.Text" Class="switch-tenant-manage" OnClick="ManageTenants">
             <AppIcon Name="Settings" />
             <span>@L["platform.nav.manageTenant"]</span>
-        </button>
+        </BitButton>
     </div>
 </div>
 

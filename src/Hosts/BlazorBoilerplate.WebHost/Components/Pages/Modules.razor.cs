@@ -35,6 +35,7 @@ public partial class Modules
 
     private List<ModuleDescriptor> _modules = [];
     private bool _loading = true;
+    private bool _refreshing;
     private string? _loadError;
     private readonly HashSet<string> _busy = [];
     private bool _loadAllBusy;
@@ -57,19 +58,25 @@ public partial class Modules
     private async Task RefreshAsync()
     {
         _loadError = null;
+        _refreshing = true;
+        StateHasChanged();
         try
         {
-            _modules = (await Api.GetModulesAsync()).OrderBy(m => m.Order).ThenBy(m => m.Name).ToList();
+            // 先重新扫描安装目录：手动放入的新模块只有 rescan 后才会被登记进目录，
+            // 否则「刷新」只返回启动时已发现的旧列表，看起来像按钮不起作用。
+            var (_, modules) = await Api.RescanModulesAsync();
+            _modules = modules.OrderBy(m => m.Order).ThenBy(m => m.Name).ToList();
             await LoadVersionItemsAsync();
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "加载模块列表失败");
+            Logger.LogWarning(ex, "刷新模块列表失败");
             _loadError = ex.Message;
         }
         finally
         {
             _loading = false;
+            _refreshing = false;
             StateHasChanged();
         }
     }
@@ -382,7 +389,8 @@ public partial class Modules
     private static string ModuleIcon(string id) =>
         id.Contains("identity", StringComparison.OrdinalIgnoreCase) ? "Shield" :
         id.Contains("catalog", StringComparison.OrdinalIgnoreCase) ? "Shop" :
-        id.Contains("attachment", StringComparison.OrdinalIgnoreCase) ? "Attach" : "Puzzle";
+        id.Contains("attachment", StringComparison.OrdinalIgnoreCase) ? "Attach" :
+        id.Contains("localization", StringComparison.OrdinalIgnoreCase) ? "Globe" : "Puzzle";
 
     private static BitColor StateColor(ModuleState state) => state switch
     {
