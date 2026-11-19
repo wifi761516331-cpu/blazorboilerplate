@@ -69,7 +69,21 @@ public sealed class AccountRegistrationService(
             null,
             sysName);
 
-        await emailSender.SendAsync(email, subject, html, ct);
+        try
+        {
+            await emailSender.SendAsync(email, subject, html, ct);
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            // SMTP 客户端抛的是裸 SmtpException（如 "Failure sending mail."），不匹配 ApiExceptionFilter
+            // 的业务异常分支，会变成 500 + 英文技术错误，前端拿不到可读信息。
+            // 统一包装为带稳定错误码的业务异常（400）：前端按当前界面语言翻译 errorArgs[0] 里的技术原因。
+            logger.LogError(ex, "邮箱验证码邮件发送失败：Purpose={Purpose}, Email={Email}", purpose, email);
+            throw new BlazorBoilerplate.Application.Localization.LocalizedApiException(
+                "identity.common.error.emailSendFailed",
+                $"验证码邮件发送失败，请稍后重试或联系管理员。原因：{ex.Message}",
+                ex.Message);
+        }
         logger.LogInformation("Audit: Email verification code sent. Purpose={Purpose}, Email={Email}", purpose, email);
     }
 

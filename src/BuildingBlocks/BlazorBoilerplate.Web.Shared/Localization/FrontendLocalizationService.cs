@@ -103,10 +103,9 @@ public sealed class FrontendLocalizationService : ILocalizationService, IDisposa
     /// 拉取失败则保留旧缓存（显示旧词好过整页 key）。culture 为空表示当前线路文化。
     /// 前提：ApiHost 侧管理模块须先失效其 store 快照，本端才能拉到新词。
     /// </summary>
-    public async Task InvalidateAsync(string? culture = null, CancellationToken cancellationToken = default)
+    public async Task RefreshCacheAsync(string? culture = null, CancellationToken cancellationToken = default)
     {
         var target = string.IsNullOrWhiteSpace(culture) ? _currentCulture : culture.Trim();
-
         try
         {
             var dict = await _api.GetLocalizationResourcesAsync(target, cancellationToken);
@@ -115,9 +114,13 @@ public sealed class FrontendLocalizationService : ILocalizationService, IDisposa
         }
         catch
         {
-            // ApiHost 暂不可达：保留旧缓存，仅广播触发重建（内容不变），避免整页变原始 key。
+            // ApiHost 暂不可达时保留已有缓存
         }
+    }
 
+    public async Task InvalidateAsync(string? culture = null, CancellationToken cancellationToken = default)
+    {
+        await RefreshCacheAsync(culture, cancellationToken);
         Interlocked.Increment(ref _version);
         GlobalChanged?.Invoke();
     }

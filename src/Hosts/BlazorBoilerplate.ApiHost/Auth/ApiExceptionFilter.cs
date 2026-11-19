@@ -25,7 +25,10 @@ public sealed class ApiExceptionFilter(ILogger<ApiExceptionFilter> logger) : IEx
             logger.LogError(ex, "API 未处理异常：{Method} {Path}",
                 context.HttpContext.Request.Method, context.HttpContext.Request.Path);
 
-        context.Result = new ObjectResult(new { error = ex.Message }) { StatusCode = status };
+        context.Result = new ObjectResult(ex is Application.Localization.LocalizedApiException localized
+            ? new { error = ex.Message, errorCode = localized.ErrorCode, errorArgs = localized.Args }
+            : new { error = ex.Message })
+        { StatusCode = status };
         context.ExceptionHandled = true;
     }
 }
