@@ -67,6 +67,7 @@
                     </div>
                     <div class="header-spacer"></div>
                     <div class="header-actions">
+                        <WidgetZone Name="header_actions" />
                         @* 通知铃铛：未读数来自 GetUnreadCountAsync，失败隐藏徽标 *@
                         <a href="/notifications" class="icon-btn header-bell" title="@L["platform.nav.notifications"]">
                             <AppIcon Name="Bell" />
@@ -104,7 +105,9 @@
                     }
                     else
                     {
+                        <WidgetZone Name="layout_body_top" />
                         @Body
+                        <WidgetZone Name="layout_body_bottom" />
                     }
                 </div>
             </div>

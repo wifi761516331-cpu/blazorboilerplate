@@ -60,16 +60,18 @@ builder.Services.AddScoped<BlazorBoilerplate.Web.Shared.Services.INavRefreshServ
     sp.GetRequiredService<BlazorBoilerplate.WebHost.Services.NavRefreshService>());
 
 // ---- 动态模块前端程序集目录（运行时注入：上传/切版本后刷新页面即生效，无需重启）----
-// 显式通过 IHttpClientFactory 创建匿名 HttpClient，避免注入到带用户会话的 Scoped HttpClient
-builder.Services.AddSingleton(sp => new BlazorBoilerplate.WebHost.Services.ModuleAssemblyCatalog(
-    sp.GetRequiredService<IHttpClientFactory>().CreateClient(),
-    sp.GetRequiredService<IConfiguration>(),
-    sp.GetRequiredService<ILogger<BlazorBoilerplate.WebHost.Services.ModuleAssemblyCatalog>>()));
+// 在 Build() 前加载一次，以支持模块前端 IModuleClientStartup / IClientService 自动注入 DI。
+var bootstrapHttp = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+using var tempProvider = builder.Services.BuildServiceProvider();
+var moduleCatalog = new BlazorBoilerplate.WebHost.Services.ModuleAssemblyCatalog(
+    bootstrapHttp,
+    builder.Configuration,
+    tempProvider.GetRequiredService<ILogger<BlazorBoilerplate.WebHost.Services.ModuleAssemblyCatalog>>());
+moduleCatalog.LoadAll();
+moduleCatalog.RegisterClientServices(builder.Services);
+builder.Services.AddSingleton(moduleCatalog);
 
 var app = builder.Build();
-
-// 启动时装载：优先 ApiHost 激活版本的模块包（版本比编译时新才替换），否则保持静态引用（开发模式）
-app.Services.GetRequiredService<BlazorBoilerplate.WebHost.Services.ModuleAssemblyCatalog>().LoadAll();
 
 if (!app.Environment.IsDevelopment())
 {

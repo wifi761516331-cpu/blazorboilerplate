@@ -2,9 +2,19 @@ using System.Threading.RateLimiting;
 using BlazorBoilerplate.ApiHost.Auth;
 using BlazorBoilerplate.ApiHost.HealthChecks;
 using BlazorBoilerplate.ApiHost.Setup;
+using BlazorBoilerplate.Application.DataExchange;
+using BlazorBoilerplate.Application.Platform;
+using BlazorBoilerplate.Application.Rules;
+using BlazorBoilerplate.Application.Search;
 using BlazorBoilerplate.Infrastructure;
 using BlazorBoilerplate.Infrastructure.Caching;
+using BlazorBoilerplate.Infrastructure.DataExchange;
 using BlazorBoilerplate.Infrastructure.Email;
+using BlazorBoilerplate.Infrastructure.Platform;
+using BlazorBoilerplate.Infrastructure.Rules;
+using BlazorBoilerplate.Infrastructure.Search;
+using BlazorBoilerplate.ModuleAbstractions;
+using BlazorBoilerplate.ModuleRuntime.Runtime;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
@@ -28,6 +38,25 @@ public static class HostPlatformExtensions
         services.AddBlazorBoilerplateEmail(configuration);
         services.AddBlazorBoilerplateAttachments(configuration, contentRootPath);
         services.AddBlazorBoilerplateModuleStorage(configuration);
+
+        var dataDir = Path.Combine(contentRootPath, "data");
+        services.AddSingleton<ISettingService>(_ => new JsonSettingService(dataDir));
+        services.AddSingleton<IActivityLogService>(_ => new JsonActivityLogService(dataDir));
+        services.AddSingleton<IMessageTemplateService>(_ => new JsonMessageTemplateService(dataDir));
+        services.AddSingleton<IQueuedEmailService>(sp => new JsonQueuedEmailService(
+            dataDir,
+            sp.GetRequiredService<Application.Abstractions.IEmailSender>(),
+            sp.GetRequiredService<ILogger<JsonQueuedEmailService>>()));
+        services.AddSingleton<IScheduleTaskManager, ModuleScheduleTaskManager>();
+        services.AddSingleton<IProviderManager>(_ => new ModuleProviderManager(dataDir));
+        services.AddSingleton<ModularAssetManager>();
+        services.AddSingleton<IRuleEngine, PlatformRuleEngine>();
+        services.AddSingleton<IDataExchangeService, PlatformDataExchangeService>();
+        services.AddSingleton<ISearchService, InMemorySearchService>();
+        services.AddSingleton<IDistributedLockService, RedisDistributedLockService>();
+        services.AddScoped<IWorkContext, HttpWorkContext>();
+        services.AddHostedService<ScheduleTaskBackgroundService>();
+        services.AddHostedService<QueuedEmailSchedulerRegistration>();
 
         services.AddSingleton<SetupStateProvider>();
         services.AddSingleton<ISetupInitializer, DefaultSetupInitializer>();
@@ -80,6 +109,27 @@ public static class HostPlatformExtensions
         });
 
         return services;
+    }
+
+    private sealed class QueuedEmailSchedulerRegistration(
+        IScheduleTaskManager manager,
+        IQueuedEmailService emailQueue) : IHostedService
+    {
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            manager.Register("platform", "platform:queued-email", new QueuedEmailTask(emailQueue));
+            return Task.CompletedTask;
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class QueuedEmailTask(IQueuedEmailService emailQueue) : IScheduleTask
+    {
+        public string Name => "邮件队列发送";
+        public int Seconds => 30;
+        public Task ExecuteAsync(CancellationToken cancellationToken) =>
+            emailQueue.ProcessPendingAsync(maxBatch: 20, maxTries: 3, cancellationToken);
     }
 }
 

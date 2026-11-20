@@ -1,0 +1,60 @@
+@using BlazorBoilerplate.ModuleAbstractions
+
+@{
+    var widgets = WidgetZoneRegistry.GetWidgets(Name);
+    var showPreview = Preview ?? WidgetZoneRegistry.PreviewEnabled;
+}
+
+@if (showPreview)
+{
+    <div style="border: 1px dashed var(--bb-pri, #0f6cbd); border-radius: 4px; padding: 0.25rem 0.5rem; margin: 0.25rem 0;">
+        <span style="font-size: 0.7rem; font-weight: 600; color: var(--bb-pri, #0f6cbd);">Zone: @Name</span>
+        @if (widgets.Count > 0)
+        {
+            @foreach (var widget in widgets)
+            {
+                <DynamicComponent Type="@widget.ComponentType" Parameters="@Parameters" />
+            }
+        }
+        @if (!(ReplaceContent && widgets.Count > 0) && ChildContent is not null)
+        {
+            @ChildContent
+        }
+    </div>
+}
+else
+{
+    @if (widgets.Count > 0)
+    {
+        @foreach (var widget in widgets)
+        {
+            <DynamicComponent Type="@widget.ComponentType" Parameters="@Parameters" />
+        }
+    }
+    @if (!(ReplaceContent && widgets.Count > 0) && ChildContent is not null)
+    {
+        @ChildContent
+    }
+}
+
+@code {
+    /// <summary>插槽区域名称（如 home_widgets_top）。</summary>
+    [Parameter, EditorRequired]
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>当该插槽已挂载微件时，是否替换默认 ChildContent（默认 false 追加渲染）。</summary>
+    [Parameter]
+    public bool ReplaceContent { get; set; }
+
+    /// <summary>是否以预览边框模式显示该插槽（为空时读取全局 WidgetZoneRegistry.PreviewEnabled）。</summary>
+    [Parameter]
+    public bool? Preview { get; set; }
+
+    /// <summary>插槽默认占位内容。</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>传递给微件组件的附加参数。</summary>
+    [Parameter]
+    public IDictionary<string, object>? Parameters { get; set; }
+}

@@ -413,6 +413,7 @@ public partial class MainLayout
         "/attachments" => "Attach",
         "/settings" => "Settings",
         "/system/settings" => "Settings",
+        "/system/operations" => "Processing",
         _ => "Grid"
     };
 }

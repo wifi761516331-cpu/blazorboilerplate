@@ -4,8 +4,11 @@
 @using BlazorBoilerplate.Shared.Features.SystemSettings
 
 <div class="sys-settings-shell">
-    <div class="sys-settings-header">
+    <div class="sys-settings-header" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
         <BitText Typography="BitTypography.H5">@L["platform.header.systemSettings.title"]</BitText>
+        <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Processing" Href="/system/operations">
+            系统运维中心
+        </BitButton>
     </div>
 
     @if (_loading)

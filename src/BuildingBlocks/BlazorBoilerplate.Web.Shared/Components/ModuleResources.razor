@@ -1,0 +1,61 @@
+@using BlazorBoilerplate.ModuleAbstractions
+@using Microsoft.AspNetCore.Components.Web
+
+@{
+    var list = ResolveResources();
+}
+
+@if (list.Count > 0)
+{
+    <HeadContent>
+        @foreach (var res in list)
+        {
+            if (res.Type == ModuleResourceType.Stylesheet)
+            {
+                <link rel="stylesheet" href="@res.Url" />
+            }
+            else
+            {
+                <script src="@res.Url" defer></script>
+            }
+        }
+    </HeadContent>
+}
+
+@code {
+    /// <summary>从指定组件类型读取 [ModuleResource] 特性声明的资源。</summary>
+    [Parameter]
+    public Type? ComponentType { get; set; }
+
+    /// <summary>显式传入的资源列表。</summary>
+    [Parameter]
+    public IReadOnlyList<ModuleResource>? Resources { get; set; }
+
+    private IReadOnlyList<ModuleResource> ResolveResources()
+    {
+        var list = new List<ModuleResource>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (ComponentType is not null)
+        {
+            foreach (var attr in ComponentType.GetCustomAttributes(typeof(ModuleResourceAttribute), inherit: false)
+                         .OfType<ModuleResourceAttribute>())
+            {
+                if (!string.IsNullOrWhiteSpace(attr.Url) && seen.Add($"{attr.Type}:{attr.Url}"))
+                    list.Add(new ModuleResource(attr.Type, attr.Url));
+            }
+        }
+
+        if (Resources is not null)
+        {
+            foreach (var res in Resources)
+            {
+                if (!string.IsNullOrWhiteSpace(res.Url) && seen.Add($"{res.Type}:{res.Url}"))
+                    list.Add(res);
+            }
+        }
+
+        return list;
+    }
+}
+

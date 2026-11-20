@@ -89,6 +89,62 @@ public sealed class ModuleAssemblyCatalog
     }
 
     /// <summary>
+    /// 扫描已加载模块前端程序集中的 IModuleClientStartup（按 Order 升序）以及
+    /// IClientService / ITransientClientService 标记服务，注册到 WebHost Blazor DI 容器。
+    /// </summary>
+    public void RegisterClientServices(IServiceCollection services)
+    {
+        var assemblies = _assemblies.Length > 0
+            ? _assemblies.ToArray()
+            : AppDomain.CurrentDomain.GetAssemblies()
+                .Where(a => !a.IsDynamic && (a.GetName().Name?.Contains(".Modules.", StringComparison.OrdinalIgnoreCase) == true))
+                .ToArray();
+
+        var startups = new List<BlazorBoilerplate.ModuleAbstractions.IModuleClientStartup>();
+        foreach (var asm in assemblies)
+        {
+            Type[] types;
+            try { types = asm.GetTypes(); }
+            catch (ReflectionTypeLoadException ex) { types = ex.Types.Where(t => t is not null).ToArray()!; }
+
+            foreach (var t in types.Where(t => t.IsClass && !t.IsAbstract))
+            {
+                if (typeof(BlazorBoilerplate.ModuleAbstractions.IModuleClientStartup).IsAssignableFrom(t) &&
+                    t.GetConstructor(Type.EmptyTypes) is not null)
+                {
+                    startups.Add((BlazorBoilerplate.ModuleAbstractions.IModuleClientStartup)Activator.CreateInstance(t)!);
+                }
+
+                if (typeof(BlazorBoilerplate.ModuleAbstractions.IClientService).IsAssignableFrom(t))
+                    RegisterMarkedService(services, t, ServiceLifetime.Scoped);
+                else if (typeof(BlazorBoilerplate.ModuleAbstractions.ITransientClientService).IsAssignableFrom(t))
+                    RegisterMarkedService(services, t, ServiceLifetime.Transient);
+            }
+        }
+
+        foreach (var s in startups.OrderBy(x => x.Order).ThenBy(x => x.GetType().FullName, StringComparer.Ordinal))
+            s.ConfigureServices(services);
+    }
+
+    private static void RegisterMarkedService(IServiceCollection services, Type implType, ServiceLifetime lifetime)
+    {
+        var interfaces = implType.GetInterfaces()
+            .Where(i => i != typeof(BlazorBoilerplate.ModuleAbstractions.IClientService)
+                     && i != typeof(BlazorBoilerplate.ModuleAbstractions.ITransientClientService))
+            .ToArray();
+
+        if (interfaces.Length > 0)
+        {
+            foreach (var iface in interfaces)
+                services.Add(new ServiceDescriptor(iface, implType, lifetime));
+        }
+        else
+        {
+            services.Add(new ServiceDescriptor(implType, implType, lifetime));
+        }
+    }
+
+    /// <summary>
     /// 运行时刷新单个模块（上传新版本 / 切换激活版本 / 加载或卸载成功后由页面调用，进程内即时生效）。
     /// 返回 true 表示程序集发生了替换或移除。
     /// </summary>
@@ -180,7 +236,17 @@ public sealed class ModuleAssemblyCatalog
         Assembly loaded;
         try
         {
-            loaded = context.LoadFromAssemblyPath(dll);
+            using var dllStream = new MemoryStream(File.ReadAllBytes(dll));
+            var pdb = Path.ChangeExtension(dll, ".pdb");
+            if (File.Exists(pdb))
+            {
+                using var pdbStream = new MemoryStream(File.ReadAllBytes(pdb));
+                loaded = context.LoadFromStream(dllStream, pdbStream);
+            }
+            else
+            {
+                loaded = context.LoadFromStream(dllStream);
+            }
         }
         catch
         {

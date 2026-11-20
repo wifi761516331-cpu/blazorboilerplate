@@ -12,6 +12,12 @@ public static class ModuleManagementEndpoints
 {
     public static void MapModuleManagementEndpoints(this IEndpointRouteBuilder app)
     {
+        app.MapGet("/_modules/assets/{moduleId}/{**path}", (string moduleId, string path, ModularAssetManager assets) =>
+            assets.TryResolveFile(moduleId, path, out var fullPath, out var contentType)
+                ? Results.File(fullPath, contentType)
+                : Results.NotFound())
+            .AllowAnonymous();
+
         var group = app.MapGroup("/api/modules").WithTags("Modules");
 
         group.MapGet("/", (ModuleLifecycleManager manager) => Results.Ok(manager.List()))
