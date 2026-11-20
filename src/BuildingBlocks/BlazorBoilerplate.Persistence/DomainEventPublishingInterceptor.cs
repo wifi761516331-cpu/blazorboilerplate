@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using BlazorBoilerplate.Domain;
 using BlazorBoilerplate.Domain.Events;
 using Microsoft.EntityFrameworkCore;
@@ -8,17 +9,31 @@ using Microsoft.Extensions.Logging;
 namespace BlazorBoilerplate.Persistence;
 
 /// <summary>
-/// 写后领域事件发布拦截器：在 SaveChanges 成功提交后收集 <see cref="IDomainEventProducer.DomainEvents"/>，
+/// 写后领域事件与实体 CRUD 事件发布拦截器：
+/// 在 SaveChanges 成功提交后收集显式 <see cref="IDomainEventProducer.DomainEvents"/> 及 EF 追踪的实体增删改状态，
 /// 逐个经 <see cref="IEventPublisher"/> 发布，随后清空。
-/// <para>
-/// 发布放在提交之后：数据已落库，订阅侧失败不影响写侧语义（记日志、不重抛）。
-/// 发布器从构造时传入的宿主/模块 ServiceProvider 解析，缺失时静默跳过（Setup 阶段无事件总线也可启动）。
-/// </para>
 /// </summary>
 public sealed class DomainEventPublishingInterceptor(
     IServiceProvider? services = null,
     ILogger<DomainEventPublishingInterceptor>? logger = null) : SaveChangesInterceptor
 {
+    private readonly ConditionalWeakTable<DbContext, List<(EntityState State, object Entity)>> _pendingChanges = new();
+
+    public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
+    {
+        CaptureEntityChanges(eventData.Context);
+        return base.SavingChanges(eventData, result);
+    }
+
+    public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+        DbContextEventData eventData,
+        InterceptionResult<int> result,
+        CancellationToken cancellationToken = default)
+    {
+        CaptureEntityChanges(eventData.Context);
+        return base.SavingChangesAsync(eventData, result, cancellationToken);
+    }
+
     public override async ValueTask<int> SavedChangesAsync(
         SaveChangesCompletedEventData eventData,
         int result,
@@ -34,34 +49,68 @@ public sealed class DomainEventPublishingInterceptor(
         return base.SavedChanges(eventData, result);
     }
 
+    private void CaptureEntityChanges(DbContext? context)
+    {
+        if (context is null || services is null)
+            return;
+
+        var captured = context.ChangeTracker.Entries()
+            .Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
+            .Select(e => (e.State, e.Entity))
+            .ToList();
+
+        if (captured.Count > 0)
+        {
+            _pendingChanges.Remove(context);
+            _pendingChanges.Add(context, captured);
+        }
+    }
+
     private async Task PublishAsync(DbContext? context, CancellationToken cancellationToken)
     {
         if (context is null || services is null)
             return;
 
-        var events = context.ChangeTracker.Entries()
+        var publisher = services.GetService<IEventPublisher>();
+        var events = new List<IDomainEvent>();
+
+        var explicitProducers = context.ChangeTracker.Entries()
             .Select(e => e.Entity)
             .OfType<IDomainEventProducer>()
-            .SelectMany(p => p.DomainEvents.ToArray())
             .ToArray();
 
-        if (events.Length == 0)
-            return;
-
-        var publisher = services.GetService<IEventPublisher>();
-        if (publisher is null)
-            return;
-
-        foreach (var producer in context.ChangeTracker.Entries()
-                     .Select(e => e.Entity)
-                     .OfType<IDomainEventProducer>())
+        foreach (var producer in explicitProducers)
+        {
+            events.AddRange(producer.DomainEvents);
             producer.ClearDomainEvents();
+        }
+
+        if (_pendingChanges.TryGetValue(context, out var entityChanges))
+        {
+            _pendingChanges.Remove(context);
+            foreach (var (state, entity) in entityChanges)
+            {
+                var genericDef = state switch
+                {
+                    EntityState.Added => typeof(EntityInsertedEvent<>),
+                    EntityState.Modified => typeof(EntityUpdatedEvent<>),
+                    EntityState.Deleted => typeof(EntityDeletedEvent<>),
+                    _ => null
+                };
+                if (genericDef is null) continue;
+                var eventType = genericDef.MakeGenericType(entity.GetType());
+                if (Activator.CreateInstance(eventType, entity) is IDomainEvent evt)
+                    events.Add(evt);
+            }
+        }
+
+        if (events.Count == 0 || publisher is null)
+            return;
 
         foreach (var domainEvent in events)
         {
             try
             {
-                // 反射调用泛型 PublishAsync（运行时事件类型）。
                 var method = typeof(IEventPublisher).GetMethod(nameof(IEventPublisher.PublishAsync))!
                     .MakeGenericMethod(domainEvent.GetType());
                 var task = (Task)method.Invoke(publisher, [domainEvent, cancellationToken])!;
