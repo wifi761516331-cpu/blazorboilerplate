@@ -1,7 +1,11 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using BlazorBoilerplate.Application.Abstractions;
+using BlazorBoilerplate.Application.DataExchange;
 using BlazorBoilerplate.Application.Localization;
+using BlazorBoilerplate.Application.Platform;
+using BlazorBoilerplate.Application.Rules;
+using BlazorBoilerplate.Application.Search;
 using BlazorBoilerplate.Domain.Events;
 using BlazorBoilerplate.Infrastructure.Events;
 using BlazorBoilerplate.ModuleAbstractions;
@@ -289,7 +293,7 @@ public sealed class ModuleLifecycleManager(
 
         try
         {
-            var assembly = alc.LoadFromAssemblyPath(package.EntryAssemblyPath);
+            var assembly = alc.LoadAssemblyNoLock(package.EntryAssemblyPath);
             var entryType = assembly.GetType(package.Manifest.EntryType, throwOnError: true)!;
             if (!typeof(IModule).IsAssignableFrom(entryType))
                 throw new InvalidOperationException(
@@ -298,6 +302,17 @@ public sealed class ModuleLifecycleManager(
 
             var module = (IModule)Activator.CreateInstance(entryType)!;
             handle.Module = module;
+
+            var startups = assembly.GetTypes()
+                .Where(t => t != entryType
+                    && t.IsClass
+                    && !t.IsAbstract
+                    && typeof(IModuleStartup).IsAssignableFrom(t)
+                    && t.GetConstructor(Type.EmptyTypes) is not null)
+                .Select(t => (IModuleStartup)Activator.CreateInstance(t)!)
+                .OrderBy(s => s.Order)
+                .ThenBy(s => s.GetType().FullName, StringComparer.Ordinal)
+                .ToArray();
 
             var services = new ServiceCollection();
             services.AddSingleton(loggerFactory);
@@ -314,7 +329,32 @@ public sealed class ModuleLifecycleManager(
             {
                 services.AddSingleton(currentUser);
             }
+            if (hostServices.GetService(typeof(ISettingService)) is ISettingService settingService)
+                services.AddSingleton(settingService);
+            if (hostServices.GetService(typeof(IActivityLogService)) is IActivityLogService activityLog)
+                services.AddSingleton(activityLog);
+            if (hostServices.GetService(typeof(IMessageTemplateService)) is IMessageTemplateService messageTemplate)
+                services.AddSingleton(messageTemplate);
+            if (hostServices.GetService(typeof(IQueuedEmailService)) is IQueuedEmailService queuedEmail)
+                services.AddSingleton(queuedEmail);
+            if (hostServices.GetService(typeof(ICacheService)) is ICacheService cacheService)
+                services.AddSingleton(cacheService);
+            if (hostServices.GetService(typeof(IScheduleTaskManager)) is IScheduleTaskManager scheduleTasks)
+                services.AddSingleton(scheduleTasks);
+            if (hostServices.GetService(typeof(IProviderManager)) is IProviderManager providerManager)
+                services.AddSingleton(providerManager);
+            if (hostServices.GetService(typeof(IRuleEngine)) is IRuleEngine ruleEngine)
+                services.AddSingleton(ruleEngine);
+            if (hostServices.GetService(typeof(IDataExchangeService)) is IDataExchangeService dataExchange)
+                services.AddSingleton(dataExchange);
+            if (hostServices.GetService(typeof(ISearchService)) is ISearchService searchService)
+                services.AddSingleton(searchService);
+            if (hostServices.GetService(typeof(IDistributedLockService)) is IDistributedLockService lockService)
+                services.AddSingleton(lockService);
             module.ConfigureServices(services, handle);
+            foreach (var startup in startups)
+                startup.ConfigureServices(services, handle);
+
             var provider = services.BuildServiceProvider(new ServiceProviderOptions
             {
                 ValidateScopes = true,
@@ -324,6 +364,8 @@ public sealed class ModuleLifecycleManager(
 
             var collector = new EndpointCollector();
             module.MapEndpoints(collector, provider);
+            foreach (var startup in startups)
+                startup.MapEndpoints(collector, provider);
             handle.Definitions = collector.Definitions
                 .Select(d => new ModuleEndpointDefinition
                 {
@@ -344,14 +386,15 @@ public sealed class ModuleLifecycleManager(
             // → SQLite Error 1: 'no such table: LocResources'。钩子里的迁移步骤会从 ILocalizationRegistry
             // 统一同步包括本模块在内的全部存量词条，因此推迟挂载不会丢词条。
 
-            // 扫描模块程序集中标记 [Subscribe] 的处理器，注册到宿主 EventBus 的弱引用表。
+            // 扫描模块程序集中标记 [Subscribe] 或实现 IConsumer<T> 的处理器，注册到宿主 EventBus 的弱引用表。
             // 强引用由 handle.EventHandlers 持有（生命周期跟随模块）；卸载时显式摘除订阅。
             var eventBus = hostServices.GetService<EventBus>();
             if (eventBus is not null)
             {
                 var handlerTypes = assembly.GetTypes()
                     .Where(t => t.IsClass && !t.IsAbstract
-                        && t.GetCustomAttributes(typeof(SubscribeAttribute), inherit: false).Length > 0)
+                        && (t.GetCustomAttributes(typeof(SubscribeAttribute), inherit: false).Length > 0
+                            || t.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IConsumer<>))))
                     .ToArray();
                 if (handlerTypes.Length > 0)
                 {
@@ -366,6 +409,28 @@ public sealed class ModuleLifecycleManager(
                 }
             }
 
+            // 扫描并注册模块计划任务（IScheduleTask）
+            if (hostServices.GetService<IScheduleTaskManager>() is { } taskManager)
+            {
+                var taskTypes = assembly.GetTypes()
+                    .Where(t => t.IsClass && !t.IsAbstract && typeof(IScheduleTask).IsAssignableFrom(t))
+                    .ToArray();
+                foreach (var taskType in taskTypes)
+                {
+                    var taskInstance = (IScheduleTask)ActivatorUtilities.CreateInstance(provider, taskType);
+                    taskManager.Register(id, $"{id}:{taskType.FullName}", taskInstance);
+                }
+            }
+
+            // 扫描并注册模块策略提供者（IProvider）与模块包内静态资源目录
+            if (hostServices.GetService<IProviderManager>() is ModuleProviderManager pm)
+                pm.RegisterModuleProviders(id, assembly, provider);
+            if (hostServices.GetService<ModularAssetManager>() is { } assetMgr)
+                assetMgr.RegisterModule(id, entry.Descriptor.PackagePath);
+
+            // 触发首次安装或跨版本升级业务钩子（IModuleLifecycleHooks）
+            await RunInstallOrUpdateHooksAsync(id, entry.Descriptor.Version, module, assembly, provider, handle, cancellationToken);
+
             registry.Register(id, entry.Descriptor.Version, handle.Definitions);
             _handles[id] = handle;
             catalog.SetState(id, ModuleState.Running);
@@ -378,6 +443,10 @@ public sealed class ModuleLifecycleManager(
         {
             logger.LogError(ex, "Module load failed. Id={Id}", id);
             registry.Remove(id);
+            (hostServices.GetService<IProviderManager>() as ModuleProviderManager)?.UnregisterModule(id);
+            hostServices.GetService<ModularAssetManager>()?.UnregisterModule(id);
+            WidgetZoneRegistry.UnregisterModule(id);
+            hostServices.GetService<IScheduleTaskManager>()?.UnregisterModule(id);
             hostServices.GetService<ILocalizationStoreBridge>()?.Detach(id);
             hostServices.GetService<EventBus>()?.UnsubscribeModule(id);
             handle.EventHandlers = null;
@@ -421,7 +490,8 @@ public sealed class ModuleLifecycleManager(
             await handle.Module.DrainAsync(cancellationToken);
             await handle.Module.StopAsync(cancellationToken);
 
-            // 停止接收该模块的新事件，并释放 handler 强引用。
+            // 停止接收该模块的新事件与计划任务，并释放 handler 强引用。
+            hostServices.GetService<IScheduleTaskManager>()?.UnregisterModule(id);
             hostServices.GetService<EventBus>()?.UnsubscribeModule(id);
             handle.EventHandlers = null;
 
@@ -450,12 +520,86 @@ public sealed class ModuleLifecycleManager(
         {
             catalog.SetState(id, ModuleState.Failed, ex.Message);
             registry.Remove(id);
+            (hostServices.GetService<IProviderManager>() as ModuleProviderManager)?.UnregisterModule(id);
+            hostServices.GetService<ModularAssetManager>()?.UnregisterModule(id);
+            WidgetZoneRegistry.UnregisterModule(id);
+            hostServices.GetService<IScheduleTaskManager>()?.UnregisterModule(id);
             hostServices.GetService<ILocalizationStoreBridge>()?.Detach(id);
             hostServices.GetService<EventBus>()?.UnsubscribeModule(id);
             handle.EventHandlers = null;
             await SafeDisposeAsync(handle, cancellationToken);
             throw;
         }
+    }
+
+    private static async Task RunInstallOrUpdateHooksAsync(
+        string id,
+        string targetVersion,
+        IModule module,
+        System.Reflection.Assembly assembly,
+        IServiceProvider provider,
+        IModuleContext context,
+        CancellationToken ct)
+    {
+        var hookInstances = new List<IModuleLifecycleHooks>();
+        if (module is IModuleLifecycleHooks entryHook)
+            hookInstances.Add(entryHook);
+
+        var extraHookTypes = assembly.GetTypes()
+            .Where(t => t != module.GetType()
+                && t.IsClass
+                && !t.IsAbstract
+                && typeof(IModuleLifecycleHooks).IsAssignableFrom(t))
+            .ToArray();
+        foreach (var t in extraHookTypes)
+            hookInstances.Add((IModuleLifecycleHooks)ActivatorUtilities.CreateInstance(provider, t));
+
+        var stateFile = Path.Combine(AppContext.BaseDirectory, "data", "module-lifecycle-versions.json");
+        var versions = LoadLifecycleVersions(stateFile);
+        versions.TryGetValue(id, out var previousVersion);
+
+        if (hookInstances.Count > 0)
+        {
+            if (string.IsNullOrWhiteSpace(previousVersion))
+            {
+                foreach (var hook in hookInstances)
+                    await hook.InstallAsync(context, ct);
+            }
+            else if (!string.Equals(previousVersion, targetVersion, StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var hook in hookInstances)
+                    await hook.UpdateAsync(context, previousVersion, targetVersion, ct);
+            }
+        }
+
+        if (!string.Equals(previousVersion, targetVersion, StringComparison.OrdinalIgnoreCase))
+        {
+            versions[id] = targetVersion;
+            SaveLifecycleVersions(stateFile, versions);
+        }
+    }
+
+    private static Dictionary<string, string> LoadLifecycleVersions(string filePath)
+    {
+        if (!File.Exists(filePath))
+            return new(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var json = File.ReadAllText(filePath);
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(json)
+                ?? new(StringComparer.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return new(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private static void SaveLifecycleVersions(string filePath, Dictionary<string, string> versions)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+        var json = JsonSerializer.Serialize(versions, new JsonSerializerOptions { WriteIndented = true });
+        File.WriteAllText(filePath, json);
     }
 
     private static RequestDelegate Wrap(ModuleHandle handle, RequestDelegate inner) => async context =>

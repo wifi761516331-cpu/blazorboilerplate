@@ -44,10 +44,9 @@ public sealed class ModuleManifest
     public string HostCompatibility { get; set; } = ">=1.0.0 <2.0.0";
 
     /// <summary>
-    /// nopCommerce 风格的加载顺序。数值越小越先加载；相等时按 Id 排序保证确定性。
-    /// 允许在中间任意插入模块而无需改动其他模块。
+    /// 模块加载顺序。数值越小越先加载；普通模块默认 3000，特殊基础模块可使用更小序号。
     /// </summary>
-    public int DisplayOrder { get; set; }
+    public int DisplayOrder { get; set; } = ModuleStartupDefaults.DefaultOrder;
 
     /// <summary>
     /// 依赖的模块 Id 清单（nopCommerce 的 DependsOnSystemNames）。
@@ -116,7 +115,7 @@ public sealed record ModuleDescriptor(
     DateTimeOffset? LoadedAtUtc,
     string? Error,
     string[] Permissions,
-    int Order = 0,
+    int Order = ModuleStartupDefaults.DefaultOrder,
     bool IsEssential = false,
     int VersionCount = 1,
     string? DisplayName = null)
@@ -160,6 +159,29 @@ public interface IModuleContext
     CancellationToken HostStopping { get; }
 }
 
+/// <summary>模块启动顺序常量（普通模块默认 3000）。</summary>
+public static class ModuleStartupDefaults
+{
+    /// <summary>普通模块默认启动顺序。</summary>
+    public const int DefaultOrder = 3000;
+}
+
+/// <summary>
+/// 模块启动配置契约。
+/// 模块程序集内可定义零个或多个实现，运行时按 Order 升序依次执行服务注册与端点映射。
+/// </summary>
+public interface IModuleStartup
+{
+    /// <summary>注册模块服务。</summary>
+    void ConfigureServices(IServiceCollection services, IModuleContext context);
+
+    /// <summary>映射模块端点（可选，默认空实现）。</summary>
+    void MapEndpoints(IModuleEndpointBuilder builder, IServiceProvider moduleServices) { }
+
+    /// <summary>启动配置顺序（默认 3000，仅特殊模块指定其他序号）。</summary>
+    int Order => ModuleStartupDefaults.DefaultOrder;
+}
+
 public interface IModule : IAsyncDisposable
 {
     void ConfigureServices(IServiceCollection services, IModuleContext context);
@@ -168,6 +190,21 @@ public interface IModule : IAsyncDisposable
     Task StopAcceptingAsync(CancellationToken cancellationToken);
     Task DrainAsync(CancellationToken cancellationToken);
     Task StopAsync(CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// 模块安装/升级/卸载业务钩子。
+/// </summary>
+public interface IModuleLifecycleHooks
+{
+    /// <summary>首次安装模块时触发。</summary>
+    Task InstallAsync(IModuleContext context, CancellationToken cancellationToken) => Task.CompletedTask;
+
+    /// <summary>模块跨版本升级时触发。</summary>
+    Task UpdateAsync(IModuleContext context, string previousVersion, string targetVersion, CancellationToken cancellationToken) => Task.CompletedTask;
+
+    /// <summary>彻底卸载模块时触发。</summary>
+    Task UninstallAsync(IModuleContext context, CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
 public sealed record ModuleAuditEntry(

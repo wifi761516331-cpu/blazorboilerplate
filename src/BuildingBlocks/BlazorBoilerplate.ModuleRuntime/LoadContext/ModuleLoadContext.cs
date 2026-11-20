@@ -59,7 +59,23 @@ public sealed class ModuleLoadContext : AssemblyLoadContext
         }
 
         var path = _resolver.ResolveAssemblyToPath(assemblyName);
-        return path is null ? null : LoadFromAssemblyPath(path);
+        return path is null ? null : LoadAssemblyNoLock(path);
+    }
+
+    /// <summary>
+    /// 从内存流加载程序集（含可选 .pdb），避免操作系统对磁盘 DLL 持有文件句柄锁，
+    /// 确保模块停止、切换版本或卸载后可立即删除磁盘目录与 DLL。
+    /// </summary>
+    public Assembly LoadAssemblyNoLock(string assemblyPath)
+    {
+        using var dllStream = new MemoryStream(File.ReadAllBytes(assemblyPath));
+        var pdbPath = Path.ChangeExtension(assemblyPath, ".pdb");
+        if (File.Exists(pdbPath))
+        {
+            using var pdbStream = new MemoryStream(File.ReadAllBytes(pdbPath));
+            return LoadFromStream(dllStream, pdbStream);
+        }
+        return LoadFromStream(dllStream);
     }
 
     protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
