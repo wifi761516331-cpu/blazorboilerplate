@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using BlazorBoilerplate.ApiHost.Auth;
-using BlazorBoilerplate.ApiHost.Hubs;
 using BlazorBoilerplate.Application.OData;
 using BlazorBoilerplate.ModuleAbstractions;
 using Microsoft.AspNetCore.SignalR;
@@ -338,7 +337,7 @@ public sealed class UserController(IdentityDbContext db, JwtTokenService tokens,
         await Db.SaveChangesAsync(cancellationToken);
         if (revokedIds.Count > 0)
         {
-            var hub = HttpContext.RequestServices.GetRequiredService<IHubContext<AppHub>>();
+            var hub = HttpContext.RequestServices.GetRequiredService<IAppHubNotifier>();
             await TenantValidator.NotifySessionsRevokedAsync(hub, revokedIds, tenantId, "left_tenant", cancellationToken);
         }
     }
@@ -541,7 +540,7 @@ public sealed class TenantController(
         await Db.SaveChangesAsync(cancellationToken);
         if (revokedIds.Count > 0)
         {
-            var hub = HttpContext.RequestServices.GetRequiredService<IHubContext<AppHub>>();
+            var hub = HttpContext.RequestServices.GetRequiredService<IAppHubNotifier>();
             await TenantValidator.NotifySessionsRevokedAsync(hub, revokedIds, tenantId, "kicked_from_tenant", cancellationToken);
         }
     }
@@ -690,10 +689,8 @@ public sealed class TenantManagementController(
         await Db.SaveChangesAsync(cancellationToken);
         if (revokedSessionIds.Count > 0)
         {
-            var hub = HttpContext.RequestServices.GetRequiredService<IHubContext<AppHub>>();
-            await Task.WhenAll(revokedSessionIds.Select(sid =>
-                hub.Clients.Group(AppHub.SessionGroup(sid))
-                    .SendAsync(AppHub.SessionRevokedMethod, new { tenantId = tenant.Id, reason = "tenant_deactivated" }, cancellationToken)));
+            var hub = HttpContext.RequestServices.GetRequiredService<IAppHubNotifier>();
+            await TenantValidator.NotifySessionsRevokedAsync(hub, revokedSessionIds, tenant.Id, "tenant_deactivated", cancellationToken);
         }
         TenantHttpItems.InvalidateLookupCache(cache);
         return new TenantDto(tenant.Id, tenant.Name, tenant.Title, tenant.Domain, tenant.IsActive, true, tenant.Id == TenantId);

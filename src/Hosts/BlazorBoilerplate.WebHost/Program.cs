@@ -103,7 +103,8 @@ app.UseAntiforgery();
 // 同源 /auth/*：登录、刷新、切换账号/租户、多账号列表、登出（JS 只拿 accountId，不接触令牌）。
 app.MapWebAuthEndpoints();
 
-// 同源 BFF 反向代理：将 WASM 端的 /api/* 转发至 ApiHost（服务端注入 Bearer 与 X-Tenant-Host）。
+// 同源 BFF 反向代理：将 WASM 端的 /api/* 与 /hubs/*（含 WebSocket）转发至 ApiHost（服务端注入 Bearer 与 X-Tenant-Host）。
+app.UseWebSockets();
 app.MapBffApiProxy();
 
 // 动态模块前端样式、版本清单、DLL 与渲染策略切换端点。

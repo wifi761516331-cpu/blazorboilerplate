@@ -4,6 +4,8 @@ using BlazorBoilerplate.ApiHost.Modules;
 using BlazorBoilerplate.ApiHost.Services;
 using BlazorBoilerplate.ApiHost.Setup;
 using BlazorBoilerplate.ModuleRuntime;
+using BlazorBoilerplate.ModuleRuntime.Realtime;
+using BlazorBoilerplate.ModuleAbstractions;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -40,7 +42,7 @@ app.MapOpenApi("/openapi/v1.json");
 app.MapSetupEndpoints();
 app.MapModuleManagementEndpoints();
 app.MapControllers();
-app.MapHub<BlazorBoilerplate.ApiHost.Hubs.AppHub>(BlazorBoilerplate.ApiHost.Hubs.AppHub.HubPath);
+app.MapHub<AppHub>(AppHubRoutes.HubPath);
 
 await app.InitializeModulesOnStartupAsync();
 

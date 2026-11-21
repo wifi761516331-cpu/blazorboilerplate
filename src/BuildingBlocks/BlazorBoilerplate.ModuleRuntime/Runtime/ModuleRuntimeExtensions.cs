@@ -1,7 +1,9 @@
 using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.ModuleRuntime.Endpoints;
 using BlazorBoilerplate.ModuleRuntime.LoadContext;
+using BlazorBoilerplate.ModuleRuntime.Realtime;
 using BlazorBoilerplate.ModuleRuntime.Runtime;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,7 +29,16 @@ public static class ModuleRuntimeServiceCollectionExtensions
         services.AddSingleton<ModuleEndpointDataSource>();
         services.AddSingleton<ModuleEndpointRegistry>();
         services.AddSingleton<ModuleLifecycleManager>();
+        services.AddSingleton<IAppHubExtensionRegistry, AppHubExtensionRegistry>();
+        services.AddSingleton<IAppHubNotifier, AppHubNotifier>();
         return services;
+    }
+
+    /// <summary>挂载平台统一实时推送 Hub（/hubs/app）。</summary>
+    public static IEndpointRouteBuilder MapPlatformHub(this IEndpointRouteBuilder endpoints)
+    {
+        endpoints.MapHub<AppHub>(AppHubRoutes.HubPath);
+        return endpoints;
     }
 
     /// <summary>

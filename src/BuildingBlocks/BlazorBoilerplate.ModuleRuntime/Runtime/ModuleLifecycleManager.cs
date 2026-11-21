@@ -352,6 +352,8 @@ public sealed class ModuleLifecycleManager(
                 services.AddSingleton(searchService);
             if (hostServices.GetService(typeof(IDistributedLockService)) is IDistributedLockService lockService)
                 services.AddSingleton(lockService);
+            if (hostServices.GetService(typeof(IAppHubNotifier)) is IAppHubNotifier appHubNotifier)
+                services.AddSingleton(appHubNotifier);
             module.ConfigureServices(services, handle);
             foreach (var startup in startups)
                 startup.ConfigureServices(services, handle);
@@ -426,6 +428,14 @@ public sealed class ModuleLifecycleManager(
             // 扫描并注册模块策略提供者（IProvider）与模块包内静态资源目录
             if (hostServices.GetService<IProviderManager>() is ModuleProviderManager pm)
                 pm.RegisterModuleProviders(id, assembly, provider);
+            if (hostServices.GetService<IAppHubExtensionRegistry>() is { } hubRegistry)
+            {
+                var extensions = assembly.GetTypes()
+                    .Where(t => t.IsClass && !t.IsAbstract && typeof(IAppHubExtension).IsAssignableFrom(t))
+                    .Select(t => (IAppHubExtension)ActivatorUtilities.CreateInstance(provider, t))
+                    .ToArray();
+                hubRegistry.RegisterModule(id, extensions);
+            }
             if (hostServices.GetService<ModularAssetManager>() is { } assetMgr)
                 assetMgr.RegisterModule(id, entry.Descriptor.PackagePath);
 
@@ -445,6 +455,7 @@ public sealed class ModuleLifecycleManager(
             logger.LogError(ex, "Module load failed. Id={Id}", id);
             registry.Remove(id);
             (hostServices.GetService<IProviderManager>() as ModuleProviderManager)?.UnregisterModule(id);
+            hostServices.GetService<IAppHubExtensionRegistry>()?.UnregisterModule(id);
             hostServices.GetService<ModularAssetManager>()?.UnregisterModule(id);
             WidgetZoneRegistry.UnregisterModule(id);
             hostServices.GetService<IScheduleTaskManager>()?.UnregisterModule(id);
@@ -491,7 +502,8 @@ public sealed class ModuleLifecycleManager(
             await handle.Module.DrainAsync(cancellationToken);
             await handle.Module.StopAsync(cancellationToken);
 
-            // 停止接收该模块的新事件与计划任务，并释放 handler 强引用。
+            // 停止接收该模块的新事件、计划任务与 SignalR Hub 扩展，并释放 handler 强引用。
+            hostServices.GetService<IAppHubExtensionRegistry>()?.UnregisterModule(id);
             hostServices.GetService<IScheduleTaskManager>()?.UnregisterModule(id);
             hostServices.GetService<EventBus>()?.UnsubscribeModule(id);
             handle.EventHandlers = null;
@@ -522,6 +534,7 @@ public sealed class ModuleLifecycleManager(
             catalog.SetState(id, ModuleState.Failed, ex.Message);
             registry.Remove(id);
             (hostServices.GetService<IProviderManager>() as ModuleProviderManager)?.UnregisterModule(id);
+            hostServices.GetService<IAppHubExtensionRegistry>()?.UnregisterModule(id);
             hostServices.GetService<ModularAssetManager>()?.UnregisterModule(id);
             WidgetZoneRegistry.UnregisterModule(id);
             hostServices.GetService<IScheduleTaskManager>()?.UnregisterModule(id);

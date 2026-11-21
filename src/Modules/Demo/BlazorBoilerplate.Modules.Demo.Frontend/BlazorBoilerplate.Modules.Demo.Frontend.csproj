@@ -12,6 +12,7 @@
   <ItemGroup>
     <PackageReference Include="Bit.BlazorUI" />
     <PackageReference Include="Bit.BlazorUI.Extras" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,4 +1,3 @@
-using BlazorBoilerplate.ApiHost.Hubs;
 using BlazorBoilerplate.Application.Abstractions;
 using BlazorBoilerplate.Infrastructure.Email;
 using BlazorBoilerplate.ModuleAbstractions;
@@ -259,7 +258,7 @@ public static class TenantValidator
     }
 
     public static Task NotifySessionsRevokedAsync(
-        IHubContext<AppHub> hub,
+        IAppHubNotifier hub,
         IReadOnlyCollection<Guid> sessionIds,
         Guid tenantId,
         string reason,
@@ -267,6 +266,5 @@ public static class TenantValidator
         sessionIds.Count == 0
             ? Task.CompletedTask
             : Task.WhenAll(sessionIds.Select(sid =>
-                hub.Clients.Group(AppHub.SessionGroup(sid))
-                    .SendAsync(AppHub.SessionRevokedMethod, new { tenantId, reason }, ct)));
+                hub.SendToSessionAsync(sid, AppHubRoutes.SessionRevokedMethod, new { tenantId, reason }, ct)));
 }
