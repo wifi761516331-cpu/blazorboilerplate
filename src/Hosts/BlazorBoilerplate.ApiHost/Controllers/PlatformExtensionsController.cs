@@ -1,4 +1,6 @@
+using System.Globalization;
 using BlazorBoilerplate.ApiHost.Auth;
+using BlazorBoilerplate.Application.OData;
 using BlazorBoilerplate.Application.Platform;
 using BlazorBoilerplate.Application.Search;
 using BlazorBoilerplate.ModuleAbstractions;
@@ -54,6 +56,35 @@ public sealed class PlatformExtensionsController(
         CancellationToken cancellationToken = default) =>
         activityLogs.QueryAsync(keyword, systemKeyword, take, cancellationToken);
 
+    private static readonly ODataFieldMap LogFieldMap = new(["createdatutc", "systemkeyword", "comment", "username", "entityname"]);
+    private static readonly ODataQueryApplier<ActivityLogEntry> LogApplier = new(
+        LogFieldMap,
+        (l, f) => f.ToLowerInvariant() switch
+        {
+            "createdatutc" => l.CreatedAtUtc,
+            "systemkeyword" => l.SystemKeyword,
+            "comment" => l.Comment,
+            "username" => l.UserName,
+            "entityname" => l.EntityName,
+            _ => null
+        },
+        (f, raw) => f.ToLowerInvariant() switch
+        {
+            "createdatutc" => DateTimeOffset.Parse(raw, CultureInfo.InvariantCulture),
+            _ => raw
+        });
+
+    /// <summary>活动日志（OData 分页/排序/筛选）</summary>
+    [HttpGet]
+    [RequirePermission("system.settings.read")]
+    public async Task<ODataPage<ActivityLogEntry>> QueryActivityLogsOData(
+        [FromQuery] string? keyword = null,
+        CancellationToken cancellationToken = default)
+    {
+        var items = await activityLogs.QueryAsync(keyword, null, 500, cancellationToken);
+        return LogApplier.Apply(items, ParseODataQuery());
+    }
+
     /// <summary>消息模板</summary>
     [HttpGet]
     [RequirePermission("system.settings.read")]
@@ -85,6 +116,55 @@ public sealed class PlatformExtensionsController(
         [FromQuery] int take = 100,
         CancellationToken cancellationToken = default) =>
         queuedEmails.QueryAsync(pendingOnly, take, cancellationToken);
+
+    private static readonly ODataFieldMap EmailFieldMap = new(["to", "subject", "priority", "senttries", "createdonutc", "sentonutc"]);
+    private static readonly ODataQueryApplier<QueuedEmailItem> EmailApplier = new(
+        EmailFieldMap,
+        (e, f) => f.ToLowerInvariant() switch
+        {
+            "to" => e.To,
+            "subject" => e.Subject,
+            "priority" => e.Priority,
+            "senttries" => e.SentTries,
+            "createdonutc" => e.CreatedOnUtc,
+            "sentonutc" => e.SentOnUtc,
+            _ => null
+        },
+        (f, raw) => f.ToLowerInvariant() switch
+        {
+            "priority" or "senttries" => int.Parse(raw, CultureInfo.InvariantCulture),
+            "createdonutc" or "sentonutc" => DateTimeOffset.Parse(raw, CultureInfo.InvariantCulture),
+            _ => raw
+        });
+
+    /// <summary>邮件队列（OData 分页/排序/筛选）</summary>
+    [HttpGet]
+    [RequirePermission("system.settings.read")]
+    public async Task<ODataPage<QueuedEmailItem>> QueryQueuedEmailsOData(
+        [FromQuery] bool? pendingOnly = null,
+        CancellationToken cancellationToken = default)
+    {
+        var items = await queuedEmails.QueryAsync(pendingOnly, 500, cancellationToken);
+        return EmailApplier.Apply(items, ParseODataQuery());
+    }
+
+    private ODataQuery ParseODataQuery()
+    {
+        var q = Request.Query;
+        int? ParseInt(string key) =>
+            int.TryParse(q[key].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var v) ? v : null;
+        var filter = q["$filter"].ToString();
+        if (filter.Length > ODataLimits.MaxFilterLength)
+            throw new InvalidOperationException($"$filter exceeds {ODataLimits.MaxFilterLength} characters.");
+        return new ODataQuery
+        {
+            Filter = string.IsNullOrWhiteSpace(filter) ? null : filter,
+            OrderBy = q["$orderby"].ToString() is { Length: > 0 } ob ? ob : null,
+            Top = ParseInt("$top"),
+            Skip = ParseInt("$skip"),
+            Count = q["$count"].ToString() == "true"
+        };
+    }
 
     /// <summary>入队邮件</summary>
     [HttpPost]

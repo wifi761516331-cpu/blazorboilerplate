@@ -4,206 +4,205 @@
 @using BlazorBoilerplate.ModuleAbstractions
 
 <div class="page-callout">
-    <BitText Element="h1" Class="page-title">系统运维中心</BitText>
-    <BitText Class="muted">统一管理后台定时任务、异步邮件队列、业务活动日志、消息模板与策略提供者开关。</BitText>
+    <BitText Element="h1" Class="page-title">@L["platform.ops.title"]</BitText>
+    <BitText Class="muted">@L["platform.ops.subtitle"]</BitText>
 </div>
 
 <div class="id-page">
     @if (!string.IsNullOrWhiteSpace(_error))
     {
-        <BitCallout Class="page-callout error">@_error</BitCallout>
+        <div class="page-callout error">@_error</div>
     }
 
     <BitPivot SelectedKey="@_activeTab" SelectedKeyChanged="OnTabChangedAsync">
-        <BitPivotItem Key="tasks" HeaderText="定时任务" ItemCount="@(_tasks.Count == 0 ? null : _tasks.Count)">
+        <BitPivotItem Key="tasks" HeaderText="@L["platform.ops.tab.tasks"]" ItemCount="@(_tasks.Count == 0 ? null : _tasks.Count)">
             <div class="bb-toolbar" style="margin-top: 0.75rem;">
                 <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="LoadTasksAsync" IsLoading="@_busy">
-                    刷新
+                    @L["platform.common.refresh"]
                 </BitButton>
             </div>
 
-            <BitDataGrid TItem="ScheduleTaskDescriptor" Items="_tasks" Strings="@_gridStrings" Bordered="true" Hoverable="true" Striped="true" ShowHeader="true">
+            <BitDataGrid TItem="ScheduleTaskDescriptor" Items="_tasks" Strings="@_gridStrings" Pageable="true" PageSize="10" Sortable="true" Filterable="true" FilterDebounce="300" Bordered="true" Hoverable="true" Striped="true" ShowHeader="true">
                 <Columns>
-                    <BitDataGridColumn TItem="ScheduleTaskDescriptor" Property="t => t.Name" Title="任务名称" />
-                    <BitDataGridColumn TItem="ScheduleTaskDescriptor" Property="t => t.ModuleId" Title="所属模块">
+                    <BitDataGridColumn TItem="ScheduleTaskDescriptor" Property="t => t.Name" Title="@L["platform.ops.tasks.col.name"]" />
+                    <BitDataGridColumn TItem="ScheduleTaskDescriptor" Property="t => t.ModuleId" Title="@L["platform.ops.tasks.col.module"]">
                         <Template Context="t">
                             <BitTag Color="BitColor.TertiaryBackground">@t.ModuleId</BitTag>
                         </Template>
                     </BitDataGridColumn>
-                    <BitDataGridColumn TItem="ScheduleTaskDescriptor" Property="t => t.Seconds" Title="间隔（秒）" />
-                    <BitDataGridColumn TItem="ScheduleTaskDescriptor" Property="t => t.Enabled" Title="启用">
+                    <BitDataGridColumn TItem="ScheduleTaskDescriptor" Property="t => t.Seconds" Title="@L["platform.ops.tasks.col.seconds"]" />
+                    <BitDataGridColumn TItem="ScheduleTaskDescriptor" Property="t => t.Enabled" Title="@L["platform.ops.tasks.col.enabled"]">
                         <Template Context="t">
                             <BitToggle Value="@t.Enabled" ValueChanged="v => ToggleTaskAsync(t, v)" IsEnabled="!_busy" />
                         </Template>
                     </BitDataGridColumn>
-                    <BitDataGridColumn TItem="ScheduleTaskDescriptor" Property="t => t.LastSuccessUtc" Title="上次成功">
+                    <BitDataGridColumn TItem="ScheduleTaskDescriptor" Property="t => t.LastSuccessUtc" Title="@L["platform.ops.tasks.col.lastSuccess"]">
                         <Template Context="t">
                             @(t.LastSuccessUtc?.ToLocalTime().ToString("MM-dd HH:mm:ss") ?? "—")
                         </Template>
                     </BitDataGridColumn>
-                    <BitDataGridColumn TItem="ScheduleTaskDescriptor" Property="t => t.LastError" Title="最近错误">
+                    <BitDataGridColumn TItem="ScheduleTaskDescriptor" Property="t => t.LastError" Title="@L["platform.ops.tasks.col.lastError"]">
                         <Template Context="t">
                             <span style="color: var(--bb-err);">@(string.IsNullOrWhiteSpace(t.LastError) ? "—" : t.LastError)</span>
                         </Template>
                     </BitDataGridColumn>
-                    <BitDataGridColumn TItem="ScheduleTaskDescriptor" Title="操作">
+                    <BitDataGridColumn TItem="ScheduleTaskDescriptor" Title="@L["platform.ops.col.actions"]">
                         <Template Context="t">
                             <BitButton Variant="BitVariant.Text" Size="BitSize.Small" IconName="@BitIconName.Play"
                                        Disabled="@(_busy || t.IsRunning)" OnClick="() => RunTaskNowAsync(t)">
-                                立即执行
+                                @L["platform.ops.tasks.runNow"]
                             </BitButton>
                         </Template>
                     </BitDataGridColumn>
                 </Columns>
-                <EmptyTemplate><BitText Class="muted">暂无已注册的计划任务。</BitText></EmptyTemplate>
+                <EmptyTemplate><BitText Class="muted">@L["platform.ops.tasks.empty"]</BitText></EmptyTemplate>
             </BitDataGrid>
         </BitPivotItem>
 
-        <BitPivotItem Key="emails" HeaderText="邮件队列" ItemCount="@(_emails.Count == 0 ? null : _emails.Count)">
+        <BitPivotItem Key="emails" HeaderText="@L["platform.ops.tab.emails"]">
             <div class="bb-toolbar" style="margin-top: 0.75rem;">
-                <BitCheckbox Label="仅看待发送" Value="@_pendingOnlyEmails" ValueChanged="OnPendingEmailsChangedAsync" />
+                <BitCheckbox Label="@L["platform.ops.emails.pendingOnly"]" Value="@_pendingOnlyEmails" ValueChanged="OnPendingEmailsChangedAsync" />
                 <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="LoadEmailsAsync" IsLoading="@_busy">
-                    刷新
+                    @L["platform.common.refresh"]
                 </BitButton>
                 <BitButton IconName="@BitIconName.Send" OnClick="ProcessEmailQueueAsync" IsEnabled="!_busy">
-                    立即处理队列
+                    @L["platform.ops.emails.processQueue"]
                 </BitButton>
             </div>
 
-            <BitDataGrid TItem="QueuedEmailItem" Items="_emails" Strings="@_gridStrings" Bordered="true" Hoverable="true" Striped="true" ShowHeader="true">
+            <BitDataGrid @key="_emailGridVersion" TItem="QueuedEmailItem" OnRead="ReadEmailsAsync" Strings="@_gridStrings" Pageable="true" PageSize="10" Sortable="true" Filterable="true" FilterDebounce="300" Bordered="true" Hoverable="true" Striped="true" ShowHeader="true">
                 <Columns>
-                    <BitDataGridColumn TItem="QueuedEmailItem" Property="e => e.To" Title="收件人" />
-                    <BitDataGridColumn TItem="QueuedEmailItem" Property="e => e.Subject" Title="主题" />
-                    <BitDataGridColumn TItem="QueuedEmailItem" Property="e => e.Priority" Title="优先级" />
-                    <BitDataGridColumn TItem="QueuedEmailItem" Property="e => e.SentTries" Title="尝试次数" />
-                    <BitDataGridColumn TItem="QueuedEmailItem" Property="e => e.SentOnUtc" Title="状态">
+                    <BitDataGridColumn TItem="QueuedEmailItem" Property="e => e.To" ColumnId="to" Title="@L["platform.ops.emails.col.to"]" Sortable="true" />
+                    <BitDataGridColumn TItem="QueuedEmailItem" Property="e => e.Subject" ColumnId="subject" Title="@L["platform.ops.emails.col.subject"]" Sortable="true" />
+                    <BitDataGridColumn TItem="QueuedEmailItem" Property="e => e.Priority" ColumnId="priority" Title="@L["platform.ops.emails.col.priority"]" Sortable="true" />
+                    <BitDataGridColumn TItem="QueuedEmailItem" Property="e => e.SentTries" ColumnId="senttries" Title="@L["platform.ops.emails.col.tries"]" Sortable="true" />
+                    <BitDataGridColumn TItem="QueuedEmailItem" Property="e => e.SentOnUtc" ColumnId="sentonutc" Title="@L["platform.ops.emails.col.status"]" Sortable="true" Filterable="false">
                         <Template Context="e">
                             @if (e.SentOnUtc.HasValue)
                             {
-                                <BitBadge Color="BitColor.Success">已发送 (@e.SentOnUtc.Value.ToLocalTime().ToString("MM-dd HH:mm"))</BitBadge>
+                                <BitBadge Color="BitColor.Success">@L.GetString("platform.ops.emails.status.sent", e.SentOnUtc.Value.ToLocalTime().ToString("MM-dd HH:mm"))</BitBadge>
                             }
                             else if (!string.IsNullOrWhiteSpace(e.LastError))
                             {
-                                <BitBadge Color="BitColor.Error" Title="@e.LastError">失败</BitBadge>
+                                <BitBadge Color="BitColor.Error" Title="@e.LastError">@L["platform.ops.emails.status.failed"]</BitBadge>
                             }
                             else
                             {
-                                <BitBadge Color="BitColor.Info">待发送</BitBadge>
+                                <BitBadge Color="BitColor.Info">@L["platform.ops.emails.status.pending"]</BitBadge>
                             }
                         </Template>
                     </BitDataGridColumn>
-                    <BitDataGridColumn TItem="QueuedEmailItem" Title="操作">
+                    <BitDataGridColumn TItem="QueuedEmailItem" Title="@L["platform.ops.col.actions"]">
                         <Template Context="e">
                             @if (!e.SentOnUtc.HasValue)
                             {
                                 <BitButton Variant="BitVariant.Text" Size="BitSize.Small" OnClick="() => RequeueEmailAsync(e)" Disabled="@_busy">
-                                    重置重发
+                                    @L["platform.ops.emails.requeue"]
                                 </BitButton>
                             }
                         </Template>
                     </BitDataGridColumn>
                 </Columns>
-                <EmptyTemplate><BitText Class="muted">邮件队列为空。</BitText></EmptyTemplate>
+                <EmptyTemplate><BitText Class="muted">@L["platform.ops.emails.empty"]</BitText></EmptyTemplate>
             </BitDataGrid>
         </BitPivotItem>
 
-        <BitPivotItem Key="logs" HeaderText="活动日志">
+        <BitPivotItem Key="logs" HeaderText="@L["platform.ops.tab.logs"]">
             <div class="bb-toolbar" style="margin-top: 0.75rem;">
                 <div class="bb-search" style="max-width: 20rem;">
-                    <BitSearchBox Placeholder="搜索关键字 / 操作人 / 实体..." Immediate DebounceTime="300"
+                    <BitSearchBox Placeholder="@L["platform.ops.logs.searchPlaceholder"]" Immediate DebounceTime="300"
                                   Value="@_logKeyword" ValueChanged="OnLogKeywordChangedAsync" />
                 </div>
                 <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="LoadLogsAsync" IsLoading="@_busy">
-                    刷新
+                    @L["platform.common.refresh"]
                 </BitButton>
             </div>
 
-            <BitDataGrid TItem="ActivityLogEntry" Items="_logs" Strings="@_gridStrings" Bordered="true" Hoverable="true" Striped="true" ShowHeader="true">
+            <BitDataGrid @key="_logGridVersion" TItem="ActivityLogEntry" OnRead="ReadLogsAsync" Strings="@_gridStrings" Pageable="true" PageSize="10" Sortable="true" Filterable="true" FilterDebounce="300" Bordered="true" Hoverable="true" Striped="true" ShowHeader="true">
                 <Columns>
-                    <BitDataGridColumn TItem="ActivityLogEntry" Property="l => l.CreatedAtUtc" Title="时间">
+                    <BitDataGridColumn TItem="ActivityLogEntry" Property="l => l.CreatedAtUtc" ColumnId="createdatutc" Title="@L["platform.ops.logs.col.time"]" Sortable="true" Filterable="false">
                         <Template Context="l">@l.CreatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</Template>
                     </BitDataGridColumn>
-                    <BitDataGridColumn TItem="ActivityLogEntry" Property="l => l.SystemKeyword" Title="关键字">
+                    <BitDataGridColumn TItem="ActivityLogEntry" Property="l => l.SystemKeyword" ColumnId="systemkeyword" Title="@L["platform.ops.logs.col.keyword"]" Sortable="true">
                         <Template Context="l"><BitTag Color="BitColor.TertiaryBackground">@l.SystemKeyword</BitTag></Template>
                     </BitDataGridColumn>
-                    <BitDataGridColumn TItem="ActivityLogEntry" Property="l => l.Comment" Title="描述" />
-                    <BitDataGridColumn TItem="ActivityLogEntry" Property="l => l.UserName" Title="操作人" />
-                    <BitDataGridColumn TItem="ActivityLogEntry" Property="l => l.EntityName" Title="实体" />
+                    <BitDataGridColumn TItem="ActivityLogEntry" Property="l => l.Comment" ColumnId="comment" Title="@L["platform.ops.logs.col.comment"]" Sortable="true" />
+                    <BitDataGridColumn TItem="ActivityLogEntry" Property="l => l.UserName" ColumnId="username" Title="@L["platform.ops.logs.col.user"]" Sortable="true" />
+                    <BitDataGridColumn TItem="ActivityLogEntry" Property="l => l.EntityName" ColumnId="entityname" Title="@L["platform.ops.logs.col.entity"]" Sortable="true" />
                 </Columns>
-                <EmptyTemplate><BitText Class="muted">暂无活动日志。</BitText></EmptyTemplate>
+                <EmptyTemplate><BitText Class="muted">@L["platform.ops.logs.empty"]</BitText></EmptyTemplate>
             </BitDataGrid>
         </BitPivotItem>
 
-        <BitPivotItem Key="templates" HeaderText="消息模板" ItemCount="@(_templates.Count == 0 ? null : _templates.Count)">
+        <BitPivotItem Key="templates" HeaderText="@L["platform.ops.tab.templates"]" ItemCount="@(_templates.Count == 0 ? null : _templates.Count)">
             <div class="bb-toolbar" style="margin-top: 0.75rem;">
                 <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="LoadTemplatesAsync" IsLoading="@_busy">
-                    刷新
+                    @L["platform.common.refresh"]
                 </BitButton>
             </div>
 
-            <BitDataGrid TItem="MessageTemplateItem" Items="_templates" Strings="@_gridStrings" Bordered="true" Hoverable="true" Striped="true" ShowHeader="true">
+            <BitDataGrid TItem="MessageTemplateItem" Items="_templates" Strings="@_gridStrings" Pageable="true" PageSize="10" Sortable="true" Filterable="true" FilterDebounce="300" Bordered="true" Hoverable="true" Striped="true" ShowHeader="true">
                 <Columns>
-                    <BitDataGridColumn TItem="MessageTemplateItem" Property="t => t.Name" Title="模板标识" />
-                    <BitDataGridColumn TItem="MessageTemplateItem" Property="t => t.Subject" Title="主题" />
-                    <BitDataGridColumn TItem="MessageTemplateItem" Property="t => t.IsActive" Title="状态">
+                    <BitDataGridColumn TItem="MessageTemplateItem" Property="t => t.Name" Title="@L["platform.ops.templates.col.name"]" />
+                    <BitDataGridColumn TItem="MessageTemplateItem" Property="t => t.Subject" Title="@L["platform.ops.templates.col.subject"]" />
+                    <BitDataGridColumn TItem="MessageTemplateItem" Property="t => t.IsActive" Title="@L["platform.ops.templates.col.status"]">
                         <Template Context="t">
                             <BitBadge Color="@(t.IsActive ? BitColor.Success : BitColor.TertiaryBackground)">
-                                @(t.IsActive ? "启用" : "停用")
+                                @(t.IsActive ? L["platform.ops.templates.status.enabled"] : L["platform.ops.templates.status.disabled"])
                             </BitBadge>
                         </Template>
                     </BitDataGridColumn>
-                    <BitDataGridColumn TItem="MessageTemplateItem" Property="t => t.UpdatedAtUtc" Title="更新时间">
+                    <BitDataGridColumn TItem="MessageTemplateItem" Property="t => t.UpdatedAtUtc" Title="@L["platform.ops.templates.col.updatedAt"]">
                         <Template Context="t">@t.UpdatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</Template>
                     </BitDataGridColumn>
-                    <BitDataGridColumn TItem="MessageTemplateItem" Title="操作">
+                    <BitDataGridColumn TItem="MessageTemplateItem" Title="@L["platform.ops.col.actions"]">
                         <Template Context="t">
                             <BitButton Variant="BitVariant.Text" Size="BitSize.Small" OnClick="() => OpenEditTemplate(t)">
-                                编辑
+                                @L["platform.ops.templates.edit"]
                             </BitButton>
                         </Template>
                     </BitDataGridColumn>
                 </Columns>
-                <EmptyTemplate><BitText Class="muted">暂无消息模板。</BitText></EmptyTemplate>
+                <EmptyTemplate><BitText Class="muted">@L["platform.ops.templates.empty"]</BitText></EmptyTemplate>
             </BitDataGrid>
         </BitPivotItem>
 
-        <BitPivotItem Key="providers" HeaderText="策略提供者" ItemCount="@(_providers.Count == 0 ? null : _providers.Count)">
+        <BitPivotItem Key="providers" HeaderText="@L["platform.ops.tab.providers"]" ItemCount="@(_providers.Count == 0 ? null : _providers.Count)">
             <div class="bb-toolbar" style="margin-top: 0.75rem;">
                 <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="LoadProvidersAsync" IsLoading="@_busy">
-                    刷新
+                    @L["platform.common.refresh"]
                 </BitButton>
             </div>
 
-            <BitDataGrid TItem="ProviderItemModel" Items="_providers" Strings="@_gridStrings" Bordered="true" Hoverable="true" Striped="true" ShowHeader="true">
+            <BitDataGrid TItem="ProviderItemModel" Items="_providers" Strings="@_gridStrings" Pageable="true" PageSize="10" Sortable="true" Filterable="true" FilterDebounce="300" Bordered="true" Hoverable="true" Striped="true" ShowHeader="true">
                 <Columns>
-                    <BitDataGridColumn TItem="ProviderItemModel" Property="p => p.SystemName" Title="系统标识" />
-                    <BitDataGridColumn TItem="ProviderItemModel" Property="p => p.FriendlyName" Title="显示名称" />
-                    <BitDataGridColumn TItem="ProviderItemModel" Property="p => p.ModuleId" Title="所属模块">
+                    <BitDataGridColumn TItem="ProviderItemModel" Property="p => p.SystemName" Title="@L["platform.ops.providers.col.systemName"]" />
+                    <BitDataGridColumn TItem="ProviderItemModel" Property="p => p.FriendlyName" Title="@L["platform.ops.providers.col.friendlyName"]" />
+                    <BitDataGridColumn TItem="ProviderItemModel" Property="p => p.ModuleId" Title="@L["platform.ops.providers.col.module"]">
                         <Template Context="p"><BitTag Color="BitColor.TertiaryBackground">@p.ModuleId</BitTag></Template>
                     </BitDataGridColumn>
-                    <BitDataGridColumn TItem="ProviderItemModel" Property="p => p.Order" Title="权重" />
-                    <BitDataGridColumn TItem="ProviderItemModel" Property="p => p.Enabled" Title="启用">
+                    <BitDataGridColumn TItem="ProviderItemModel" Property="p => p.Order" Title="@L["platform.ops.providers.col.order"]" />
+                    <BitDataGridColumn TItem="ProviderItemModel" Property="p => p.Enabled" Title="@L["platform.ops.providers.col.enabled"]">
                         <Template Context="p">
                             <BitToggle Value="@p.Enabled" ValueChanged="v => ToggleProviderAsync(p, v)" IsEnabled="!_busy" />
                         </Template>
                     </BitDataGridColumn>
                 </Columns>
-                <EmptyTemplate><BitText Class="muted">暂无已注册的策略提供者。</BitText></EmptyTemplate>
+                <EmptyTemplate><BitText Class="muted">@L["platform.ops.providers.empty"]</BitText></EmptyTemplate>
             </BitDataGrid>
         </BitPivotItem>
     </BitPivot>
 </div>
 
 <BlazorBoilerplateModal @bind-IsOpen="_tplModalOpen"
-                        Title="@($"编辑消息模板：{_editingTplName}")"
-                        OkText="保存"
-                        CancelText="取消"
+                        Title="@L.GetString("platform.ops.templates.modalTitle", _editingTplName)"
+                        OkText="@L["platform.common.save"]"
+                        CancelText="@L["platform.common.cancel"]"
                         Disabled="@_busy"
                         OnOk="SaveTemplateAsync">
     <BitStack Gap="0.75rem">
-        <BitTextField Label="主题（支持 %Token% 占位符）" @bind-Value="_editingTplSubject" Required />
-        <BitTextField Label="正文（HTML / 文本）" @bind-Value="_editingTplBody" Multiline="true" Rows="6" Required />
-        <BitCheckbox Label="启用该模板" @bind-Value="_editingTplActive" />
+        <BitTextField Label="@L["platform.ops.templates.field.subject"]" @bind-Value="_editingTplSubject" Required />
+        <BitTextField Label="@L["platform.ops.templates.field.body"]" @bind-Value="_editingTplBody" Multiline="true" Rows="6" Required />
+        <BitCheckbox Label="@L["platform.ops.templates.field.active"]" @bind-Value="_editingTplActive" />
     </BitStack>
 </BlazorBoilerplateModal>
-

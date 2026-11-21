@@ -1,9 +1,12 @@
+using System.Globalization;
 using System.Net.Http.Json;
 using Bit.BlazorUI;
 using BlazorBoilerplate.Application.Localization;
+using BlazorBoilerplate.Application.OData;
 using BlazorBoilerplate.Application.Platform;
 using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.Web.Shared.Localization;
+using BlazorBoilerplate.Web.Shared.OData;
 using BlazorBoilerplate.Web.Shared.Services;
 using Microsoft.AspNetCore.Components;
 
@@ -29,10 +32,13 @@ public partial class OperationsCenter
     private string? _error;
     private BitDataGridStrings _gridStrings = new();
 
+    private static readonly ODataFieldMap EmailFieldMap = new(["to", "subject", "priority", "senttries", "createdonutc", "sentonutc"]);
+    private static readonly ODataFieldMap LogFieldMap = new(["createdatutc", "systemkeyword", "comment", "username", "entityname"]);
+
     private List<ScheduleTaskDescriptor> _tasks = [];
-    private List<QueuedEmailItem> _emails = [];
+    private int _emailGridVersion;
     private bool _pendingOnlyEmails;
-    private List<ActivityLogEntry> _logs = [];
+    private int _logGridVersion;
     private string _logKeyword = string.Empty;
     private List<MessageTemplateItem> _templates = [];
     private List<ProviderItemModel> _providers = [];
@@ -72,7 +78,7 @@ public partial class OperationsCenter
         var resp = await Http.PutAsJsonAsync("api/v1/PlatformExtensions/UpdateScheduleTask", new { taskId = task.Id, enabled });
         resp.EnsureSuccessStatusCode();
         await LoadTasksAsync();
-        Toast.Success("任务状态已更新。");
+        Toast.Success(L["platform.ops.tasks.toast.updated"]);
     });
 
     private async Task RunTaskNowAsync(ScheduleTaskDescriptor task) => await RunAsync(async () =>
@@ -80,16 +86,38 @@ public partial class OperationsCenter
         var resp = await Http.PostAsync($"api/v1/PlatformExtensions/RunScheduleTask?taskId={Uri.EscapeDataString(task.Id)}", null);
         resp.EnsureSuccessStatusCode();
         await LoadTasksAsync();
-        Toast.Success($"任务「{task.Name}」已执行完成。");
+        Toast.Success(L.GetString("platform.ops.tasks.toast.executed", task.Name));
     });
 
-    private async Task LoadEmailsAsync() => await RunAsync(async () =>
+    private Task LoadEmailsAsync()
     {
-        var url = _pendingOnlyEmails
-            ? "api/v1/PlatformExtensions/GetQueuedEmails?pendingOnly=true"
-            : "api/v1/PlatformExtensions/GetQueuedEmails";
-        _emails = await Http.GetFromJsonAsync<List<QueuedEmailItem>>(url) ?? [];
-    });
+        _emailGridVersion++;
+        return Task.CompletedTask;
+    }
+
+    private async Task<BitDataGridReadResult<QueuedEmailItem>> ReadEmailsAsync(BitDataGridReadRequest req)
+    {
+        var sorts = req.Sorts.Count > 0
+            ? req.Sorts.Select(s => new ODataSort(s.ColumnId, s.Direction == BitDataGridSortDirection.Descending)).ToList()
+            : [new ODataSort("createdonutc", true)];
+        var filters = BuildODataFilters(req.Filters);
+
+        try
+        {
+            _error = null;
+            var endpoint = _pendingOnlyEmails
+                ? "api/v1/PlatformExtensions/QueryQueuedEmailsOData?pendingOnly=true"
+                : "api/v1/PlatformExtensions/QueryQueuedEmailsOData";
+            var source = new ODataServerSource<QueuedEmailItem>(Http, endpoint, EmailFieldMap);
+            var page = await source.LoadAsync(new ODataServerRequest(req.Skip, req.Take, sorts, filters, null));
+            return new BitDataGridReadResult<QueuedEmailItem>(page.Items, (int)page.TotalCount);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            return new BitDataGridReadResult<QueuedEmailItem>([], 0);
+        }
+    }
 
     private async Task OnPendingEmailsChangedAsync(bool value)
     {
@@ -103,7 +131,7 @@ public partial class OperationsCenter
         resp.EnsureSuccessStatusCode();
         var count = await resp.Content.ReadFromJsonAsync<int>();
         await LoadEmailsAsync();
-        Toast.Success($"队列处理完成，本次成功发送 {count} 封邮件。");
+        Toast.Success(L.GetString("platform.ops.emails.toast.processed", count));
     });
 
     private async Task RequeueEmailAsync(QueuedEmailItem email) => await RunAsync(async () =>
@@ -111,16 +139,61 @@ public partial class OperationsCenter
         var resp = await Http.PostAsync($"api/v1/PlatformExtensions/RequeueEmail?id={email.Id}", null);
         resp.EnsureSuccessStatusCode();
         await LoadEmailsAsync();
-        Toast.Success("已重置为待发送状态。");
+        Toast.Success(L["platform.ops.emails.toast.requeued"]);
     });
 
-    private async Task LoadLogsAsync() => await RunAsync(async () =>
+    private Task LoadLogsAsync()
     {
-        var url = string.IsNullOrWhiteSpace(_logKeyword)
-            ? "api/v1/PlatformExtensions/GetActivityLogs"
-            : $"api/v1/PlatformExtensions/GetActivityLogs?keyword={Uri.EscapeDataString(_logKeyword)}";
-        _logs = await Http.GetFromJsonAsync<List<ActivityLogEntry>>(url) ?? [];
-    });
+        _logGridVersion++;
+        return Task.CompletedTask;
+    }
+
+    private async Task<BitDataGridReadResult<ActivityLogEntry>> ReadLogsAsync(BitDataGridReadRequest req)
+    {
+        var sorts = req.Sorts.Count > 0
+            ? req.Sorts.Select(s => new ODataSort(s.ColumnId, s.Direction == BitDataGridSortDirection.Descending)).ToList()
+            : [new ODataSort("createdatutc", true)];
+        var filters = BuildODataFilters(req.Filters);
+
+        try
+        {
+            _error = null;
+            var endpoint = string.IsNullOrWhiteSpace(_logKeyword)
+                ? "api/v1/PlatformExtensions/QueryActivityLogsOData"
+                : $"api/v1/PlatformExtensions/QueryActivityLogsOData?keyword={Uri.EscapeDataString(_logKeyword)}";
+            var source = new ODataServerSource<ActivityLogEntry>(Http, endpoint, LogFieldMap);
+            var page = await source.LoadAsync(new ODataServerRequest(req.Skip, req.Take, sorts, filters, null));
+            return new BitDataGridReadResult<ActivityLogEntry>(page.Items, (int)page.TotalCount);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            return new BitDataGridReadResult<ActivityLogEntry>([], 0);
+        }
+    }
+
+    private static List<ODataFilter> BuildODataFilters(IEnumerable<BitDataGridFilterDescriptor> descriptors)
+    {
+        var list = new List<ODataFilter>();
+        foreach (var filter in descriptors)
+        {
+            if (filter.Value is null) continue;
+            var op = filter.Operator switch
+            {
+                BitDataGridFilterOperator.Equals => "eq",
+                BitDataGridFilterOperator.NotEquals => "ne",
+                BitDataGridFilterOperator.GreaterThan => "gt",
+                BitDataGridFilterOperator.GreaterThanOrEqual => "ge",
+                BitDataGridFilterOperator.LessThan => "lt",
+                BitDataGridFilterOperator.LessThanOrEqual => "le",
+                _ => "contains"
+            };
+            var value = Convert.ToString(filter.Value, CultureInfo.InvariantCulture);
+            if (!string.IsNullOrWhiteSpace(value))
+                list.Add(new ODataFilter(filter.ColumnId, op, value));
+        }
+        return list;
+    }
 
     private async Task OnLogKeywordChangedAsync(string value)
     {
@@ -149,7 +222,7 @@ public partial class OperationsCenter
         resp.EnsureSuccessStatusCode();
         _tplModalOpen = false;
         await LoadTemplatesAsync();
-        Toast.Success("消息模板已保存。");
+        Toast.Success(L["platform.ops.templates.toast.saved"]);
     });
 
     private async Task LoadProvidersAsync() => await RunAsync(async () =>
@@ -162,7 +235,7 @@ public partial class OperationsCenter
         var resp = await Http.PutAsJsonAsync("api/v1/PlatformExtensions/SetProviderEnabled", new { systemName = provider.SystemName, enabled });
         resp.EnsureSuccessStatusCode();
         provider.Enabled = enabled;
-        Toast.Success($"策略「{provider.FriendlyName}」已{(enabled ? "启用" : "停用")}。");
+        Toast.Success(L.GetString(enabled ? "platform.ops.providers.toast.enabled" : "platform.ops.providers.toast.disabled", provider.FriendlyName));
     });
 
     private async Task RunAsync(Func<Task> action)
