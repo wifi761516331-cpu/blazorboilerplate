@@ -18,6 +18,7 @@
   ],
   "frontend": {
     "assembly": "BlazorBoilerplate.Modules.Demo.Frontend.dll",
+    "domainRoutable": true,
     "routes": [ "/demo" ],
     "menus": [ "Demo" ],
     "menuItems": [

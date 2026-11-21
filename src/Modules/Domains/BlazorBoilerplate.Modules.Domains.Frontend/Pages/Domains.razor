@@ -1,0 +1,103 @@
+@page "/domains"
+
+<BitCallout Class="page-callout">
+    <BitText Element="h1" Class="page-title">@L["domains.title"]</BitText>
+    <BitText Class="muted">@L["domains.subtitle"]</BitText>
+</BitCallout>
+
+<WidgetZone Name="domains_top" />
+
+<div style="display:flex;flex-direction:column;gap:1rem;width:100%;margin-top:1rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;width:100%;">
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+            <PermissionGate Code="domains.route.write">
+                <BitButton IconName="@BitIconName.Add" OnClick="OpenCreateModal">@L["domains.action.create"]</BitButton>
+            </PermissionGate>
+            <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="RefreshAsync" IsEnabled="@(!_loading)">
+                @L["platform.common.refresh"]
+            </BitButton>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+            <BitTextField @bind-Value="_testHost"
+                          Placeholder="@L["domains.resolve.placeholder"]"
+                          Style="min-width:16rem;" />
+            <BitButton Variant="BitVariant.Outline" OnClick="TestResolveAsync" IsEnabled="@(!string.IsNullOrWhiteSpace(_testHost))">
+                @L["domains.action.resolve"]
+            </BitButton>
+        </div>
+    </div>
+
+    <BitDataGrid TItem="DomainRouteBindingItem"
+                 Items="_bindings"
+                 Style="width:100%;"
+                 Strings="@L.CreateGridStrings()"
+                 Pageable="true" PageSize="15"
+                 Sortable="true" Filterable="true" FilterDebounce="250"
+                 Bordered="true" Hoverable="true" Striped="true"
+                 ShowHeader="true">
+        <Columns>
+            <BitDataGridColumn TItem="DomainRouteBindingItem" Property="x => x.Host" Title="@L["domains.col.host"]" Sortable="true">
+                <Template Context="item"><strong>@item.Host</strong></Template>
+            </BitDataGridColumn>
+            <BitDataGridColumn TItem="DomainRouteBindingItem" Property="x => x.ModuleId" Title="@L["domains.col.moduleId"]" Sortable="true">
+                <Template Context="item"><code>@(item.ModuleId ?? "-")</code></Template>
+            </BitDataGridColumn>
+            <BitDataGridColumn TItem="DomainRouteBindingItem" Property="x => x.SiteKey" Title="@L["domains.col.siteKey"]" Sortable="true">
+                <Template Context="item"><code>@(item.SiteKey ?? "-")</code></Template>
+            </BitDataGridColumn>
+            <BitDataGridColumn TItem="DomainRouteBindingItem" Property="x => x.EntryPath" Title="@L["domains.col.entryPath"]" Sortable="true">
+                <Template Context="item"><code>@item.EntryPath</code></Template>
+            </BitDataGridColumn>
+            <BitDataGridColumn TItem="DomainRouteBindingItem" Property="x => x.Enabled" Title="@L["domains.col.status"]" Sortable="true" Filterable="false">
+                <Template Context="item">
+                    <BitTag Color="@(item.Enabled ? BitColor.Success : BitColor.Secondary)"
+                            Variant="BitVariant.Outline"
+                            Size="BitSize.Small">
+                        @(item.Enabled ? L["domains.status.enabled"] : L["domains.status.disabled"])
+                    </BitTag>
+                </Template>
+            </BitDataGridColumn>
+            <BitDataGridColumn TItem="DomainRouteBindingItem" Title="@L["domains.col.actions"]" Filterable="false">
+                <Template Context="item">
+                    <PermissionGate Code="domains.route.write">
+                        <div style="display:flex;gap:0.25rem;">
+                            <BitButton Variant="BitVariant.Text" Size="BitSize.Small" IconName="@BitIconName.Edit" Title="@L["platform.common.edit"]" OnClick="@(() => OpenEditModal(item))" />
+                            <BitButton Variant="BitVariant.Text" Color="BitColor.Error" Size="BitSize.Small" IconName="@BitIconName.Delete" Title="@L["platform.common.delete"]" OnClick="@(() => OpenDeleteModal(item))" />
+                        </div>
+                    </PermissionGate>
+                </Template>
+            </BitDataGridColumn>
+        </Columns>
+        <EmptyTemplate>
+            <BitText Class="muted">@(_loading ? L["platform.common.loading"] : L["domains.empty"])</BitText>
+        </EmptyTemplate>
+    </BitDataGrid>
+</div>
+
+<BlazorBoilerplateModal @bind-IsOpen="_editOpen"
+                        Title="@(_editingId is null ? L["domains.modal.createTitle"] : L["domains.modal.editTitle"])"
+                        OkText="@L["platform.common.save"]"
+                        OnOk="SaveAsync">
+    <div style="display:flex;flex-direction:column;gap:0.85rem;min-width:min(82vw,420px);">
+        <BitTextField Label="@L["domains.field.host"]" Required @bind-Value="_formHost" Placeholder="@L["domains.field.hostPlaceholder"]" Style="width:100%;" />
+        <BitDropdown Label="@L["domains.field.moduleId"]"
+                     Items="_moduleOptions"
+                     Value="@_formModuleId"
+                     ValueChanged="@((string? val) => OnModuleSelected(val))"
+                     Placeholder="@L["domains.field.moduleIdPlaceholder"]"
+                     Style="width:100%;" />
+        <BitTextField Label="@L["domains.field.siteKey"]" @bind-Value="_formSiteKey" Placeholder="@L["domains.field.siteKeyPlaceholder"]" Style="width:100%;" />
+        <BitTextField Label="@L["domains.field.entryPath"]" Required @bind-Value="_formEntryPath" Placeholder="@L["domains.field.entryPathPlaceholder"]" Style="width:100%;" />
+        <BitTextField Label="@L["domains.field.description"]" @bind-Value="_formDescription" Style="width:100%;" />
+        <BitCheckbox Label="@L["domains.field.enabled"]" @bind-Value="_formEnabled" />
+        <BitCheckbox Label="@L["domains.field.allowAdminRoutes"]" @bind-Value="_formAllowAdminRoutes" />
+    </div>
+</BlazorBoilerplateModal>
+
+<BlazorBoilerplateModal @bind-IsOpen="_deleteOpen"
+                        Title="@L["domains.modal.deleteTitle"]"
+                        OkText="@L["platform.common.delete"]"
+                        Danger="true"
+                        Message="@L.GetString("domains.modal.deleteConfirm", _deleting?.Host ?? string.Empty)"
+                        OnOk="ConfirmDeleteAsync" />

@@ -1,0 +1,31 @@
+{
+  "id": "domains",
+  "name": "Domains",
+  "displayName": "域名路由",
+  "version": "1.0.0",
+  "publisher": "BlazorBoilerplate",
+  "entryAssembly": "BlazorBoilerplate.Modules.Domains.dll",
+  "entryType": "BlazorBoilerplate.Modules.Domains.DomainsModule",
+  "contractVersion": "1.0",
+  "moduleSdkVersion": "1.0",
+  "hostCompatibility": ">=1.0.0 <2.0.0",
+  "displayOrder": 210,
+  "dependencies": [],
+  "permissions": [ "domains.route.read", "domains.route.write" ],
+  "permissionItems": [
+    { "code": "domains.route.read", "name": "查看域名路由" },
+    { "code": "domains.route.write", "name": "管理域名路由" }
+  ],
+  "frontend": {
+    "assembly": "BlazorBoilerplate.Modules.Domains.Frontend.dll",
+    "routes": [ "/domains" ],
+    "menus": [ "Domains" ],
+    "menuItems": [
+      { "text": "域名路由", "route": "/domains", "icon": "Globe", "sort": 210 }
+    ],
+    "localization": [],
+    "assets": []
+  },
+  "checksumSha256": null
+}
+

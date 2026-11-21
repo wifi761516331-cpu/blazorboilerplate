@@ -20,6 +20,7 @@
   ],
   "frontend": {
     "assembly": "BlazorBoilerplate.Modules.Catalog.Frontend.dll",
+    "domainRoutable": true,
     "routes": [ "/catalog" ],
     "menus": [ "Catalog" ],
     "menuItems": [
