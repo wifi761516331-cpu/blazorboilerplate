@@ -50,6 +50,12 @@ public sealed class ModuleMigrationRunner(
         await using var executionScope = executionProvider.GetRequiredService<IServiceScopeFactory>().CreateAsyncScope();
         var executionServices = executionScope.ServiceProvider;
 
+        // 每次加载先触发 EF Core 自带迁移（__EFMigrationsHistory 保证幂等，新增迁移文件无需再改 Steps 序号）
+        if (hostMigration is not null)
+            await hostMigration.EnsureSchemaAsync(executionServices, ct);
+        if (moduleMigrations is not null)
+            await moduleMigrations.EnsureSchemaAsync(executionServices, ct);
+
         var count = 0;
         foreach (var step in mergedSteps.Values.OrderBy(s => s.Sequence))
         {

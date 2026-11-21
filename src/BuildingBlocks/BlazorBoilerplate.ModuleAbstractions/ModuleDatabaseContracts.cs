@@ -20,6 +20,12 @@ public sealed class ModuleDatabaseManifest
 /// </summary>
 public interface IModuleDatabaseMigrations
 {
+    /// <summary>
+    /// 每次模块加载时先执行一次 EF Core 表结构迁移（由 __EFMigrationsHistory 保证幂等），
+    /// 新增 EF 迁移文件后无需再手动追加 Steps 序号。
+    /// </summary>
+    Task EnsureSchemaAsync(IServiceProvider services, CancellationToken cancellationToken) => Task.CompletedTask;
+
     IReadOnlyList<ModuleMigrationStep> Steps { get; }
 }
 
@@ -28,3 +34,9 @@ public sealed record ModuleMigrationStep(
     int Sequence,
     string Name,
     Func<IServiceProvider, CancellationToken, Task> ExecuteAsync);
+
+/// <summary>新租户创建后的业务种子数据初始化契约（各模块可注册实现）。</summary>
+public interface ITenantProvisioningHandler
+{
+    Task OnTenantCreatedAsync(Guid tenantId, string tenantName, CancellationToken cancellationToken);
+}

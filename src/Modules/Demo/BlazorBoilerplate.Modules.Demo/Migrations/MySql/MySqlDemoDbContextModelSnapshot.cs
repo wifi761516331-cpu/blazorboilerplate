@@ -46,12 +46,17 @@ namespace BlazorBoilerplate.Modules.Demo.Migrations.MySql
                     b.Property<Guid?>("ModifiedBy")
                         .HasColumnType("char(36)");
 
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("char(36)");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("DemoNotes", (string)null);
                 });

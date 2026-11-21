@@ -11,15 +11,15 @@ namespace BlazorBoilerplate.Modules.Localization.Persistence;
 /// </summary>
 public sealed class LocalizationDatabaseMigrations : IModuleDatabaseMigrations
 {
+    public Task EnsureSchemaAsync(IServiceProvider services, CancellationToken cancellationToken) =>
+        LocalizationMigrationHelper.MigrateAsync(cancellationToken: cancellationToken);
+
     public IReadOnlyList<ModuleMigrationStep> Steps { get; } =
     [
-        new ModuleMigrationStep(1, "EnsureLocalizationSchema", EnsureSchemaAsync),
+        new ModuleMigrationStep(1, "EnsureLocalizationSchema", (_, _) => Task.CompletedTask),
         new ModuleMigrationStep(2, "SeedBuiltInLanguages", SeedBuiltInLanguagesAsync),
         new ModuleMigrationStep(3, "SyncInitialRegistryResources", SyncInitialRegistryResourcesAsync)
     ];
-
-    private static Task EnsureSchemaAsync(IServiceProvider sp, CancellationToken ct) =>
-        LocalizationMigrationHelper.MigrateAsync(cancellationToken: ct);
 
     private static async Task SeedBuiltInLanguagesAsync(IServiceProvider sp, CancellationToken ct)
     {

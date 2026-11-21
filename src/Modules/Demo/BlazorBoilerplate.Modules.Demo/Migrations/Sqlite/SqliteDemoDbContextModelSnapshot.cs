@@ -45,12 +45,17 @@ namespace BlazorBoilerplate.Modules.Demo.Migrations.Sqlite
                     b.Property<Guid?>("ModifiedBy")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("DemoNotes", (string)null);
                 });

@@ -1,4 +1,4 @@
-﻿using BlazorBoilerplate.Application.Abstractions;
+using BlazorBoilerplate.Application.Abstractions;
 using BlazorBoilerplate.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -37,10 +37,15 @@ public sealed class AuditingSaveChangesInterceptor(IServiceProvider? services = 
             return;
 
         var utcNow = DateTimeOffset.UtcNow;
-        var userId = services?.GetService<ICurrentUserContext>()?.UserId;
+        var currentUser = services?.GetService<ICurrentUserContext>();
+        var userId = currentUser?.UserId;
+        var tenantId = currentUser?.TenantId;
 
         foreach (var entry in context.ChangeTracker.Entries())
         {
+            if (entry.Entity is ITenantEntity tenantEntity && entry.State == EntityState.Added)
+                tenantEntity.TenantId ??= tenantId;
+
             if (entry.Entity is IAuditableEntity auditable)
             {
                 switch (entry.State)

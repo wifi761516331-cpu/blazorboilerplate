@@ -23,6 +23,7 @@ public sealed class DemoModule : IModule
     {
         services.AddDbContext<DemoDbContext>((sp, o) => o.UsePlatformDbProvider(sp));
         services.AddSingleton<IModuleDatabaseMigrations, DemoDatabaseMigrations>();
+        services.AddScoped<ITenantProvisioningHandler, DemoTenantProvisioningHandler>();
         services.AddScoped<DemoShowcaseService>();
     }
 

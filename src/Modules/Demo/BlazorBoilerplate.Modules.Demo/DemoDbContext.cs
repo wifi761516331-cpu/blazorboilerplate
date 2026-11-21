@@ -5,16 +5,17 @@ using Microsoft.EntityFrameworkCore;
 namespace BlazorBoilerplate.Modules.Demo;
 
 /// <summary>
-/// Demo 模块私有数据库实体（继承 <see cref="AuditableEntity{TId}"/>，
-/// 自动具备 Id、审计字段、软删除与领域事件能力）。
+/// Demo 模块私有数据库实体（继承 <see cref="AuditableEntity{TId}"/> 并实现 <see cref="ITenantEntity"/>，
+/// 自动具备 Id、审计字段、软删除、多租户行级隔离与领域事件能力）。
 /// </summary>
-public sealed class DemoNote : AuditableEntity<Guid>
+public sealed class DemoNote : AuditableEntity<Guid>, ITenantEntity
 {
     public DemoNote()
     {
         Id = Guid.CreateVersion7();
     }
 
+    public Guid? TenantId { get; set; }
     public string Title { get; set; } = string.Empty;
 }
 
@@ -33,6 +34,7 @@ public class DemoDbContext(DbContextOptions options) : ModuleDbContextBase(optio
             b.ToTable("DemoNotes");
             b.HasKey(x => x.Id);
             b.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            b.HasIndex(x => x.TenantId);
         });
 
         base.OnModelCreating(modelBuilder);

@@ -69,6 +69,12 @@ public interface ISoftDeletable
     void Restore(DateTimeOffset utcNow, Guid? userId);
 }
 
+/// <summary>多租户隔离实体契约（写入自动填充 TenantId，查询自动按当前租户过滤）。</summary>
+public interface ITenantEntity
+{
+    Guid? TenantId { get; set; }
+}
+
 /// <summary>带审计与软删除基础属性的实体基类。</summary>
 public abstract class AuditableEntity<TId> : Entity<TId>, IAuditableEntity, ISoftDeletable where TId : notnull
 {

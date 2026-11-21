@@ -10,14 +10,13 @@ namespace BlazorBoilerplate.Modules.Demo;
 /// </summary>
 public sealed class DemoDatabaseMigrations : IModuleDatabaseMigrations
 {
+    public Task EnsureSchemaAsync(IServiceProvider services, CancellationToken cancellationToken) =>
+        DemoMigrationHelper.MigrateAsync(cancellationToken: cancellationToken);
+
     public IReadOnlyList<ModuleMigrationStep> Steps { get; } =
     [
-        new ModuleMigrationStep(1, "EnsureDemoSchema", EnsureSchemaAsync),
-        new ModuleMigrationStep(2, "SeedDemoInitialNote", SeedDemoInitialNoteAsync)
+        new ModuleMigrationStep(1, "SeedDemoInitialNote", SeedDemoInitialNoteAsync)
     ];
-
-    private static Task EnsureSchemaAsync(IServiceProvider sp, CancellationToken ct) =>
-        DemoMigrationHelper.MigrateAsync(cancellationToken: ct);
 
     private static async Task SeedDemoInitialNoteAsync(IServiceProvider sp, CancellationToken ct)
     {
