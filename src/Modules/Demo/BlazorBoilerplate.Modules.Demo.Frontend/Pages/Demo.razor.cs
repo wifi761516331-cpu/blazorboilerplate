@@ -159,7 +159,7 @@ public partial class Demo : IAsyncDisposable
         if (_hubConnected && _hub is not null)
         {
             await DisposeHubAsync();
-            AddHubLog("断开", BitColor.Secondary, "已断开 /hubs/app");
+            AddHubLog(L["demo.hub.tag.disconnected"], BitColor.Secondary, L["demo.hub.log.disconnected"]);
             return;
         }
 
@@ -175,7 +175,7 @@ public partial class Demo : IAsyncDisposable
             {
                 _ = InvokeAsync(() =>
                 {
-                    AddHubLog("推送", BitColor.Success, msg.GetRawText());
+                    AddHubLog(L["demo.hub.tag.push"], BitColor.Success, msg.GetRawText());
                     StateHasChanged();
                 });
             });
@@ -188,12 +188,12 @@ public partial class Demo : IAsyncDisposable
 
             await _hub.StartAsync();
             _hubConnected = true;
-            AddHubLog("连接", BitColor.Info, $"已连接 /hubs/app (Id: {_hub.ConnectionId})");
-            Toast.Success("已连接 SignalR /hubs/app");
+            AddHubLog(L["demo.hub.tag.connected"], BitColor.Info, L.GetString("demo.hub.log.connected", _hub.ConnectionId ?? string.Empty));
+            Toast.Success(L["demo.hub.toast.connected"]);
         }
         catch (Exception ex)
         {
-            Toast.Error($"连接 SignalR 失败：{ex.Message}");
+            Toast.Error(L.GetString("demo.hub.toast.connectFailed", ex.Message));
             await DisposeHubAsync();
         }
         finally
@@ -209,11 +209,11 @@ public partial class Demo : IAsyncDisposable
         try
         {
             var res = await _hub.InvokeAsync<JsonElement>("InvokeAsync", "demo.ping", new { text = "ping" });
-            AddHubLog("Ping", BitColor.Info, res.GetRawText());
+            AddHubLog(L["demo.hub.tag.ping"], BitColor.Info, res.GetRawText());
         }
         catch (Exception ex)
         {
-            Toast.Error($"demo.ping 调用失败：{ex.Message}");
+            Toast.Error(L.GetString("demo.hub.toast.pingFailed", ex.Message));
         }
         finally
         {
@@ -228,11 +228,11 @@ public partial class Demo : IAsyncDisposable
         try
         {
             var res = await _hub.InvokeAsync<JsonElement>("InvokeAsync", "demo.broadcast", new { message = _hubMessage });
-            AddHubLog("广播", BitColor.Primary, res.GetRawText());
+            AddHubLog(L["demo.hub.tag.broadcast"], BitColor.Primary, res.GetRawText());
         }
         catch (Exception ex)
         {
-            Toast.Error($"demo.broadcast 调用失败：{ex.Message}");
+            Toast.Error(L.GetString("demo.hub.toast.broadcastFailed", ex.Message));
         }
         finally
         {

@@ -90,16 +90,16 @@
         <div style="display:flex;flex-direction:column;gap:0.875rem;width:100%;">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;">
                 <div style="display:flex;align-items:center;gap:0.5rem;">
-                    <BitText Typography="BitTypography.H6">4. SignalR 实时通信示例 (/hubs/app + IAppHubExtension)</BitText>
+                    <BitText Typography="BitTypography.H6">@L["demo.hub.title"]</BitText>
                     <BitTag Color="@(_hubConnected ? BitColor.Success : BitColor.Secondary)"
                             Variant="@(_hubConnected ? BitVariant.Fill : BitVariant.Outline)"
                             Size="BitSize.Small">
-                        @(_hubConnected ? "已连接" : "未连接")
+                        @(_hubConnected ? L["demo.hub.connected"] : L["demo.hub.disconnected"])
                     </BitTag>
                 </div>
                 @if (_hubLogs.Count > 0)
                 {
-                    <BitButton Variant="BitVariant.Text" Size="BitSize.Small" OnClick="ClearHubLogs">清空日志 (@_hubLogs.Count)</BitButton>
+                    <BitButton Variant="BitVariant.Text" Size="BitSize.Small" OnClick="ClearHubLogs">@L.GetString("demo.hub.clearLogs", _hubLogs.Count)</BitButton>
                 }
             </div>
 
@@ -108,20 +108,20 @@
                            Color="@(_hubConnected ? BitColor.Error : BitColor.Primary)"
                            Disabled="@_hubBusy"
                            OnClick="ToggleHubConnectionAsync">
-                    @(_hubConnected ? "断开连接" : "连接 /hubs/app")
+                    @(_hubConnected ? L["demo.hub.disconnect"] : L["demo.hub.connect"])
                 </BitButton>
                 <BitButton Variant="BitVariant.Outline"
                            Disabled="@(!_hubConnected || _hubBusy)"
                            OnClick="PingHubAsync">
-                    Ping (demo.ping)
+                    @L["demo.hub.ping"]
                 </BitButton>
                 <BitTextField @bind-Value="_hubMessage"
-                              Placeholder="输入广播消息..."
+                              Placeholder="@L["demo.hub.placeholder"]"
                               Style="flex:1;min-width:14rem;max-width:26rem;" />
                 <BitButton Variant="BitVariant.Outline"
                            Disabled="@(!_hubConnected || _hubBusy)"
                            OnClick="BroadcastHubAsync">
-                    广播 (demo.broadcast)
+                    @L["demo.hub.broadcast"]
                 </BitButton>
             </div>
 
@@ -129,7 +129,7 @@
                 @if (_hubLogs.Count == 0)
                 {
                     <div style="height:9.5rem;display:flex;align-items:center;justify-content:center;">
-                        <BitText Class="muted">点击「连接 /hubs/app」后可测试 demo.ping 与 demo.broadcast 实时推送。</BitText>
+                        <BitText Class="muted">@L["demo.hub.emptyHint"]</BitText>
                     </div>
                 }
                 else
