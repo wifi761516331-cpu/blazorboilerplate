@@ -20,6 +20,11 @@ public partial class IdentityLayout
     [Inject]
     private IJSRuntime JS { get; set; } = default!;
 
+    [Inject]
+    private NavigationManager Navigation { get; set; } = default!;
+
+    private void GoHome() => Navigation.NavigateTo("/", forceLoad: true);
+
     private bool _dark;
 
     private sealed record CultureOption(string Code, string Text, string? FlagCode = null);

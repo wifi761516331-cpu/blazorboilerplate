@@ -8,7 +8,7 @@
 
 <div class="identity-shell @(_dark ? "bb-dark" : "")">
     <div class="identity-header">
-        <a href="/" class="home-link">
+        <a href="/" class="home-link" @onclick="GoHome" @onclick:preventDefault="true">
             <AppIcon Name="Home" /> @L["platform.nav.backHome"]
         </a>
         <div class="spacer"></div>

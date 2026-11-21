@@ -45,6 +45,9 @@ public partial class Modules
     private int RunningCount => _modules.Count(m => m.State == ModuleState.Running);
     private int EssentialCount => _modules.Count(m => m.IsEssential);
 
+    private Dictionary<string, string> _menuIconsByModule = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, string> _menuIconsByRoute = new(StringComparer.OrdinalIgnoreCase);
+
     private IEnumerable<ModuleDescriptor> FilteredModules =>
         string.IsNullOrWhiteSpace(_search)
             ? _modules
@@ -67,6 +70,7 @@ public partial class Modules
             // 否则「刷新」只返回启动时已发现的旧列表，看起来像按钮不起作用。
             var (_, modules) = await Api.RescanModulesAsync();
             _modules = modules.OrderBy(m => m.Order).ThenBy(m => m.Name).ToList();
+            await LoadMenuIconsAsync();
             await LoadVersionItemsAsync();
         }
         catch (Exception ex)
@@ -445,11 +449,46 @@ public partial class Modules
         return m.IsEssential ? $"{state} is-essential".Trim() : state;
     }
 
-    private static string ModuleIcon(string id) =>
-        id.Contains("identity", StringComparison.OrdinalIgnoreCase) ? "Shield" :
-        id.Contains("catalog", StringComparison.OrdinalIgnoreCase) ? "Shop" :
-        id.Contains("attachment", StringComparison.OrdinalIgnoreCase) ? "Attach" :
-        id.Contains("localization", StringComparison.OrdinalIgnoreCase) ? "Globe" : "Puzzle";
+    private sealed record MenuIconItem(string Path, string? Icon, string? ModuleId, int Sort);
+
+    private async Task LoadMenuIconsAsync()
+    {
+        try
+        {
+            var menus = await Api.GetListAsync<MenuIconItem>("api/identity/menus/visible");
+            var byMod = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var byRoute = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var menu in menus.OrderBy(x => x.Sort))
+            {
+                if (string.IsNullOrWhiteSpace(menu.Icon)) continue;
+                if (!string.IsNullOrWhiteSpace(menu.ModuleId) && !byMod.ContainsKey(menu.ModuleId))
+                    byMod[menu.ModuleId] = menu.Icon;
+                if (!string.IsNullOrWhiteSpace(menu.Path) && !byRoute.ContainsKey(menu.Path.TrimEnd('/')))
+                    byRoute[menu.Path.TrimEnd('/')] = menu.Icon;
+            }
+            _menuIconsByModule = byMod;
+            _menuIconsByRoute = byRoute;
+        }
+        catch
+        {
+            // 菜单图标拉取失败时回退 manifest 图标，不阻断模块管理页
+        }
+    }
+
+    private string ModuleIcon(ModuleDescriptor m)
+    {
+        if (_menuIconsByModule.TryGetValue(m.Id, out var modIcon) && !string.IsNullOrWhiteSpace(modIcon))
+            return modIcon;
+
+        foreach (var route in m.Routes)
+        {
+            var key = route.TrimEnd('/');
+            if (_menuIconsByRoute.TryGetValue(key, out var routeIcon) && !string.IsNullOrWhiteSpace(routeIcon))
+                return routeIcon;
+        }
+
+        return string.IsNullOrWhiteSpace(m.Icon) ? "Puzzle" : m.Icon;
+    }
 
     private static BitColor StateColor(ModuleState state) => state switch
     {
