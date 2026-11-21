@@ -58,6 +58,12 @@ public sealed class ModuleFrontendManifest
 {
     /// <summary>独立前端 RCL 程序集名（位于包内 frontend/ 目录）。为空时兼容旧单 DLL 模式回退到 backend/entryAssembly。</summary>
     public string? Assembly { get; set; }
+    /// <summary>模块卡片图标（可选；留空时自动回退 frontend.menuItems[].icon）。</summary>
+    public string? Icon { get; set; }
+    /// <summary>是否允许在「域名路由」管理下拉框中选择作为独立域名跳转目标（默认 false）。</summary>
+    public bool DomainRoutable { get; set; }
+    /// <summary>作为独立域名入口时的默认路径（留空时回退 Routes[0]）。</summary>
+    public string? DefaultSiteEntry { get; set; }
     public string[] Routes { get; set; } = [];
     public string[] Menus { get; set; } = [];
     public string[] Localization { get; set; } = [];

@@ -46,6 +46,15 @@ public sealed record ModuleDescriptor(
 
     /// <summary>模块声明的页面路由（frontend.routes ∪ menuItems[].route），导航据此判断菜单归属模块。</summary>
     public string[] Routes { get; init; } = [];
+
+    /// <summary>是否允许作为域名路由跳转目标（由 manifest.json frontend.domainRoutable 声明）。</summary>
+    public bool DomainRoutable { get; init; }
+
+    /// <summary>作为独立域名入口时的默认路径（由 manifest.json frontend.defaultSiteEntry 声明）。</summary>
+    public string? DefaultSiteEntry { get; init; }
+
+    /// <summary>模块展示图标（取自 manifest.json frontend.menuItems[].icon）。</summary>
+    public string? Icon { get; init; }
 }
 
 /// <summary>模块某版本的快照，供「版本历史」接口与 UI 使用。</summary>

@@ -458,6 +458,7 @@ public sealed class ModuleLifecycleManager(
             hostServices.GetService<IAppHubExtensionRegistry>()?.UnregisterModule(id);
             hostServices.GetService<ModularAssetManager>()?.UnregisterModule(id);
             WidgetZoneRegistry.UnregisterModule(id);
+            DomainRouteResolverRegistry.UnregisterModule(id);
             hostServices.GetService<IScheduleTaskManager>()?.UnregisterModule(id);
             hostServices.GetService<ILocalizationStoreBridge>()?.Detach(id);
             hostServices.GetService<EventBus>()?.UnsubscribeModule(id);
@@ -537,6 +538,7 @@ public sealed class ModuleLifecycleManager(
             hostServices.GetService<IAppHubExtensionRegistry>()?.UnregisterModule(id);
             hostServices.GetService<ModularAssetManager>()?.UnregisterModule(id);
             WidgetZoneRegistry.UnregisterModule(id);
+        DomainRouteResolverRegistry.UnregisterModule(id);
             hostServices.GetService<IScheduleTaskManager>()?.UnregisterModule(id);
             hostServices.GetService<ILocalizationStoreBridge>()?.Detach(id);
             hostServices.GetService<EventBus>()?.UnsubscribeModule(id);

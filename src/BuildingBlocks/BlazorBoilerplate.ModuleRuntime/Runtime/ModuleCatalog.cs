@@ -220,7 +220,12 @@ public sealed class ModuleCatalog(IModuleAudit audit)
             state, package.PackagePath, null, null, manifest.Permissions, manifest.DisplayOrder, manifest.IsEssential, 1,
             manifest.DisplayName)
         {
-            Routes = routes
+            Routes = routes,
+            DomainRoutable = manifest.Frontend.DomainRoutable,
+            DefaultSiteEntry = manifest.Frontend.DefaultSiteEntry,
+            Icon = !string.IsNullOrWhiteSpace(manifest.Frontend.Icon)
+                ? manifest.Frontend.Icon
+                : manifest.Frontend.MenuItems.FirstOrDefault(mi => !string.IsNullOrWhiteSpace(mi.Icon))?.Icon
         };
         perVersion[version] = new ModuleCatalogEntry { Descriptor = descriptor, Manifest = manifest };
         // 未显式指定激活版本时，默认选最高语义版本（避免按磁盘目录顺序落到最低版本）。
