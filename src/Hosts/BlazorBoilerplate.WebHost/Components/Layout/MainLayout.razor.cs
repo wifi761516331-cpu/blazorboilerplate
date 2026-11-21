@@ -6,6 +6,7 @@ using BlazorBoilerplate.Web.Shared.Services;
 using BlazorBoilerplate.WebHost.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Logging;
+using Microsoft.JSInterop;
 // RouteData 与 Microsoft.AspNetCore.Routing.RouteData 二义：组件级联参数用的是 Components 版。
 using RouteData = Microsoft.AspNetCore.Components.RouteData;
 
@@ -44,6 +45,15 @@ public partial class MainLayout
 
     [Inject]
     private BlazorBoilerplate.WebHost.Services.NavRefreshService NavRefresh { get; set; } = null!;
+
+    [Inject]
+    private SessionRevocationWatcher RevocationWatcher { get; set; } = default!;
+
+    [Inject]
+    private ToastService Toast { get; set; } = default!;
+
+    [Inject]
+    private IJSRuntime JS { get; set; } = default!;
 
     private sealed record NavNode(Guid Id, string Text, string Path, string Icon, string Kind, List<NavNode> Children);
 
@@ -182,7 +192,15 @@ public partial class MainLayout
         Account.Changed -= HandleAccountChanged;
         SysState.Changed -= HandleSysChanged;
         FrontendLoc.Changed -= HandleLocalizationChanged;
+        RevocationWatcher.OnSessionRevoked -= HandleSessionRevokedAsync;
     }
+
+    private Task HandleSessionRevokedAsync() => InvokeAsync(async () =>
+    {
+        Toast.Warning("当前租户已被停用或会话已吊销，正在退出登录。");
+        try { await JS.InvokeVoidAsync("blazorAuth.logout", false); } catch { }
+        Navigation.NavigateTo("/sign-in", forceLoad: true);
+    });
 
     /// <summary>公共（匿名）路由：登录页与安装向导使用独立的 IdentityLayout，绝不能被本布局的登录守卫重复跳转。</summary>
     private bool IsPublicRoute()
@@ -209,6 +227,11 @@ public partial class MainLayout
         // 账户状态先就绪，IsMenuVisible 的菜单授权过滤才能生效。
         await Account.EnsureLoadedAsync();
         await SysState.EnsureLoadedAsync();
+        if (Account.IsAuthenticated)
+        {
+            RevocationWatcher.OnSessionRevoked += HandleSessionRevokedAsync;
+            await RevocationWatcher.StartAsync();
+        }
 
         // 首屏主题 / 强调色恢复：await 后写回并请求重渲染（App.razor 首屏 cookie 由主代理处理）。
         _dark = string.Equals(prefs.Theme, "dark", StringComparison.OrdinalIgnoreCase);

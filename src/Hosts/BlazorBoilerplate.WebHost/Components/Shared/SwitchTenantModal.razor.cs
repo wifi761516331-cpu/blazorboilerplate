@@ -65,7 +65,7 @@ public partial class SwitchTenantModal
     private Task CloseAsync() => IsOpenChanged.InvokeAsync(false);
 
     private bool IsCurrent(TenantDto tenant) =>
-        tenant.Current || Account.CurrentUser?.TenantId == tenant.Id;
+        tenant.Accepted && (tenant.Current || Account.CurrentUser?.TenantId == tenant.Id);
 
     private async Task SelectAsync(TenantDto tenant)
     {

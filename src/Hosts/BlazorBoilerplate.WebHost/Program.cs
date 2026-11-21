@@ -47,6 +47,7 @@ builder.Services.AddScoped<ToastService>();
 
 // ---- 登录态 / 设备偏好 / 多语言：scoped，随每条 Blazor 线路 ----
 builder.Services.AddScoped<AccountState>();
+builder.Services.AddScoped<SessionRevocationWatcher>();
 builder.Services.AddScoped<ICurrentUserPermissionService>(sp => sp.GetRequiredService<AccountState>());
 builder.Services.AddScoped<SystemSettingsState>();
 builder.Services.AddScoped<UserPreferences>();

@@ -1,7 +1,7 @@
 @page "/tenants"
 @rendermode RenderMode.InteractiveServer
 
-@* 租户管理：对齐 Bluebird ManageMyTenantsPage（手风琴 + 卡片列表）+ ManageAllTenantsPage（管理员网格）。
+@* 租户管理：手风琴 + 卡片列表 + 管理员网格。
    普通用户视图 = 「我的租户」：手风琴（新建租户 / 邀请成员 / 编辑当前租户）+ 卡片列表（切换·接受 / 离开·拒绝）。
    管理员（tenant.create）额外看到「管理所有租户」网格：启用停用开关 + 编辑。
    数据来自 UserController.GetTenants（当前用户的租户成员关系，含待接受邀请）；切换/接受经由 blazorAuth.switchTenant，
@@ -68,10 +68,50 @@ else
                         <div class="mt-form">
                             <BitTextField Label="@L["platform.tenants.field.memberEmail"]" @bind-Value="_inviteEmail"
                                           Type="BitInputType.Email" Placeholder="member@example.com" />
+                            <BitTextField Label="手机号（邮箱与手机号二选一）" @bind-Value="_invitePhone"
+                                          Placeholder="13800138000 / +8613800138000" />
                         </div>
                         <BitButton Color="BitColor.Primary" Disabled="@_busy" IsLoading="@_busy" OnClick="InviteAsync">
                             @L["platform.tenants.sendInvite"]
                         </BitButton>
+                        @if (_members.Count > 0)
+                        {
+                            <div style="margin-top:16px">
+                                <BitText Typography="BitTypography.Subtitle2" Style="margin-bottom:8px;display:block">当前租户成员（@_members.Count）</BitText>
+                                <BitDataGrid TItem="TenantMemberDto" Items="_members" Bordered="true" Hoverable="true" Striped="true" Strings="@L.CreateGridStrings()">
+                                    <Columns>
+                                        <BitDataGridColumn TItem="TenantMemberDto" Field="DisplayName" Title="成员">
+                                            <Template Context="m">
+                                                <strong>@m.DisplayName</strong>
+                                                <span class="muted" style="margin-left:6px">(@m.UserName)</span>
+                                                @if (m.IsOwner)
+                                                {
+                                                    <BitTag Variant="BitVariant.Outline" Color="BitColor.Info" Style="margin-left:6px" Text="所有者" />
+                                                }
+                                                @if (!m.Accepted)
+                                                {
+                                                    <BitTag Variant="BitVariant.Outline" Color="BitColor.Warning" Style="margin-left:6px" Text="待接受" />
+                                                }
+                                            </Template>
+                                        </BitDataGridColumn>
+                                        <BitDataGridColumn TItem="TenantMemberDto" Field="Email" Title="联系方式">
+                                            <Template Context="m">@(!string.IsNullOrWhiteSpace(m.Email) ? m.Email : (m.PhoneNumber ?? "—"))</Template>
+                                        </BitDataGridColumn>
+                                        <BitDataGridColumn TItem="TenantMemberDto" Title="操作">
+                                            <Template Context="m">
+                                                @if (m.UserId != Account.CurrentUser?.Id && !(m.IsOwner && _members.Count(x => x.IsOwner) <= 1))
+                                                {
+                                                    <BitButton Color="BitColor.Error" Variant="BitVariant.Text" IconName="@BitIconName.Leave"
+                                                               Disabled="@_busy" OnClick="() => RemoveMemberAsync(m)">
+                                                        移出
+                                                    </BitButton>
+                                                }
+                                            </Template>
+                                        </BitDataGridColumn>
+                                    </Columns>
+                                </BitDataGrid>
+                            </div>
+                        }
                     </div>
                 }
             </div>
@@ -179,13 +219,17 @@ else
 </BlazorBoilerplateModal>
 
 @* 管理员：管理所有租户 *@
-<PermissionView Code="tenant.create">
+<PermissionView Code="tenant.manage.global">
     @if (_isAdmin)
     {
         <div class="admin-tenants-section">
             <div class="admin-section-head">
                 <BitText Typography="BitTypography.H5">@L["platform.tenants.adminTitle"]</BitText>
-                <BitButton IconPlacement="BitPlacement.End" IconName="@BitIconName.Add" OnClick="OpenAdminCreate">@L["platform.tenants.addTenant"]</BitButton>
+                <div class="admin-tenant-actions">
+                    <BitTextField @bind-Value="_adminSearch" Placeholder="搜索租户名称/标题/域名" />
+                    <BitButton Variant="BitVariant.Outline" OnClick="SearchAllAsync">搜索</BitButton>
+                    <BitButton IconPlacement="BitPlacement.End" IconName="@BitIconName.Add" OnClick="OpenAdminCreate">@L["platform.tenants.addTenant"]</BitButton>
+                </div>
             </div>
 
             <BitDataGrid TItem="TenantDto" Items="_allTenants" Bordered="true" Hoverable="true" Striped="true" Strings="@L.CreateGridStrings()">
@@ -220,6 +264,11 @@ else
                     <BitText Class="muted">@L["platform.tenants.adminEmpty"]</BitText>
                 </EmptyTemplate>
             </BitDataGrid>
+            <div class="admin-tenant-actions" style="margin-top:12px;justify-content:flex-end">
+                <BitText Class="muted">共 @_adminTotalCount 条 · 第 @(_adminPage + 1) 页</BitText>
+                <BitButton Variant="BitVariant.Outline" IsEnabled="@(_adminPage > 0)" OnClick="PrevAdminPageAsync">上一页</BitButton>
+                <BitButton Variant="BitVariant.Outline" IsEnabled="@((_adminPage + 1) * _adminPageSize < _adminTotalCount)" OnClick="NextAdminPageAsync">下一页</BitButton>
+            </div>
         </div>
     }
 </PermissionView>
@@ -237,6 +286,18 @@ else
         <BitTextField Label="@L["platform.tenants.field.domain"]" @bind-Value="_adminDomain"
                       Placeholder="tenant.example.com" />
         <BitCheckbox @bind-Value="_adminActive" Label="@L["platform.tenants.active"]" />
+    </div>
+</BlazorBoilerplateModal>
+
+@* 高权限二次验证（ELEVATED_ACCESS） *@
+<BlazorBoilerplateModal @bind-IsOpen="_elevateOpen"
+                        Title="高权限二次验证"
+                        OkText="验证并继续"
+                        ShowCancel="true"
+                        OnOk="ConfirmElevatedAccessAsync">
+    <div class="id-form">
+        <p class="muted">此操作涉及敏感租户权限，请输入当前登录密码以确认身份（15 分钟内有效）。</p>
+        <BitTextField Label="当前密码" Type="BitInputType.Password" @bind-Value="_elevatePassword" />
     </div>
 </BlazorBoilerplateModal>
 

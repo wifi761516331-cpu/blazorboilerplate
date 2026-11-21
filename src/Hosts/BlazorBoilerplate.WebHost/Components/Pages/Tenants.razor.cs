@@ -1,4 +1,5 @@
 using BlazorBoilerplate.Application.Localization;
+using BlazorBoilerplate.Application.OData;
 using BlazorBoilerplate.Shared.Features.Account;
 using BlazorBoilerplate.Shared.Features.Identity;
 using BlazorBoilerplate.Web.Shared.Services;
@@ -29,8 +30,12 @@ public partial class Tenants
     [Inject]
     private ILocalizationService L { get; set; } = default!;
 
+    [Inject]
+    private ElevatedAccessContext ElevatedAccess { get; set; } = default!;
+
     private List<TenantDto> _tenants = [];
     private List<TenantDto> _allTenants = [];
+    private List<TenantMemberDto> _members = [];
     private TenantDto? _currentTenant;
     private string? _loadError;
     private bool _loading;
@@ -46,6 +51,7 @@ public partial class Tenants
 
     // 邀请
     private string _inviteEmail = string.Empty;
+    private string _invitePhone = string.Empty;
 
     // 编辑当前租户
     private string _editName = string.Empty;
@@ -63,11 +69,20 @@ public partial class Tenants
     private string _adminTitle = string.Empty;
     private string _adminDomain = string.Empty;
     private bool _adminActive;
+    private string _adminSearch = string.Empty;
+    private int _adminPage;
+    private const int _adminPageSize = 10;
+    private long _adminTotalCount;
+
+    // 高权限二次认证（ELEVATED_ACCESS）
+    private bool _elevateOpen;
+    private string _elevatePassword = string.Empty;
+    private Func<Task>? _pendingElevatedAction;
 
     protected override async Task OnInitializedAsync()
     {
         await Account.EnsureLoadedAsync();
-        _isAdmin = Account.HasPermission("tenant.create");
+        _isAdmin = Account.HasPermission("tenant.manage.global");
         await LoadAsync();
         if (_isAdmin)
             await LoadAllAsync();
@@ -86,6 +101,12 @@ public partial class Tenants
                 _editName = _currentTenant.Name;
                 _editTitle = _currentTenant.Title ?? string.Empty;
                 _editDomain = _currentTenant.Domain ?? string.Empty;
+                if (Account.HasPermission("tenant.invite"))
+                    await LoadMembersAsync(_currentTenant.Id);
+            }
+            else
+            {
+                _members = [];
             }
             // 无租户时默认展开「新建租户」；否则默认收起。
             _expanded = _tenants.Count == 0 ? "create" : null;
@@ -103,12 +124,95 @@ public partial class Tenants
 
     private async Task LoadAllAsync()
     {
-        try { _allTenants = (await Api.GetAllTenantsAsync()).ToList(); }
+        try
+        {
+            var term = string.IsNullOrWhiteSpace(_adminSearch) ? null : _adminSearch.Trim().Replace("'", "''");
+            var filter = term is null
+                ? null
+                : $"contains(name,'{term}') or contains(title,'{term}') or contains(domain,'{term}')";
+            var page = await Api.QueryAllTenantsODataAsync(new ODataQuery
+            {
+                Filter = filter,
+                OrderBy = "name asc",
+                Top = _adminPageSize,
+                Skip = _adminPage * _adminPageSize,
+                Count = true
+            });
+            _allTenants = page.Value.ToList();
+            _adminTotalCount = page.Count ?? _allTenants.Count;
+        }
         catch (Exception ex) { Toast.Error(L.GetString("platform.tenants.error.loadAllFailed", ex.Message)); }
     }
 
+    private async Task SearchAllAsync()
+    {
+        _adminPage = 0;
+        await LoadAllAsync();
+    }
+
+    private async Task PrevAdminPageAsync()
+    {
+        if (_adminPage <= 0) return;
+        _adminPage--;
+        await LoadAllAsync();
+    }
+
+    private async Task NextAdminPageAsync()
+    {
+        if ((_adminPage + 1) * _adminPageSize >= _adminTotalCount) return;
+        _adminPage++;
+        await LoadAllAsync();
+    }
+
+    private async Task EnsureElevatedAsync(Func<Task> action)
+    {
+        if (ElevatedAccess.IsValid)
+        {
+            await action();
+            return;
+        }
+        _pendingElevatedAction = action;
+        _elevatePassword = string.Empty;
+        _elevateOpen = true;
+    }
+
+    private async Task ConfirmElevatedAccessAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_elevatePassword))
+        {
+            Toast.Warning("请输入当前登录密码。");
+            return;
+        }
+        try
+        {
+            var res = await Api.VerifyElevatedAccessAsync(_elevatePassword);
+            ElevatedAccess.Set(res.Token, res.ExpiresAtUtc);
+            _elevatePassword = string.Empty;
+            _elevateOpen = false;
+            var pending = _pendingElevatedAction;
+            _pendingElevatedAction = null;
+            if (pending is not null)
+                await pending();
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"高权限验证失败：{ex.Message}");
+        }
+    }
+
+    private bool TryReopenElevated(Exception ex, Func<Task> retryAction)
+    {
+        if (!ex.Message.Contains("高权限二次验证", StringComparison.Ordinal))
+            return false;
+        ElevatedAccess.Clear();
+        _pendingElevatedAction = retryAction;
+        _elevatePassword = string.Empty;
+        _elevateOpen = true;
+        return true;
+    }
+
     private bool IsCurrent(TenantDto tenant) =>
-        tenant.Current || (Account.CurrentUser?.TenantId is { } tid && tid == tenant.Id);
+        tenant.Accepted && (tenant.Current || (Account.CurrentUser?.TenantId is { } tid && tid == tenant.Id));
 
     // 手风琴分区标题用属性计算，事件处理器用方法组（规避 Razor 属性内字符串字面量 lambda 的引号解析问题）。
     private string InviteSectionTitle => _currentTenant is null
@@ -164,7 +268,9 @@ public partial class Tenants
         await Redirect("/");
     }
 
-    private async Task CreateAsync()
+    private Task CreateAsync() => EnsureElevatedAsync(CreateCoreAsync);
+
+    private async Task CreateCoreAsync()
     {
         if (_busy) return;
         if (string.IsNullOrWhiteSpace(_createName))
@@ -181,12 +287,13 @@ public partial class Tenants
             var created = await Api.CreateTenantAsync(
                 new TenantDto(Guid.Empty, name, title, domain, true, true, false));
             Toast.Success(L.GetString("platform.tenants.toast.createdEntering", created.Name));
-            // 创建者即成为该租户管理员，直接切入（与 Bluebird 一致）。
+            // 创建者即成为该租户管理员，直接切入。
             await SwitchTenantCoreAsync(created.Id, created.Name);
         }
         catch (Exception ex)
         {
-            Toast.Error(L.GetString("platform.tenants.toast.createFailed", ex.Message));
+            if (!TryReopenElevated(ex, CreateCoreAsync))
+                Toast.Error(L.GetString("platform.tenants.toast.createFailed", ex.Message));
         }
         finally
         {
@@ -194,25 +301,31 @@ public partial class Tenants
         }
     }
 
-    private async Task InviteAsync()
+    private Task InviteAsync() => EnsureElevatedAsync(InviteCoreAsync);
+
+    private async Task InviteCoreAsync()
     {
         if (_busy || _currentTenant is null) return;
-        if (string.IsNullOrWhiteSpace(_inviteEmail))
+        if (string.IsNullOrWhiteSpace(_inviteEmail) && string.IsNullOrWhiteSpace(_invitePhone))
         {
-            Toast.Warning(L["platform.tenants.toast.inviteEmailRequired"]);
+            Toast.Warning("请填写受邀人的邮箱或手机号。");
             return;
         }
         _busy = true;
         try
         {
-            await Api.InviteTenantUserAsync(new InviteUserToTenantRequestDto(_currentTenant.Id, _inviteEmail.Trim()));
-            Toast.Success(L.GetString("platform.tenants.toast.invited", _inviteEmail.Trim()));
+            var email = string.IsNullOrWhiteSpace(_inviteEmail) ? null : _inviteEmail.Trim();
+            var phone = string.IsNullOrWhiteSpace(_invitePhone) ? null : _invitePhone.Trim();
+            await Api.InviteTenantUserAsync(new InviteUserToTenantRequestDto(_currentTenant.Id, email, phone));
+            Toast.Success(L.GetString("platform.tenants.toast.invited", email ?? phone!));
             _inviteEmail = string.Empty;
-            _expanded = null;
+            _invitePhone = string.Empty;
+            await LoadMembersAsync(_currentTenant.Id);
         }
         catch (Exception ex)
         {
-            Toast.Error(L.GetString("platform.tenants.toast.inviteFailed", ex.Message));
+            if (!TryReopenElevated(ex, InviteCoreAsync))
+                Toast.Error(L.GetString("platform.tenants.toast.inviteFailed", ex.Message));
         }
         finally
         {
@@ -220,7 +333,38 @@ public partial class Tenants
         }
     }
 
-    private async Task UpdateAsync()
+    private async Task LoadMembersAsync(Guid tenantId)
+    {
+        try { _members = (await Api.GetTenantMembersAsync(tenantId)).ToList(); }
+        catch { _members = []; }
+    }
+
+    private Task RemoveMemberAsync(TenantMemberDto member) => EnsureElevatedAsync(() => RemoveMemberCoreAsync(member));
+
+    private async Task RemoveMemberCoreAsync(TenantMemberDto member)
+    {
+        if (_busy || _currentTenant is null) return;
+        _busy = true;
+        try
+        {
+            await Api.RemoveTenantUserAsync(_currentTenant.Id, member.UserId);
+            Toast.Success($"已将「{member.DisplayName}」移出当前租户。");
+            await LoadMembersAsync(_currentTenant.Id);
+        }
+        catch (Exception ex)
+        {
+            if (!TryReopenElevated(ex, () => RemoveMemberCoreAsync(member)))
+                Toast.Error($"移出成员失败：{ex.Message}");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private Task UpdateAsync() => EnsureElevatedAsync(UpdateCoreAsync);
+
+    private async Task UpdateCoreAsync()
     {
         if (_busy || _currentTenant is null) return;
         if (string.IsNullOrWhiteSpace(_editName))
@@ -241,7 +385,8 @@ public partial class Tenants
         }
         catch (Exception ex)
         {
-            Toast.Error(L.GetString("platform.tenants.toast.updateFailed", ex.Message));
+            if (!TryReopenElevated(ex, UpdateCoreAsync))
+                Toast.Error(L.GetString("platform.tenants.toast.updateFailed", ex.Message));
         }
         finally
         {
@@ -270,17 +415,14 @@ public partial class Tenants
             _confirmLeaveOpen = false;
             _leavingTenant = null;
 
-            await LoadAsync();
-            // 离开的是当前租户：若还有其他已接受租户则切入，否则整页刷新（cookie 的 tid 可能短暂滞后）。
+            // 离开的是当前租户：直接下线并跳转到登录页。
             if (wasCurrent)
             {
-                var fallback = _tenants.FirstOrDefault(t => t.Accepted);
-                if (fallback is not null)
-                {
-                    await SwitchTenantCoreAsync(fallback.Id, fallback.Name);
-                    return;
-                }
+                try { await JS.InvokeAsync<JsonElement>("blazorAuth.logout", false); } catch { }
+                Navigation.NavigateTo("/sign-in", forceLoad: true);
+                return;
             }
+            await LoadAsync();
             await Redirect(Navigation.Uri);
         }
         catch (Exception ex)
@@ -293,13 +435,15 @@ public partial class Tenants
         }
     }
 
-    private async Task ToggleActiveAsync(TenantDto tenant)
+    private Task ToggleActiveAsync(TenantDto tenant) => EnsureElevatedAsync(() => ToggleActiveCoreAsync(tenant));
+
+    private async Task ToggleActiveCoreAsync(TenantDto tenant)
     {
         if (_busy) return;
         _busy = true;
         try
         {
-            var updated = await Api.UpdateTenantAsync(tenant with { IsActive = !tenant.IsActive });
+            var updated = await Api.AdminUpdateTenantAsync(tenant with { IsActive = !tenant.IsActive });
             var idx = _allTenants.FindIndex(t => t.Id == updated.Id);
             if (idx >= 0) _allTenants[idx] = updated;
             Toast.Success(updated.IsActive
@@ -308,7 +452,8 @@ public partial class Tenants
         }
         catch (Exception ex)
         {
-            Toast.Error(L.GetString("platform.tenants.toast.toggleFailed", ex.Message));
+            if (!TryReopenElevated(ex, () => ToggleActiveCoreAsync(tenant)))
+                Toast.Error(L.GetString("platform.tenants.toast.toggleFailed", ex.Message));
         }
         finally
         {
@@ -336,7 +481,9 @@ public partial class Tenants
         _adminEditOpen = true;
     }
 
-    private async Task SaveAdminEditAsync()
+    private Task SaveAdminEditAsync() => EnsureElevatedAsync(SaveAdminEditCoreAsync);
+
+    private async Task SaveAdminEditCoreAsync()
     {
         if (string.IsNullOrWhiteSpace(_adminName))
         {
@@ -350,12 +497,12 @@ public partial class Tenants
             var domain = string.IsNullOrWhiteSpace(_adminDomain) ? null : _adminDomain.Trim();
             if (_adminEditing is null)
             {
-                var created = await Api.CreateTenantAsync(new TenantDto(Guid.Empty, name, title, domain, _adminActive, true, false));
+                var created = await Api.AdminCreateTenantAsync(new TenantDto(Guid.Empty, name, title, domain, _adminActive, true, false));
                 Toast.Success(L.GetString("platform.tenants.toast.adminCreated", created.Name));
             }
             else
             {
-                var updated = await Api.UpdateTenantAsync(_adminEditing with
+                var updated = await Api.AdminUpdateTenantAsync(_adminEditing with
                 {
                     Name = name,
                     Title = title,
@@ -370,7 +517,8 @@ public partial class Tenants
         }
         catch (Exception ex)
         {
-            Toast.Error(L.GetString("platform.tenants.toast.saveFailed", ex.Message));
+            if (!TryReopenElevated(ex, SaveAdminEditCoreAsync))
+                Toast.Error(L.GetString("platform.tenants.toast.saveFailed", ex.Message));
         }
     }
 

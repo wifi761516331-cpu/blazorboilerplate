@@ -77,6 +77,12 @@ public static class WebAuth
         services.AddCascadingAuthenticationState();
         services.AddHttpContextAccessor();
         services.AddScoped<IAuthSession, CookieAuthSession>();
+        services.AddScoped<ElevatedAccessContext>();
+        services.AddScoped(sp =>
+        {
+            var host = sp.GetService<IHttpContextAccessor>()?.HttpContext?.Request.Host.Host;
+            return new TenantHostContext { Host = host };
+        });
         services.AddTransient<AuthHeaderHandler>();
 
         // 独立的 HttpClient：不带 AuthHeaderHandler，避免 IAuthSession → ApiClient → Handler → IAuthSession 构造循环。
@@ -99,7 +105,9 @@ public static class WebAuth
         {
             var handlerFactory = sp.GetRequiredService<IHttpMessageHandlerFactory>();
             var session = sp.GetRequiredService<IAuthSession>();
-            var handler = new AuthHeaderHandler(session)
+            var tenantHost = sp.GetService<TenantHostContext>();
+            var elevated = sp.GetService<ElevatedAccessContext>();
+            var handler = new AuthHeaderHandler(session, tenantHost, elevated)
             {
                 InnerHandler = handlerFactory.CreateHandler(ApiClient)
             };
@@ -309,13 +317,19 @@ public static class WebAuthEndpoints
         LoginRequest request, IHttpClientFactory factory, HttpContext context, CancellationToken ct)
     {
         var client = factory.CreateClient(WebAuth.RefreshClient);
-        using var response = await client.PostAsJsonAsync(WebAuth.IdentityBase + "SignIn", new
+        using var message = new HttpRequestMessage(HttpMethod.Post, WebAuth.IdentityBase + "SignIn")
         {
-            userName = request.UserName?.Trim() ?? string.Empty,
-            password = request.Password ?? string.Empty,
-            rememberMe = request.RememberMe,
-            tenantId = request.TenantId
-        }, WebAuth.Json, ct);
+            Content = JsonContent.Create(new
+            {
+                userName = request.UserName?.Trim() ?? string.Empty,
+                password = request.Password ?? string.Empty,
+                rememberMe = request.RememberMe,
+                tenantId = request.TenantId
+            }, options: WebAuth.Json)
+        };
+        if (!string.IsNullOrWhiteSpace(context.Request.Host.Host))
+            message.Headers.TryAddWithoutValidation(AuthHeaderHandler.TenantHostHeader, context.Request.Host.Host);
+        using var response = await client.SendAsync(message, ct);
 
         if (!response.IsSuccessStatusCode)
             return Fail(await ReadErrorAsync(response, ct));
