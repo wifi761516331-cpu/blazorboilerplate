@@ -1,3 +1,4 @@
+@namespace BlazorBoilerplate.WebHost.Components.Shared
 @* 切换租户弹框（标题 + 返回箭头、租户列表、底部「管理我的租户」入口）。
    数据来自 AccountState / GetTenantsAsync；切换经由 app.js 的 blazorAuth.switchTenant；
    「管理我的租户」跳转 /tenants。显隐完全由 @bind-IsOpen 参数驱动：Blazor 子组件的渲染

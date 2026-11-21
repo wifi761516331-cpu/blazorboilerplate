@@ -5,6 +5,8 @@ using BlazorBoilerplate.Web.Shared.Localization;
 using BlazorBoilerplate.Web.Shared.Services;
 using BlazorBoilerplate.WebHost.Services;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
 // RouteData 与 Microsoft.AspNetCore.Routing.RouteData 二义：组件级联参数用的是 Components 版。
@@ -47,13 +49,18 @@ public partial class MainLayout
     private BlazorBoilerplate.WebHost.Services.NavRefreshService NavRefresh { get; set; } = null!;
 
     [Inject]
-    private SessionRevocationWatcher RevocationWatcher { get; set; } = default!;
+    private IServiceProvider Services { get; set; } = default!;
 
     [Inject]
     private ToastService Toast { get; set; } = default!;
 
     [Inject]
     private IJSRuntime JS { get; set; } = default!;
+
+    private ISessionRevocationWatcher? _revocationWatcher;
+    private IRenderModeArbitrator? _modeArbitrator;
+    private IDisposable? _locationChangingReg;
+    private bool _forcingReload;
 
     private sealed record NavNode(Guid Id, string Text, string Path, string Icon, string Kind, List<NavNode> Children);
 
@@ -167,6 +174,21 @@ public partial class MainLayout
         Account.Changed += HandleAccountChanged;
         SysState.Changed += HandleSysChanged;
         FrontendLoc.Changed += HandleLocalizationChanged;
+        _modeArbitrator = Services.GetService<IRenderModeArbitrator>();
+        _revocationWatcher = Services.GetService<ISessionRevocationWatcher>();
+        _locationChangingReg = Navigation.RegisterLocationChangingHandler(OnLocationChanging);
+    }
+
+    private async ValueTask OnLocationChanging(LocationChangingContext context)
+    {
+        if (_forcingReload || _modeArbitrator is null) return;
+        var path = Navigation.ToAbsoluteUri(context.TargetLocation).AbsolutePath;
+        if (_modeArbitrator.ShouldUseWebAssembly(path))
+        {
+            _forcingReload = true;
+            context.PreventNavigation();
+            await JS.InvokeVoidAsync("blazorAuth.redirect", context.TargetLocation);
+        }
     }
 
     private void HandleNavRefresh() => _ = InvokeAsync(RefreshNavAsync);
@@ -192,7 +214,9 @@ public partial class MainLayout
         Account.Changed -= HandleAccountChanged;
         SysState.Changed -= HandleSysChanged;
         FrontendLoc.Changed -= HandleLocalizationChanged;
-        RevocationWatcher.OnSessionRevoked -= HandleSessionRevokedAsync;
+        if (_revocationWatcher is not null)
+            _revocationWatcher.OnSessionRevoked -= HandleSessionRevokedAsync;
+        _locationChangingReg?.Dispose();
     }
 
     private Task HandleSessionRevokedAsync() => InvokeAsync(async () =>
@@ -227,10 +251,10 @@ public partial class MainLayout
         // 账户状态先就绪，IsMenuVisible 的菜单授权过滤才能生效。
         await Account.EnsureLoadedAsync();
         await SysState.EnsureLoadedAsync();
-        if (Account.IsAuthenticated)
+        if (Account.IsAuthenticated && _revocationWatcher is not null)
         {
-            RevocationWatcher.OnSessionRevoked += HandleSessionRevokedAsync;
-            await RevocationWatcher.StartAsync();
+            _revocationWatcher.OnSessionRevoked += HandleSessionRevokedAsync;
+            await _revocationWatcher.StartAsync();
         }
 
         // 首屏主题 / 强调色恢复：await 后写回并请求重渲染（App.razor 首屏 cookie 由主代理处理）。

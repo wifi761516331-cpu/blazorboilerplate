@@ -1,5 +1,4 @@
-@rendermode RenderMode.InteractiveServer
-@* 布局裁决（PickLayout）与注入在 Routes.razor.cs。 *@
+@* 布局裁决（PickLayout）与注入在 Routes.razor.cs；渲染模式由 App.razor 按路由策略动态裁决。 *@
 
 <Router AppAssembly="@typeof(Program).Assembly" AdditionalAssemblies="@ModuleCatalog.Assemblies">
     <Found Context="routeData">

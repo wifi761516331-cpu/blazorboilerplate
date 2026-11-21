@@ -3,6 +3,7 @@
    语言、租户、时区、通知、主题、强调色、退出登录分别对接 Web.Shared 的强类型 API 与
    app.js 提供的 blazorAuth / blazorPrefs 全局函数。弹框 DOM 常驻但用 hidden 控制显隐。
    注入与全部逻辑在 AccountMenu.razor.cs。 *@
+@namespace BlazorBoilerplate.WebHost.Components.Layout
 @implements IDisposable
 
 <div class="account-menu-root">

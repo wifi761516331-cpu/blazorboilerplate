@@ -23,9 +23,10 @@ builder.WebHost.UseStaticWebAssets();
 // ---- Bit.BlazorUI 10.7.0 设计系统 ----
 builder.Services.AddBitBlazorUIServices(true);
 
-// ---- Blazor Web App（Interactive Server）----
+// ---- Blazor Web App（Interactive Server + WebAssembly 混合模式）----
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents()
+    .AddInteractiveWebAssemblyComponents();
 
 // ---- 统一调用 ApiHost 的 HttpClient（CORS 已在 ApiHost 放行 http://localhost:5200）----
 var apiBaseUrl = builder.Configuration["ApiHost:BaseUrl"] ?? "http://localhost:5100";
@@ -48,7 +49,10 @@ builder.Services.AddScoped<ToastService>();
 // ---- 登录态 / 设备偏好 / 多语言：scoped，随每条 Blazor 线路 ----
 builder.Services.AddScoped<AccountState>();
 builder.Services.AddScoped<SessionRevocationWatcher>();
+builder.Services.AddScoped<ISessionRevocationWatcher>(sp => sp.GetRequiredService<SessionRevocationWatcher>());
+builder.Services.AddSingleton<IRenderModeArbitrator, ServerRenderModeArbitrator>();
 builder.Services.AddScoped<ICurrentUserPermissionService>(sp => sp.GetRequiredService<AccountState>());
+builder.Services.AddScoped<BlazorBoilerplate.WebHost.Client.Services.ClientModuleCatalog>();
 builder.Services.AddScoped<SystemSettingsState>();
 builder.Services.AddScoped<UserPreferences>();
 builder.Services.AddScoped<BlazorBoilerplate.Web.Shared.Localization.FrontendLocalizationService>();
@@ -98,12 +102,16 @@ app.UseAntiforgery();
 // 同源 /auth/*：登录、刷新、切换账号/租户、多账号列表、登出（JS 只拿 accountId，不接触令牌）。
 app.MapWebAuthEndpoints();
 
-app.MapGet("/_modules/styles.css", (ModuleAssemblyCatalog catalog) =>
-    Results.Content(catalog.GetCombinedCss(), "text/css; charset=utf-8"))
-    .AllowAnonymous();
+// 同源 BFF 反向代理：将 WASM 端的 /api/* 转发至 ApiHost（服务端注入 Bearer 与 X-Tenant-Host）。
+app.MapBffApiProxy();
+
+// 动态模块前端样式、版本清单、DLL 与渲染策略切换端点。
+app.MapModuleClientEndpoints();
 
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+    .AddInteractiveServerRenderMode()
+    .AddInteractiveWebAssemblyRenderMode()
+    .AddAdditionalAssemblies(typeof(BlazorBoilerplate.WebHost.Client._Imports).Assembly);
 // 注意：模块组件不走静态 AdditionalAssemblies —— SSR 由 ModuleHost.razor（/{**path} catch-all）
 // 运行时解析渲染；interactive 导航由 Routes.razor 的 Router 绑定 ModuleAssemblyCatalog.Assemblies。
 

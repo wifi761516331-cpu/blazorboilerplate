@@ -8,6 +8,17 @@ using Microsoft.AspNetCore.Components;
 
 namespace BlazorBoilerplate.WebHost.Services;
 
+public enum ModuleRenderStrategy
+{
+    Auto,
+    Server
+}
+
+public sealed class ServerRenderModeArbitrator(ModuleAssemblyCatalog catalog) : BlazorBoilerplate.Web.Shared.Services.IRenderModeArbitrator
+{
+    public bool ShouldUseWebAssembly(string? path) => catalog.ShouldUseWebAssembly(path);
+}
+
 /// <summary>
 /// 动态模块前端程序集目录（运行时注入，不写死任何静态模块引用）。
 /// 模块是前后端同体 RCL：页面组件与后端服务在同一个 DLL 里。
@@ -261,10 +272,16 @@ public sealed class ModuleAssemblyCatalog
         }
 
         var cssPath = ResolveScopedCssPath(dll);
+        var isFrontendOnly = dll.Contains($"{Path.DirectorySeparatorChar}frontend{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+            || Path.GetFileNameWithoutExtension(dll).EndsWith(".Frontend", StringComparison.OrdinalIgnoreCase);
+        // identity 模块包含登录/安装向导等公共认证壳，固定走 InteractiveServer；其余纯前端模块默认 Auto，热更新时降级 Server。
+        var isAuthCoreModule = string.Equals(moduleId, "identity", StringComparison.OrdinalIgnoreCase);
+        var strategy = !isFrontendOnly || isAuthCoreModule || allowDowngrade ? ModuleRenderStrategy.Server : ModuleRenderStrategy.Auto;
+        var versionStr = packageVersion?.ToString() ?? "0.0.0.0";
         BlazorBoilerplate.ModuleAbstractions.WidgetZoneRegistry.UnregisterModule(moduleId);
         lock (_gate)
         {
-            _active[moduleId] = new ModuleEntry(loaded, context, packageVersion, cssPath);
+            _active[moduleId] = new ModuleEntry(loaded, context, packageVersion, cssPath, dll, strategy, isFrontendOnly);
             _assemblies = [.. _active.Values.Select(e => e.Assembly)]; // 整体替换引用：Router 下次导航重建路由表
         }
 
@@ -402,8 +419,143 @@ public sealed class ModuleAssemblyCatalog
         return null;
     }
 
-    /// <summary>激活条目：程序集 + 承载它的可回收 ALC（静态引用为 null）+ 已加载版本 + 隔离 CSS 路径。</summary>
-    private sealed record ModuleEntry(Assembly Assembly, ModuleLoadContext? Context = null, Version? Version = null, string? CssPath = null);
+    /// <summary>激活条目：程序集 + 可回收 ALC + 版本 + CSS + DLL 路径 + 渲染策略。</summary>
+    private sealed record ModuleEntry(
+        Assembly Assembly,
+        ModuleLoadContext? Context = null,
+        Version? Version = null,
+        string? CssPath = null,
+        string? DllPath = null,
+        ModuleRenderStrategy RenderStrategy = ModuleRenderStrategy.Auto,
+        bool IsFrontendOnly = false);
+
+    public string ManifestHash
+    {
+        get
+        {
+            EnsureLoadedOnDemand();
+            lock (_gate)
+            {
+                var raw = string.Join("|", _active.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase)
+                    .Select(kv => $"{kv.Key}:{kv.Value.Version}:{kv.Value.RenderStrategy}"));
+                return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw)))[..12];
+            }
+        }
+    }
+
+    public bool ShouldUseWebAssembly(string? path)
+    {
+        EnsureLoadedOnDemand();
+        var clean = (path ?? "/").Split('?', '#')[0];
+        var normalized = clean.TrimEnd('/');
+        if (normalized.Length == 0) normalized = "/";
+
+        if (normalized.Equals("/sign-in", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("/sign-up", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("/forgot-password", StringComparison.OrdinalIgnoreCase)
+            || normalized.Equals("/setup", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        lock (_gate)
+        {
+            foreach (var kv in _active)
+            {
+                var entry = kv.Value;
+                if (!entry.IsFrontendOnly || entry.RenderStrategy != ModuleRenderStrategy.Auto)
+                    continue;
+                var routes = _routeCache.GetValue(entry.Assembly, BuildRouteMap);
+                if (routes.ContainsKey(normalized))
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    public bool IsFrontendOnlyModule(string moduleId)
+    {
+        lock (_gate)
+            return _active.TryGetValue(moduleId, out var entry) && entry.IsFrontendOnly;
+    }
+
+    public ModuleRenderStrategy GetRenderStrategy(string moduleId)
+    {
+        lock (_gate)
+            return _active.TryGetValue(moduleId, out var entry) ? entry.RenderStrategy : ModuleRenderStrategy.Server;
+    }
+
+    public bool SetRenderStrategy(string moduleId, ModuleRenderStrategy strategy)
+    {
+        lock (_gate)
+        {
+            if (!_active.TryGetValue(moduleId, out var entry))
+                return false;
+            if (strategy == ModuleRenderStrategy.Auto && !entry.IsFrontendOnly)
+                return false;
+            _active[moduleId] = entry with { RenderStrategy = strategy };
+            return true;
+        }
+    }
+
+    public object GetClientManifest()
+    {
+        EnsureLoadedOnDemand();
+        var hash = ManifestHash;
+        List<object> modules = [];
+        lock (_gate)
+        {
+            foreach (var kv in _active.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                var entry = kv.Value;
+                if (string.IsNullOrWhiteSpace(entry.DllPath)) continue;
+                var version = entry.Version?.ToString() ?? "0.0.0.0";
+                var routes = _routeCache.GetValue(entry.Assembly, BuildRouteMap).Keys.ToArray();
+                var pdbPath = Path.ChangeExtension(entry.DllPath, ".pdb");
+                modules.Add(new
+                {
+                    moduleId = kv.Key,
+                    version,
+                    renderMode = entry.RenderStrategy == ModuleRenderStrategy.Auto && entry.IsFrontendOnly ? "Auto" : "Server",
+                    assemblyFileName = Path.GetFileName(entry.DllPath),
+                    hasPdb = File.Exists(pdbPath),
+                    cssUrl = $"/_modules/styles.css?v={hash}",
+                    routePrefixes = routes
+                });
+            }
+        }
+        return new { manifestHash = hash, modules };
+    }
+
+    public bool TryGetClientAssemblyFile(string moduleId, string version, string fileName, out string? filePath)
+    {
+        filePath = null;
+        if (string.IsNullOrWhiteSpace(moduleId) || string.IsNullOrWhiteSpace(fileName))
+            return false;
+
+        lock (_gate)
+        {
+            if (!_active.TryGetValue(moduleId, out var entry) || string.IsNullOrWhiteSpace(entry.DllPath))
+                return false;
+            var currentVersion = entry.Version?.ToString() ?? "0.0.0.0";
+            if (!string.Equals(currentVersion, version, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            var safeName = Path.GetFileName(fileName);
+            var dllName = Path.GetFileName(entry.DllPath);
+            var pdbName = Path.GetFileName(Path.ChangeExtension(entry.DllPath, ".pdb"));
+            if (string.Equals(safeName, dllName, StringComparison.OrdinalIgnoreCase) && File.Exists(entry.DllPath))
+            {
+                filePath = entry.DllPath;
+                return true;
+            }
+            var pdbPath = Path.ChangeExtension(entry.DllPath, ".pdb");
+            if (string.Equals(safeName, pdbName, StringComparison.OrdinalIgnoreCase) && File.Exists(pdbPath))
+            {
+                filePath = pdbPath;
+                return true;
+            }
+            return false;
+        }
+    }
 
     /// <summary>
     /// 模块插件 ALC（官方 creating-app-with-plugin-support 模式）：

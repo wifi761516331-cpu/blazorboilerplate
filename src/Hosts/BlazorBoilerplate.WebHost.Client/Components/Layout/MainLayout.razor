@@ -3,6 +3,7 @@
    Bit.BlazorUI 10.7.0 没有 11.x 的 BitAppShell / BitNavPanel，故用原生 HTML + CSS 复刻。
    注意：/setup 与 /sign-in 使用独立的 IdentityLayout，不经过本布局，
    因此这里不再有任何 identity 分支判断（此前双栏插画是挂在本布局上的）。 *@
+@namespace BlazorBoilerplate.WebHost.Components.Layout
 @inherits LayoutComponentBase
 @implements IDisposable
 @* 注入与布局/导航/守卫逻辑在 MainLayout.razor.cs；RenderNavNode 因含 Razor 标记语法留在本文件。 *@

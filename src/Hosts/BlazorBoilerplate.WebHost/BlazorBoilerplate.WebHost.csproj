@@ -14,6 +14,7 @@
     <PackageReference Include="Bit.BlazorUI" />
     <PackageReference Include="Bit.BlazorUI.Extras" />
     <PackageReference Include="Bit.BlazorUI.Icons" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
     <PackageReference Include="Serilog.AspNetCore" />
   </ItemGroup>
@@ -22,6 +23,7 @@
     <ProjectReference Include="..\..\BuildingBlocks\BlazorBoilerplate.Application\BlazorBoilerplate.Application.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\BlazorBoilerplate.ModuleAbstractions\BlazorBoilerplate.ModuleAbstractions.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\BlazorBoilerplate.Web.Shared\BlazorBoilerplate.Web.Shared.csproj" />
+    <ProjectReference Include="..\BlazorBoilerplate.WebHost.Client\BlazorBoilerplate.WebHost.Client.csproj" />
   </ItemGroup>
 
 </Project>

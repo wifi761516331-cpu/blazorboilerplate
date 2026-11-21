@@ -91,9 +91,9 @@ else
             @foreach (var m in FilteredModules)
             {
                 <article class="module-card @CardClass(m)">
-                    <div class="module-card-head">
+                    <div class="module-card-head" style="flex-wrap:wrap">
                         <span class="module-card-icon"><AppIcon Name="@ModuleIcon(m.Id)" /></span>
-                        <div class="module-card-heading">
+                        <div class="module-card-heading" style="min-width:96px">
                             <strong class="module-card-title">@m.DisplayTitle</strong>
                             <span class="module-card-id">@m.Id · @m.Name</span>
                         </div>
@@ -112,7 +112,20 @@ else
                                 Variant="BitVariant.Outline"
                                 Size="BitSize.Small"
                                 IconName="@StateIcon(m.State)"
+                                Style="white-space:nowrap;flex-shrink:0"
                                 Title="@m.State.ToString()">@StateText(m.State)</BitTag>
+                        @if (m.State == ModuleState.Running && ModuleCatalog.IsFrontendOnlyModule(m.Id) && !string.Equals(m.Id, "identity", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var isAuto = ModuleCatalog.GetRenderStrategy(m.Id) == ModuleRenderStrategy.Auto;
+                            <BitTag Color="@(isAuto ? BitColor.Info : BitColor.Warning)"
+                                    Variant="BitVariant.Fill"
+                                    Size="BitSize.Small"
+                                    Style="white-space:nowrap;flex-shrink:0;cursor:pointer;min-width:60px;justify-content:center;text-align:center"
+                                    Title="@(isAuto ? "当前为混合/WASM模式（点击切换为Server兜底）" : "当前为Server兜底模式（点击切回WASM）")"
+                                    OnClick="@(() => ToggleRenderMode(m.Id))">
+                                @(isAuto ? "WASM" : "Server")
+                            </BitTag>
+                        }
                     </div>
 
                     <div class="module-card-meta">

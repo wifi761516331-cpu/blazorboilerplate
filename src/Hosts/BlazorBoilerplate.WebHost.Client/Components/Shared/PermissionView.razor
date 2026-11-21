@@ -1,6 +1,7 @@
 @* 按钮级权限门：按 AccountState 的权限码决定是否渲染子内容。
    注入 AccountState → EnsureLoadedAsync 后 HasPermission(Code) 为真才渲染 ChildContent；
    支持 "*" 通配；可选 Fallback 在无权时渲染。逻辑在 PermissionView.razor.cs。 *@
+@namespace BlazorBoilerplate.WebHost.Components.Shared
 @implements IDisposable
 
 @if (_allowed)

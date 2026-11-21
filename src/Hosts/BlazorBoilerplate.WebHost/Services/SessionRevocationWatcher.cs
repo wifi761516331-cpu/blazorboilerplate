@@ -11,7 +11,7 @@ namespace BlazorBoilerplate.WebHost.Services;
 public sealed class SessionRevocationWatcher(
     IAuthSession session,
     IConfiguration configuration,
-    ILogger<SessionRevocationWatcher> logger) : IAsyncDisposable
+    ILogger<SessionRevocationWatcher> logger) : ISessionRevocationWatcher, IAsyncDisposable
 {
     private HubConnection? _connection;
     private bool _started;

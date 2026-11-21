@@ -41,6 +41,20 @@ public partial class Modules
     private bool _loadAllBusy;
     private string _search = string.Empty;
 
+    private void ToggleRenderMode(string moduleId)
+    {
+        var current = ModuleCatalog.GetRenderStrategy(moduleId);
+        var next = current == ModuleRenderStrategy.Auto ? ModuleRenderStrategy.Server : ModuleRenderStrategy.Auto;
+        if (ModuleCatalog.SetRenderStrategy(moduleId, next))
+        {
+            Toast.Success($"模块 {moduleId} 已切换为 {(next == ModuleRenderStrategy.Auto ? "WASM (Auto)" : "Server 兜底")} 模式");
+        }
+        else
+        {
+            Toast.Warning($"模块 {moduleId} 暂不支持切换为 {next}");
+        }
+    }
+
     private int RunningCount => _modules.Count(m => m.State == ModuleState.Running);
     private int EssentialCount => _modules.Count(m => m.IsEssential);
 

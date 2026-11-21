@@ -717,3 +717,762 @@ select:focus-visible,
 /* Notifications 通知列表已迁至 Notifications.razor.css（CSS 隔离） */
 
 /* 租户管理页样式已迁至 Tenants.razor.css（CSS 隔离） */
+
+/* ---- AppShell ����������ʽ��Server MainLayout & WASM ClientLayout ���ã� ---- */
+/* MainLayout 独占样式（app-shell/nav-panel/nav-item/app-header/header-* 等仅本布局使用）�?
+   注意留全局的：.nav-brand-mark（IdentityLayout 共用）�?icon-btn（IdentityLayout 依赖其基础样式）�?
+   html/body 全局规则、Identity 页（id-*）响应式规则�?
+   响应式规则随基础样式一并迁�?—�?scoped 属性选择器特异性更高，若留在全局将无法覆�?scoped 基础样式�?*/
+.app-shell {
+    width: 100%;
+    min-height: 100%;
+    background: var(--bb-bg-pri);
+}
+
+.app-main-frame {
+    width: 100%;
+    min-height: 100%;
+}
+
+.main-container {
+    display: flex;
+    flex-direction: row;
+    height: 100vh;
+}
+
+.nav-panel {
+    width: var(--bb-nav-w);
+    flex: 0 0 var(--bb-nav-w);
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bb-bg-sec);
+    border-inline-end: 1px solid var(--bb-brd-ter);
+    overflow: hidden;
+    transition: width .2s cubic-bezier(.33, 0, .67, 1), transform .2s cubic-bezier(.33, 0, .67, 1);
+}
+
+.nav-brand {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    height: var(--bb-header-h);
+    min-height: var(--bb-header-h);
+    padding: 0 1rem;
+    border-bottom: 1px solid var(--bb-brd-ter);
+}
+
+/* .nav-brand-mark 基础样式保留在全局（IdentityLayout 也用�?*/
+.nav-brand-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--bb-fg-pri);
+    white-space: nowrap;
+}
+
+.nav-scroll {
+    flex: 1;
+    padding: .5rem;
+    overflow-y: auto;
+}
+
+.nav-group-title {
+    padding: .875rem .75rem .375rem;
+    font-size: .75rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--bb-fg-ter);
+}
+
+.nav-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .625rem .5rem;
+    border-radius: var(--bb-radius-sm);
+    font-size: .875rem;
+    color: var(--bb-fg-sec);
+    text-decoration: none;
+    transition: background .15s ease, color .15s ease;
+}
+
+.nav-item:hover {
+    background: var(--bb-bg-ter);
+    color: var(--bb-fg-pri);
+}
+
+.nav-item.active {
+    background: var(--bb-pri-tint);
+    color: var(--bb-pri);
+    font-weight: 600;
+}
+
+.nav-item.active::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: 0;
+    top: .375rem;
+    bottom: .375rem;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--bb-pri);
+}
+
+.nav-item .app-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: 0 0 1.25rem;
+}
+
+.nav-item .nav-text {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.nav-node {
+    display: flex;
+    flex-direction: column;
+    gap: .125rem;
+}
+
+.nav-item-row {
+    display: flex;
+    align-items: center;
+    gap: .125rem;
+}
+
+.nav-item-row .nav-item {
+    flex: 1;
+    min-width: 0;
+}
+
+.nav-item-row .nav-item-btn {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    justify-content: flex-start;
+}
+
+.nav-item-row .nav-chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 2rem;
+    min-width: 1.5rem;
+    padding: 0;
+    border: 0;
+    border-radius: var(--bb-radius-sm);
+    background: transparent;
+    color: var(--bb-fg-ter);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background .15s ease, color .15s ease;
+}
+
+.nav-item-row .nav-chevron:hover {
+    background: var(--bb-bg-ter);
+    color: var(--bb-fg-pri);
+}
+
+.nav-item-row .nav-chevron .app-icon {
+    width: .95rem;
+    height: .95rem;
+}
+
+.nav-chevron-spacer {
+    width: 1.5rem;
+    flex-shrink: 0;
+}
+
+.nav-children {
+    display: flex;
+    flex-direction: column;
+    gap: .125rem;
+    padding-inline-start: 1.25rem;
+}
+
+.nav-signin {
+    padding: .5rem;
+    border-top: 1px solid var(--bb-brd-ter);
+}
+
+.nav-foot {
+    padding: .75rem 1rem;
+    border-top: 1px solid var(--bb-brd-ter);
+    font-size: .75rem;
+    color: var(--bb-fg-ter);
+    white-space: nowrap;
+}
+
+/* 折叠成图标条（变量定义在 shell 上，main-body 的宽度计算才能同步收缩） */
+.app-shell.nav-toggled {
+    --bb-nav-w: 4.5rem;
+}
+
+.app-shell.nav-toggled .nav-brand-name,
+.app-shell.nav-toggled .nav-group-title,
+.app-shell.nav-toggled .nav-text,
+.app-shell.nav-toggled .nav-chevron,
+.app-shell.nav-toggled .nav-chevron-spacer,
+.app-shell.nav-toggled .nav-children,
+.app-shell.nav-toggled .nav-foot {
+    display: none;
+}
+
+.app-shell.nav-toggled .nav-brand {
+    justify-content: center;
+    padding: 0;
+}
+
+.app-shell.nav-toggled .nav-item {
+    justify-content: center;
+    padding: .625rem;
+}
+
+.main-body {
+    display: flex;
+    flex-direction: column;
+    width: calc(100% - var(--bb-nav-w));
+    flex-grow: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.app-header {
+    top: 0;
+    position: sticky;
+    z-index: var(--bb-z-base);
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    min-height: var(--bb-header-h);
+    padding: .5rem 1rem;
+    background: var(--bb-bg-pri);
+    border-bottom: 1px solid var(--bb-brd-ter);
+}
+
+.header-titles {
+    display: flex;
+    flex-direction: column;
+    gap: .125rem;
+    min-width: 0;
+}
+
+.header-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.4;
+    margin: 0;
+    color: var(--bb-fg-pri);
+}
+
+.header-sub {
+    font-size: .875rem;
+    color: var(--bb-fg-sec);
+}
+
+.header-spacer {
+    flex: 1;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+}
+
+.header-bell {
+    position: relative;
+}
+
+.header-bell-badge {
+    position: absolute;
+    top: .1rem;
+    inset-inline-end: .1rem;
+    min-width: 1rem;
+    height: 1rem;
+    padding: 0 .25rem;
+    display: grid;
+    place-items: center;
+    border-radius: 9999px;
+    background: var(--bb-err);
+    color: #fff;
+    font-size: .625rem;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+/* .icon-btn 基础样式保留在全局（IdentityLayout 依赖�?*/
+.app-header .menu-btn {
+    display: none;
+}
+
+.body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    padding: 1rem;
+    background: var(--bb-bg-pri);
+}
+
+.nav-bar {
+    display: none;
+    width: 100%;
+    height: var(--bb-bottom-h);
+    position: fixed;
+    bottom: 0;
+    inset-inline: 0;
+    z-index: var(--bb-z-base);
+    align-items: center;
+    justify-content: space-around;
+    background: var(--bb-bg-pri);
+    border-top: 1px solid var(--bb-brd-ter);
+}
+
+.nav-bar .nav-item {
+    flex-direction: column;
+    gap: .125rem;
+    font-size: .75rem;
+    padding: .25rem .5rem;
+}
+
+.nav-bar .nav-item.active::before {
+    display: none;
+}
+
+.nav-bar .nav-item .app-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.nav-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--bb-z-overlay) - 1);
+    background: rgba(0, 0, 0, .4);
+    border: 0;
+}
+
+/* ===== 响应式（lt-md < 960px，lt-sm < 600px；仅本布局相关规则，其余留 app.css�?===== */
+@media (max-width: 959px) {
+
+    .app-shell,
+    .app-shell.nav-toggled {
+        --bb-nav-w: var(--bb-nav-w-sm);
+    }
+
+    .nav-panel {
+        position: fixed;
+        inset-block: 0;
+        inset-inline-start: 0;
+        z-index: var(--bb-z-overlay);
+        transform: translateX(-100%);
+        box-shadow: var(--bb-shd-4);
+    }
+
+    .app-shell.nav-open .nav-panel {
+        transform: translateX(0);
+    }
+
+    .app-shell.nav-open .nav-overlay {
+        display: block;
+    }
+
+    .main-container {
+        height: auto;
+        min-height: 100vh;
+    }
+
+    .main-body {
+        width: 100%;
+        gap: 1rem;
+        overflow-y: visible;
+    }
+
+    .body {
+        flex: unset;
+        height: unset;
+        padding-bottom: calc(var(--bb-bottom-h) + 1rem);
+    }
+
+    .app-header .menu-btn {
+        display: grid;
+    }
+
+    .app-header .toggle-btn {
+        display: none;
+    }
+
+    .nav-bar {
+        display: flex;
+    }
+
+    .header-sub {
+        display: none;
+    }
+}
+
+@media (max-width: 599px) {
+    .main-body {
+        gap: 0;
+    }
+
+    .header-title {
+        font-size: 1rem;
+    }
+}
+
+/* ---- AccountMenu & SwitchTenantModal ������ʽ ---- */
+/* AccountMenu 独占样式（persona-* / header-persona / menu-* / account-* / accent-* 仅本组件使用）�?
+   注意�?account-check（Tenants 页面复用）�?icon-btn、@keyframes �?894 行处�?
+   .header-sub/.persona-name 响应式规则（�?MainLayout 混写）仍留在 app.css�?*/
+.persona-avatar {
+    width: 2rem; height: 2rem; border-radius: 50%;
+    background: var(--bb-pri); color: #fff;
+    display: grid; place-items: center;
+    font-size: .6875rem; font-weight: 600;
+    flex-shrink: 0;
+}
+.persona-name { font-size: .875rem; color: var(--bb-fg-pri); white-space: nowrap; margin-inline-start: .375rem; }
+
+.account-menu-root { position: relative; }
+.account-menu-root .header-persona.bit-btn {
+    display: flex; align-items: center; gap: .5rem;
+    min-width: 0; padding: .25rem .5rem;
+    border: 0; border-radius: var(--bb-radius-sm);
+    background: transparent;
+    font-family: var(--bb-font); font-weight: 400; color: var(--bb-fg-pri);
+    cursor: pointer;
+}
+.account-menu-root .header-persona.bit-btn:hover { background: var(--bb-bg-sec); color: var(--bb-fg-pri); }
+.account-menu-root .header-persona .bit-btn-cnt {
+    display: flex; align-items: center; gap: .5rem;
+}
+.header-persona .persona-avatar { position: relative; }
+.persona-presence {
+    position: absolute; inset-inline-end: -1px; bottom: -1px;
+    width: .625rem; height: .625rem;
+    border: 2px solid var(--bb-bg-pri); border-radius: 50%;
+    background: var(--bb-suc);
+}
+.menu-chevron { display: grid; place-items: center; color: var(--bb-fg-ter); }
+.menu-chevron .app-icon { width: .875rem; height: .875rem; }
+
+.menu-backdrop {
+    position: fixed; inset: 0; z-index: 1150;
+    border: 0; padding: 0; margin: 0;
+    background: transparent; cursor: default;
+}
+
+.account-menu {
+    position: absolute;
+    inset-block-start: calc(100% + .5rem);
+    inset-inline-end: 0;
+    z-index: 1160;
+    width: 20rem;
+    max-width: calc(100vw - 1rem);
+    max-height: calc(100vh - 5rem);
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: .125rem;
+    padding: .75rem;
+    background: var(--bb-bg-pri);
+    border: 1px solid var(--bb-brd-ter);
+    border-radius: var(--bb-radius-md);
+    box-shadow: var(--bb-shd-4);
+}
+.account-hint {
+    margin-bottom: .5rem; padding: .5rem .625rem;
+    border-radius: var(--bb-radius-sm);
+    background: var(--bb-pri-tint); color: var(--bb-pri);
+    font-size: .75rem; line-height: 1.5;
+}
+
+.account-identity { display: flex; align-items: center; gap: .75rem; padding: .25rem .25rem .75rem; }
+.account-menu .account-avatar-lg.bit-btn {
+    position: relative;
+    width: 3rem; height: 3rem; min-width: 3rem; min-height: 3rem; flex: 0 0 3rem;
+    padding: 0;
+    display: grid; place-items: center;
+    border: 0; border-radius: 50%;
+    background: var(--bb-pri); color: #fff;
+    font-size: 1rem; font-weight: 600;
+    cursor: pointer;
+}
+.account-menu .account-avatar-lg.bit-btn:hover { background: var(--bb-pri); color: #fff; }
+.account-menu .account-avatar-lg .bit-btn-cnt {
+    width: 100%; height: 100%;
+    display: grid; place-items: center;
+}
+.avatar-overlay {
+    position: absolute; inset: 0; z-index: 2;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, .55); color: #fff;
+    font-size: .75rem; font-weight: 500;
+    opacity: 0; transition: opacity .15s ease;
+    pointer-events: none;
+}
+.account-avatar-lg:hover .avatar-overlay,
+.account-avatar-lg:focus-visible .avatar-overlay { opacity: 1; }
+.presence-dot {
+    position: absolute; inset-inline-end: -1px; bottom: -1px; z-index: 4;
+    width: .75rem; height: .75rem;
+    border: 2px solid var(--bb-bg-pri); border-radius: 50%;
+    background: var(--bb-suc);
+    pointer-events: none;
+}
+.account-identity-text { display: flex; flex-direction: column; gap: .125rem; min-width: 0; }
+.account-identity-text strong { font-size: .9375rem; }
+.account-identity-text span { font-size: .75rem; color: var(--bb-fg-ter); overflow: hidden; text-overflow: ellipsis; }
+
+.account-section-label {
+    padding: .625rem .5rem .25rem;
+    font-size: .6875rem; font-weight: 600; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--bb-fg-ter);
+}
+.account-separator { height: 1px; margin: .5rem 0; background: var(--bb-brd-ter); }
+
+.account-menu .account-action.bit-btn {
+    display: flex; align-items: center; justify-content: flex-start;
+    width: 100%; min-width: 0; min-height: 2.25rem;
+    padding: .375rem .5rem;
+    border: 0; border-radius: var(--bb-radius-sm);
+    background: transparent;
+    font-family: var(--bb-font); font-size: .8125rem; font-weight: 400; text-align: start;
+    color: var(--bb-fg-pri); cursor: pointer;
+}
+.account-menu .account-action.bit-btn:hover { background: var(--bb-bg-sec); color: var(--bb-fg-pri); }
+.account-menu .account-action .bit-btn-cnt,
+.account-menu .account-action .bit-btn-txt {
+    width: 100%;
+    display: flex; align-items: center; justify-content: flex-start; gap: .625rem;
+}
+.account-menu .account-action .app-icon { width: 1.125rem; height: 1.125rem; flex: 0 0 1.125rem; color: var(--bb-fg-sec); }
+.account-menu .account-action.danger.bit-btn { color: var(--bb-err); }
+.account-menu .account-action.danger .app-icon { color: var(--bb-err); }
+.account-menu .account-action.danger.bit-btn:hover { background: var(--bb-err-bg); color: var(--bb-err); }
+.account-action-text { display: flex; flex-direction: column; gap: .0625rem; min-width: 0; text-align: start; }
+.account-action-text strong { font-weight: 600; }
+.account-action-text small { font-size: .6875rem; color: var(--bb-fg-ter); }
+.account-mini-avatar {
+    width: 1.75rem; height: 1.75rem; flex: 0 0 1.75rem;
+    display: grid; place-items: center; border-radius: 50%;
+    background: var(--bb-bg-ter); color: var(--bb-fg-sec);
+    font-size: .625rem; font-weight: 600;
+}
+.account-chevron { margin-inline-start: auto; display: grid; place-items: center; color: var(--bb-fg-ter); }
+.account-chevron .app-icon { width: 1rem; height: 1rem; }
+.account-back { font-weight: 600; }
+
+.account-row { display: flex; align-items: center; gap: .625rem; min-height: 2.25rem; padding: .375rem .5rem; font-size: .8125rem; }
+.account-row > .app-icon { width: 1.125rem; height: 1.125rem; flex: 0 0 1.125rem; color: var(--bb-fg-sec); }
+.account-row-label { color: var(--bb-fg-pri); }
+.account-spacer { flex: 1; }
+.account-select {
+    flex: 1; min-width: 0;
+    padding: .3125rem .375rem;
+    border: 1px solid transparent; border-radius: var(--bb-radius-sm);
+    background: transparent; color: var(--bb-fg-sec);
+    font-family: var(--bb-font); font-size: .75rem;
+    cursor: pointer; outline: none;
+}
+.account-select:hover, .account-select:focus { border-color: var(--bb-brd-ter); background: var(--bb-bg-sec); }
+.account-select option { background: var(--bb-bg-pri); color: var(--bb-fg-pri); }
+
+.account-switch {
+    width: 2.25rem; height: 1.125rem; flex: 0 0 2.25rem;
+    padding: 0; border: 1px solid var(--bb-brd-pri); border-radius: 9999px;
+    background: transparent; cursor: pointer;
+    display: flex; align-items: center;
+    transition: background .15s ease, border-color .15s ease;
+}
+.account-switch span {
+    width: .75rem; height: .75rem; margin-inline-start: .125rem;
+    border-radius: 50%; background: var(--bb-brd-pri);
+    transition: transform .15s ease, background .15s ease;
+}
+.account-switch.on { background: var(--bb-pri); border-color: var(--bb-pri); }
+.account-switch.on span { transform: translateX(1.05rem); background: #fff; }
+
+.accent-block { padding: .25rem .5rem .5rem; }
+.accent-block .account-section-label { padding-inline: 0; }
+.accent-swatches { display: flex; gap: .5rem; flex-wrap: wrap; }
+.account-menu .accent-swatch.bit-btn {
+    width: 1.5rem; height: 1.5rem; min-width: 1.5rem; min-height: 1.5rem;
+    display: grid; place-items: center;
+    border: 2px solid transparent; border-radius: 50%;
+    cursor: pointer; padding: 0;
+    box-shadow: var(--bb-shd-1);
+}
+.account-menu .accent-swatch .bit-btn-cnt {
+    width: 100%; height: 100%;
+    display: grid; place-items: center;
+    color: #fff;
+}
+.account-menu .accent-swatch.bit-btn:hover { transform: scale(1.1); }
+.account-menu .accent-swatch.selected.bit-btn { border-color: var(--bb-fg-pri); outline: 2px solid var(--bb-bg-pri); }
+.account-menu .accent-swatch .app-icon { width: .875rem; height: .875rem; color: #fff; stroke-width: 2.5; }
+
+.account-menu .account-choice.bit-btn {
+    display: flex; align-items: center; justify-content: flex-start;
+    width: 100%; min-width: 0; min-height: 2.25rem;
+    padding: .375rem .5rem;
+    border: 0; border-radius: var(--bb-radius-sm);
+    background: transparent;
+    font-family: var(--bb-font); font-size: .8125rem; font-weight: 400; text-align: start;
+    color: var(--bb-fg-pri); cursor: pointer;
+}
+.account-menu .account-choice .bit-btn-cnt,
+.account-menu .account-choice .bit-btn-txt {
+    width: 100%;
+    display: flex; align-items: center; justify-content: flex-start; gap: .625rem;
+}
+.account-menu .account-choice.bit-btn:hover { background: var(--bb-bg-sec); color: var(--bb-fg-pri); }
+.account-menu .account-choice.selected.bit-btn { color: var(--bb-pri); font-weight: 600; }
+.account-menu .account-choice .app-icon { width: 1.125rem; height: 1.125rem; flex: 0 0 1.125rem; }
+.account-menu .account-choice .app-icon:last-child { margin-inline-start: auto; color: var(--bb-pri); }
+.account-choice .pending-badge {
+    margin-inline-start: auto; padding: .125rem .375rem;
+    border: 1px solid var(--bb-wrn); border-radius: 9999px;
+    color: var(--bb-wrn); font-size: .625rem; font-weight: 500;
+}
+
+/* ===== 账号菜单扩展（原 app.css「账号菜单扩展」块�?nav-signin-avatar 为死样式已删�?===== */
+.account-empty { padding: .375rem .5rem; font-size: .75rem; color: var(--bb-fg-ter); }
+.account-menu .account-row-link.bit-btn {
+    min-width: 0; min-height: 0;
+    padding: 0; border: 0; background: transparent;
+    font-family: var(--bb-font); font-size: .8125rem; font-weight: 400; color: var(--bb-fg-pri);
+    cursor: pointer;
+}
+.account-menu .account-row-link.bit-btn:hover { background: transparent; color: var(--bb-pri); }
+.account-menu .account-row-link .bit-btn-cnt {
+    display: inline-flex; align-items: center; justify-content: flex-start; gap: .375rem;
+}
+.account-unread {
+    min-width: 1.05rem; height: 1.05rem; padding: 0 .3rem;
+    display: inline-grid; place-items: center;
+    border-radius: 9999px;
+    background: var(--bb-err); color: #fff;
+    font-size: .625rem; font-weight: 700; line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+.account-zone-now {
+    display: flex; align-items: center; gap: .5rem;
+    padding: 0 .5rem .375rem 2.125rem;
+    font-size: .75rem; color: var(--bb-fg-ter);
+}
+.account-zone-now .app-icon { width: .875rem; height: .875rem; }
+
+/* 959px：与 MainLayout �?.header-sub 拆分后的 persona-name 隐藏规则 */
+@media (max-width: 959px) {
+    .persona-name { display: none; }
+}
+
+@media (max-width: 599px) {
+    .account-menu { width: min(20rem, calc(100vw - 1rem)); }
+    .menu-chevron, .persona-name { display: none; }
+    .header-persona { padding: .25rem; }
+}
+
+/* SwitchTenantModal 独占样式（switch-tenant-* 前缀 class 仅本组件使用）�?
+   注意：@keyframes blazorboilerplate-modal-in / blazorboilerplate-fade-in
+   仍留�?app.css（与其他组件共用），此处仅引用�?*/
+.switch-tenant-root { position: relative; }
+.switch-tenant-backdrop {
+    position: fixed; inset: 0; z-index: 1400;
+    border: 0; padding: 0; cursor: default;
+    background: rgba(0, 0, 0, .45);
+    animation: blazorboilerplate-fade-in .15s ease-out;
+}
+.switch-tenant-modal {
+    position: fixed; z-index: 1401; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex; flex-direction: column;
+    width: min(22rem, 100%);
+    max-height: calc(100vh - 2rem);
+    background: var(--bb-bg-pri); color: var(--bb-fg-pri);
+    border: 1px solid var(--bb-brd-ter);
+    border-radius: var(--bb-radius-lg);
+    box-shadow: var(--bb-shd-4), 0 12px 28px rgba(0, 0, 0, .22);
+    animation: blazorboilerplate-modal-in .16s ease-out;
+}
+.switch-tenant-header {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .5rem .5rem .5rem .25rem;
+    border-bottom: 1px solid var(--bb-brd-ter);
+}
+.switch-tenant-back {
+    display: grid; place-items: center;
+    width: 2rem; height: 2rem;
+    border: 0; border-radius: var(--bb-radius-sm);
+    background: transparent; color: var(--bb-fg-pri);
+    cursor: pointer; font-size: 1.1rem; line-height: 1;
+}
+.switch-tenant-back:hover { background: var(--bb-bg-sec); }
+.switch-tenant-title {
+    flex: 1; text-align: center;
+    font-size: 1rem; font-weight: 600; color: var(--bb-fg-pri);
+    margin-right: 2rem; /* 抵消左侧返回按钮宽度，使标题视觉居中 */
+}
+.switch-tenant-body {
+    flex: 1; overflow: auto;
+    display: flex; flex-direction: column; gap: .25rem;
+    padding: .75rem;
+}
+.switch-tenant-empty {
+    display: flex; justify-content: center;
+    padding: 2.5rem 1rem;
+    font-size: .875rem; color: var(--bb-fg-sec);
+}
+.switch-tenant-item {
+    display: flex; align-items: center; gap: .65rem;
+    width: 100%; text-align: left;
+    padding: .65rem .75rem;
+    border: 1px solid var(--bb-brd-ter);
+    border-radius: var(--bb-radius-md);
+    background: var(--bb-bg-pri); color: var(--bb-fg-pri);
+    cursor: pointer; font-size: .9rem;
+    transition: background .12s ease, border-color .12s ease;
+}
+.switch-tenant-item:hover:not(:disabled) { background: var(--bb-bg-sec); border-color: var(--bb-brd-sec); }
+.switch-tenant-item.selected { border-color: color-mix(in srgb, var(--bb-pri) 45%, transparent); background: var(--bb-pri-tint); cursor: default; }
+.switch-tenant-item:disabled { opacity: .85; cursor: default; }
+.switch-tenant-item .switch-tenant-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.switch-tenant-item .pending { color: var(--bb-warn, #b25b00); }
+.switch-tenant-item .current { color: var(--bb-succ, #0e700e); }
+.switch-tenant-item .pending-badge {
+    flex-shrink: 0;
+    font-size: .7rem; line-height: 1;
+    padding: .25rem .4rem;
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--bb-warn, #b25b00) 14%, transparent);
+    color: var(--bb-warn, #b25b00);
+}
+.switch-tenant-manage {
+    display: flex; align-items: center; gap: .65rem;
+    width: 100%; text-align: left;
+    padding: .75rem 1rem;
+    border: 0; border-top: 1px solid var(--bb-brd-ter);
+    background: var(--bb-bg-sec); color: var(--bb-fg-pri);
+    cursor: pointer; font-size: .9rem; font-weight: 500;
+    border-radius: 0 0 var(--bb-radius-lg) var(--bb-radius-lg);
+}
+.switch-tenant-manage:hover { background: var(--bb-bg-ter); }
+

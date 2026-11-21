@@ -12,6 +12,7 @@
   <Folder Name="/src/Hosts/">
     <Project Path="src/Hosts/BlazorBoilerplate.ApiHost/BlazorBoilerplate.ApiHost.csproj" />
     <Project Path="src/Hosts/BlazorBoilerplate.WebHost/BlazorBoilerplate.WebHost.csproj" />
+    <Project Path="src/Hosts/BlazorBoilerplate.WebHost.Client/BlazorBoilerplate.WebHost.Client.csproj" />
   </Folder>
   <Folder Name="/src/Modules/" />
   <Folder Name="/src/Modules/Attachments/">
