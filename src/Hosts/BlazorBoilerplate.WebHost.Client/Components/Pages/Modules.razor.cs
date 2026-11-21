@@ -2,6 +2,7 @@ using Bit.BlazorUI;
 using BlazorBoilerplate.Application.Localization;
 using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.Web.Shared.Services;
+using BlazorBoilerplate.WebHost.Client.Services;
 using BlazorBoilerplate.WebHost.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
@@ -28,7 +29,7 @@ public partial class Modules
     private NavRefreshService NavRefresh { get; set; } = default!;
 
     [Inject]
-    private ModuleAssemblyCatalog ModuleCatalog { get; set; } = default!;
+    private IModuleCatalogControl ModuleCatalog { get; set; } = default!;
 
     [Inject]
     private ILocalizationService L { get; set; } = default!;
@@ -40,20 +41,6 @@ public partial class Modules
     private readonly HashSet<string> _busy = [];
     private bool _loadAllBusy;
     private string _search = string.Empty;
-
-    private void ToggleRenderMode(string moduleId)
-    {
-        var current = ModuleCatalog.GetRenderStrategy(moduleId);
-        var next = current == ModuleRenderStrategy.Auto ? ModuleRenderStrategy.Server : ModuleRenderStrategy.Auto;
-        if (ModuleCatalog.SetRenderStrategy(moduleId, next))
-        {
-            Toast.Success($"模块 {moduleId} 已切换为 {(next == ModuleRenderStrategy.Auto ? "WASM (Auto)" : "Server 兜底")} 模式");
-        }
-        else
-        {
-            Toast.Warning($"模块 {moduleId} 暂不支持切换为 {next}");
-        }
-    }
 
     private int RunningCount => _modules.Count(m => m.State == ModuleState.Running);
     private int EssentialCount => _modules.Count(m => m.IsEssential);

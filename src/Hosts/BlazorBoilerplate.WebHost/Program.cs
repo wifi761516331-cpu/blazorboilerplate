@@ -51,6 +51,7 @@ builder.Services.AddScoped<AccountState>();
 builder.Services.AddScoped<SessionRevocationWatcher>();
 builder.Services.AddScoped<ISessionRevocationWatcher>(sp => sp.GetRequiredService<SessionRevocationWatcher>());
 builder.Services.AddSingleton<IRenderModeArbitrator, ServerRenderModeArbitrator>();
+builder.Services.AddScoped<BlazorBoilerplate.WebHost.Client.Services.IModuleCatalogControl, ServerModuleCatalogControl>();
 builder.Services.AddScoped<ICurrentUserPermissionService>(sp => sp.GetRequiredService<AccountState>());
 builder.Services.AddScoped<BlazorBoilerplate.WebHost.Client.Services.ClientModuleCatalog>();
 builder.Services.AddScoped<SystemSettingsState>();

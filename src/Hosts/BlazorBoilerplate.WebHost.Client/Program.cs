@@ -32,5 +32,6 @@ using var bootstrapHttp = new HttpClient
 var catalog = new ClientModuleCatalog(bootstrapHttp);
 await catalog.PreloadAutoModulesAsync(builder.Services);
 builder.Services.AddSingleton(catalog);
+builder.Services.AddScoped<IModuleCatalogControl, ClientModuleCatalogControl>();
 
 await builder.Build().RunAsync();

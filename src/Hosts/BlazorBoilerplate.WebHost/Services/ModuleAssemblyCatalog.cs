@@ -274,9 +274,8 @@ public sealed class ModuleAssemblyCatalog
         var cssPath = ResolveScopedCssPath(dll);
         var isFrontendOnly = dll.Contains($"{Path.DirectorySeparatorChar}frontend{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
             || Path.GetFileNameWithoutExtension(dll).EndsWith(".Frontend", StringComparison.OrdinalIgnoreCase);
-        // identity 模块包含登录/安装向导等公共认证壳，固定走 InteractiveServer；其余纯前端模块默认 Auto，热更新时降级 Server。
-        var isAuthCoreModule = string.Equals(moduleId, "identity", StringComparison.OrdinalIgnoreCase);
-        var strategy = !isFrontendOnly || isAuthCoreModule || allowDowngrade ? ModuleRenderStrategy.Server : ModuleRenderStrategy.Auto;
+        // 纯前端模块统一走 Auto（WASM）；identity 的 /sign-in 等公共认证壳由 IsServerOnlyRoute 固定走 Server 兜底。
+        var strategy = !isFrontendOnly ? ModuleRenderStrategy.Server : ModuleRenderStrategy.Auto;
         var versionStr = packageVersion?.ToString() ?? "0.0.0.0";
         BlazorBoilerplate.ModuleAbstractions.WidgetZoneRegistry.UnregisterModule(moduleId);
         lock (_gate)
@@ -450,10 +449,7 @@ public sealed class ModuleAssemblyCatalog
         var normalized = clean.TrimEnd('/');
         if (normalized.Length == 0) normalized = "/";
 
-        if (normalized.Equals("/sign-in", StringComparison.OrdinalIgnoreCase)
-            || normalized.Equals("/sign-up", StringComparison.OrdinalIgnoreCase)
-            || normalized.Equals("/forgot-password", StringComparison.OrdinalIgnoreCase)
-            || normalized.Equals("/setup", StringComparison.OrdinalIgnoreCase))
+        if (IsServerOnlyRoute(normalized))
             return false;
 
         lock (_gate)
@@ -461,15 +457,23 @@ public sealed class ModuleAssemblyCatalog
             foreach (var kv in _active)
             {
                 var entry = kv.Value;
-                if (!entry.IsFrontendOnly || entry.RenderStrategy != ModuleRenderStrategy.Auto)
+                if (entry.IsFrontendOnly && entry.RenderStrategy == ModuleRenderStrategy.Auto)
                     continue;
                 var routes = _routeCache.GetValue(entry.Assembly, BuildRouteMap);
                 if (routes.ContainsKey(normalized))
-                    return true;
+                    return false;
             }
         }
-        return false;
+        return true;
     }
+
+    private static bool IsServerOnlyRoute(string normalized) =>
+        normalized.Equals("/sign-in", StringComparison.OrdinalIgnoreCase)
+        || normalized.Equals("/sign-up", StringComparison.OrdinalIgnoreCase)
+        || normalized.Equals("/forgot-password", StringComparison.OrdinalIgnoreCase)
+        || normalized.Equals("/setup", StringComparison.OrdinalIgnoreCase)
+        || normalized.Equals("/auth", StringComparison.OrdinalIgnoreCase)
+        || normalized.StartsWith("/auth/", StringComparison.OrdinalIgnoreCase);
 
     public bool IsFrontendOnlyModule(string moduleId)
     {

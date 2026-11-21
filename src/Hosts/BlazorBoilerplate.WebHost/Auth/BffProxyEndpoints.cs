@@ -61,6 +61,11 @@ public static class BffProxyEndpoints
             if (!string.IsNullOrWhiteSpace(token))
                 outbound.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         }
+        else if (context.Request.Headers.TryGetValue("Authorization", out var incomingAuth) &&
+                 !string.IsNullOrWhiteSpace(incomingAuth.ToString()))
+        {
+            outbound.Headers.TryAddWithoutValidation("Authorization", incomingAuth.ToArray());
+        }
 
         using var response = await client.SendAsync(
             outbound,

@@ -1,5 +1,5 @@
 @page "/modules"
-@rendermode RenderMode.InteractiveServer
+@namespace BlazorBoilerplate.WebHost.Components.Pages
 
 <BitCallout Class="page-callout">
     <BitText Element="h1" Class="page-title">@L["platform.header.modules.title"]</BitText>
@@ -114,18 +114,6 @@ else
                                 IconName="@StateIcon(m.State)"
                                 Style="white-space:nowrap;flex-shrink:0"
                                 Title="@m.State.ToString()">@StateText(m.State)</BitTag>
-                        @if (m.State == ModuleState.Running && ModuleCatalog.IsFrontendOnlyModule(m.Id) && !string.Equals(m.Id, "identity", StringComparison.OrdinalIgnoreCase))
-                        {
-                            var isAuto = ModuleCatalog.GetRenderStrategy(m.Id) == ModuleRenderStrategy.Auto;
-                            <BitTag Color="@(isAuto ? BitColor.Info : BitColor.Warning)"
-                                    Variant="BitVariant.Fill"
-                                    Size="BitSize.Small"
-                                    Style="white-space:nowrap;flex-shrink:0;cursor:pointer;min-width:60px;justify-content:center;text-align:center"
-                                    Title="@(isAuto ? "当前为混合/WASM模式（点击切换为Server兜底）" : "当前为Server兜底模式（点击切回WASM）")"
-                                    OnClick="@(() => ToggleRenderMode(m.Id))">
-                                @(isAuto ? "WASM" : "Server")
-                            </BitTag>
-                        }
                     </div>
 
                     <div class="module-card-meta">

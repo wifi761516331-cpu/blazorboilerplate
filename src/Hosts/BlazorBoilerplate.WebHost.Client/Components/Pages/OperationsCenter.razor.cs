@@ -4,7 +4,6 @@ using Bit.BlazorUI;
 using BlazorBoilerplate.Application.Localization;
 using BlazorBoilerplate.Application.OData;
 using BlazorBoilerplate.Application.Platform;
-using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.Web.Shared.Localization;
 using BlazorBoilerplate.Web.Shared.OData;
 using BlazorBoilerplate.Web.Shared.Services;
@@ -17,6 +16,19 @@ public partial class OperationsCenter
     [Inject] private HttpClient Http { get; set; } = default!;
     [Inject] private ILocalizationService L { get; set; } = default!;
     [Inject] private ToastService Toast { get; set; } = default!;
+
+    public sealed record ScheduleTaskDescriptor(
+        string Id,
+        string Name,
+        string ModuleId,
+        int Seconds,
+        bool Enabled,
+        bool StopOnError,
+        bool IsRunning,
+        DateTimeOffset? LastStartUtc,
+        DateTimeOffset? LastEndUtc,
+        DateTimeOffset? LastSuccessUtc,
+        string? LastError);
 
     public sealed class ProviderItemModel
     {

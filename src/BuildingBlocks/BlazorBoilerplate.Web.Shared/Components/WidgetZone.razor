@@ -1,4 +1,6 @@
 @using BlazorBoilerplate.ModuleAbstractions
+@using BlazorBoilerplate.Web.Shared.Localization
+@inject FrontendLocalizationService FrontendLoc
 @implements IDisposable
 
 @{
@@ -14,7 +16,9 @@
         {
             @foreach (var widget in widgets)
             {
-                <DynamicComponent Type="@widget.ComponentType" Parameters="@Parameters" />
+                <DynamicComponent @key="@($"{widget.ModuleId}:{widget.ComponentType.FullName}:{FrontendLoc.CurrentCulture}")"
+                                  Type="@widget.ComponentType"
+                                  Parameters="@Parameters" />
             }
         }
         @if (!(ReplaceContent && widgets.Count > 0) && ChildContent is not null)
@@ -29,7 +33,9 @@ else
     {
         @foreach (var widget in widgets)
         {
-            <DynamicComponent Type="@widget.ComponentType" Parameters="@Parameters" />
+            <DynamicComponent @key="@($"{widget.ModuleId}:{widget.ComponentType.FullName}:{FrontendLoc.CurrentCulture}")"
+                              Type="@widget.ComponentType"
+                              Parameters="@Parameters" />
         }
     }
     @if (!(ReplaceContent && widgets.Count > 0) && ChildContent is not null)
@@ -59,9 +65,17 @@ else
     [Parameter]
     public IDictionary<string, object>? Parameters { get; set; }
 
-    protected override void OnInitialized() => WidgetZoneRegistry.Changed += OnRegistryChanged;
+    protected override void OnInitialized()
+    {
+        WidgetZoneRegistry.Changed += OnRegistryChanged;
+        FrontendLoc.Changed += OnRegistryChanged;
+    }
 
     private void OnRegistryChanged() => _ = InvokeAsync(StateHasChanged);
 
-    public void Dispose() => WidgetZoneRegistry.Changed -= OnRegistryChanged;
+    public void Dispose()
+    {
+        WidgetZoneRegistry.Changed -= OnRegistryChanged;
+        FrontendLoc.Changed -= OnRegistryChanged;
+    }
 }

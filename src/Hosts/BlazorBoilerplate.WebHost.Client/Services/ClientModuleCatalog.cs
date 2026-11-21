@@ -26,6 +26,7 @@ public sealed record ClientModuleManifest(
 public sealed class ClientModuleCatalog(HttpClient http)
 {
     private readonly Dictionary<string, (string Version, Assembly Assembly)> _loaded = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _bootRegistered = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Assembly> _assemblies = [];
     private ClientModuleManifest? _manifest;
 
@@ -37,6 +38,15 @@ public sealed class ClientModuleCatalog(HttpClient http)
         try
         {
             _manifest = await http.GetFromJsonAsync<ClientModuleManifest>("/_modules/client/manifest.json", ct);
+            if (_manifest is not null)
+            {
+                var activeIds = _manifest.Modules.Select(m => m.ModuleId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                foreach (var loadedId in _loaded.Keys.Where(id => !activeIds.Contains(id)).ToList())
+                {
+                    WidgetZoneRegistry.UnregisterModule(loadedId);
+                    _loaded.Remove(loadedId);
+                }
+            }
         }
         catch
         {
@@ -53,7 +63,10 @@ public sealed class ClientModuleCatalog(HttpClient http)
         {
             var asm = await LoadModuleAssemblyAsync(mod, ct);
             if (asm is not null)
+            {
                 RegisterModuleServices(asm, services);
+                _bootRegistered.Add(mod.ModuleId);
+            }
         }
     }
 
@@ -86,19 +99,60 @@ public sealed class ClientModuleCatalog(HttpClient http)
 
         if (_loaded.TryGetValue(target.ModuleId, out var existing))
         {
-            if (!string.Equals(existing.Version, target.Version, StringComparison.OrdinalIgnoreCase))
-                return true; // 已加载旧版 DLL：必须 forceLoad 重建 WASM 运行时
+            if (!string.Equals(existing.Version, target.Version, StringComparison.OrdinalIgnoreCase)
+                || !_bootRegistered.Contains(target.ModuleId))
+                return true; // 已加载旧版 DLL 或运行时新启用：必须 forceLoad 重建 WASM 运行时（含 DI 与样式）
             return false;
         }
 
-        await LoadModuleAssemblyAsync(target, ct);
-        return false;
+        // 运行时新安装/启用的 Auto 模块尚未在 WASM 启动阶段注册 DI 与样式：触发一次 forceLoad 重建 WASM 运行时
+        return true;
+    }
+
+    /// <summary>
+    /// 运行时安装/启用模块后，立即在当前 WASM 会话中激活其微件注册（使 WidgetZone 即刻显示）。
+    /// 若需完整 DI 服务，后续首次导航到该模块路由时由 EnsureRouteReadyAsync 触发 forceLoad。
+    /// </summary>
+    public async Task ActivateModuleWidgetsAsync(string moduleId, CancellationToken ct = default)
+    {
+        var mod = _manifest?.Modules.FirstOrDefault(m => string.Equals(m.ModuleId, moduleId, StringComparison.OrdinalIgnoreCase));
+        if (mod is null || !string.Equals(mod.RenderMode, "Auto", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        Assembly? asm = null;
+        if (_loaded.TryGetValue(moduleId, out var existing))
+        {
+            if (string.Equals(existing.Version, mod.Version, StringComparison.OrdinalIgnoreCase))
+                asm = existing.Assembly;
+        }
+        else
+        {
+            asm = await LoadModuleAssemblyAsync(mod, ct);
+        }
+
+        if (asm is not null)
+        {
+            WidgetZoneRegistry.UnregisterModule(moduleId);
+            RegisterModuleServices(asm, new ServiceCollection());
+        }
     }
 
     private async Task<Assembly?> LoadModuleAssemblyAsync(ClientModuleDescriptor mod, CancellationToken ct)
     {
         if (_loaded.TryGetValue(mod.ModuleId, out var existing))
             return existing.Assembly;
+
+        var simpleName = Path.GetFileNameWithoutExtension(mod.AssemblyFileName);
+        var inDomain = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a =>
+            string.Equals(a.GetName().Name, simpleName, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(a.GetName().Version?.ToString(), mod.Version, StringComparison.OrdinalIgnoreCase));
+        if (inDomain is not null)
+        {
+            _loaded[mod.ModuleId] = (mod.Version, inDomain);
+            if (!_assemblies.Contains(inDomain))
+                _assemblies.Add(inDomain);
+            return inDomain;
+        }
 
         var dllUrl = $"/_modules/client/{Uri.EscapeDataString(mod.ModuleId)}/{Uri.EscapeDataString(mod.Version)}/{Uri.EscapeDataString(mod.AssemblyFileName)}";
         try

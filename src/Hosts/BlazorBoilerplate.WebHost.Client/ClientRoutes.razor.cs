@@ -36,10 +36,16 @@ public partial class ClientRoutes
     private async Task OnNavigateAsync(NavigationContext args)
     {
         var path = "/" + (args.Path ?? string.Empty).TrimStart('/');
-        var target = ModuleCatalog.FindByPath(path);
-        if (target is null)
+        var clean = path.Split('?', '#')[0].TrimEnd('/');
+        if (clean.Length == 0) clean = "/";
+
+        if (clean.Equals("/sign-in", StringComparison.OrdinalIgnoreCase)
+            || clean.Equals("/sign-up", StringComparison.OrdinalIgnoreCase)
+            || clean.Equals("/forgot-password", StringComparison.OrdinalIgnoreCase)
+            || clean.Equals("/setup", StringComparison.OrdinalIgnoreCase)
+            || clean.Equals("/auth", StringComparison.OrdinalIgnoreCase)
+            || clean.StartsWith("/auth/", StringComparison.OrdinalIgnoreCase))
         {
-            // 非动态模块路由（如平台 /、/tenants、/modules 等），交回服务端渲染
             Navigation.NavigateTo(args.Path ?? "/", forceLoad: true);
             return;
         }

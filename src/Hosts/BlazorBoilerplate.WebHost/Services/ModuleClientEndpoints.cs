@@ -35,6 +35,13 @@ public static class ModuleClientEndpoints
                 : Results.BadRequest(new { error = "模块不存在或不支持切换为 Auto。" });
         }).RequireAuthorization();
 
+        group.MapPost("/client/{moduleId}/refresh", async (
+            string moduleId, ModuleAssemblyCatalog catalog, CancellationToken ct) =>
+        {
+            await catalog.RefreshModuleAsync(moduleId, ct);
+            return Results.Ok(new { moduleId, manifestHash = catalog.ManifestHash });
+        }).RequireAuthorization();
+
         return endpoints;
     }
 }

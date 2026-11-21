@@ -13,6 +13,7 @@
     @* 组件隔离样式 bundle：宿主 bundle 内部 @import 了各 RCL 带哈希的 scoped css（框架自动生成），
        路径固定无哈希；须在 app.css 之前以便全局样式覆盖。 *@
     <link rel="stylesheet" href="BlazorBoilerplate.WebHost.styles.css" />
+    <link rel="stylesheet" href="BlazorBoilerplate.WebHost.Client.styles.css" />
     <link rel="stylesheet" href="@($"_modules/styles.css?v={ModuleCatalog.ManifestHash}")" />
     <link rel="stylesheet" href="app.css?v=20261119l" />
     <HeadOutlet />
