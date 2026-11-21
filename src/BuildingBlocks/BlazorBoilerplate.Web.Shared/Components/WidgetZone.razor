@@ -1,10 +1,14 @@
 @using BlazorBoilerplate.ModuleAbstractions
 @using BlazorBoilerplate.Web.Shared.Localization
+@using BlazorBoilerplate.Web.Shared.Services
 @inject FrontendLocalizationService FrontendLoc
+@inject ICurrentUserPermissionService Permissions
 @implements IDisposable
 
 @{
-    var widgets = WidgetZoneRegistry.GetWidgets(Name);
+    var widgets = WidgetZoneRegistry.GetWidgets(Name)
+        .Where(w => string.IsNullOrWhiteSpace(w.RequiredPermission) || Permissions.HasPermission(w.RequiredPermission))
+        .ToList();
     var showPreview = Preview ?? WidgetZoneRegistry.PreviewEnabled;
 }
 

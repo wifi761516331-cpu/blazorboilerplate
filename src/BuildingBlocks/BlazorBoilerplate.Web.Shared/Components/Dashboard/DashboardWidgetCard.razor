@@ -1,0 +1,12 @@
+@namespace BlazorBoilerplate.Web.Shared.Components
+
+<div class="bb-widget @($"span-{Math.Clamp(Span, 1, 6)}")">
+    <div class="bb-widget-head">
+        <h2 class="bb-widget-title">@Title</h2>
+        @if (!string.IsNullOrWhiteSpace(Subtitle))
+        {
+            <span class="bb-widget-sub">@Subtitle</span>
+        }
+    </div>
+    @ChildContent
+</div>

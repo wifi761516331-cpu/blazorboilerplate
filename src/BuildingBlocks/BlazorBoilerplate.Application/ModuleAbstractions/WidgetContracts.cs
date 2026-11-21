@@ -7,7 +7,8 @@ public sealed record WidgetDescriptor(
     string Zone,
     Type ComponentType,
     string ModuleId,
-    int Order = ModuleStartupDefaults.DefaultOrder);
+    int Order = ModuleStartupDefaults.DefaultOrder,
+    string? RequiredPermission = null);
 
 /// <summary>声明当前微件依赖的前置微件类型，渲染时自动连带加载。</summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
@@ -28,12 +29,17 @@ public static class WidgetZoneRegistry
     public static event Action? Changed;
 
     /// <summary>注册组件到指定插槽。</summary>
-    public static void Register(string zone, Type componentType, string moduleId, int order = ModuleStartupDefaults.DefaultOrder)
+    public static void Register(
+        string zone,
+        Type componentType,
+        string moduleId,
+        int order = ModuleStartupDefaults.DefaultOrder,
+        string? requiredPermission = null)
     {
         if (string.IsNullOrWhiteSpace(zone) || componentType is null)
             return;
         var key = $"{moduleId}:{zone}:{componentType.FullName}";
-        Entries[key] = new WidgetDescriptor(zone.Trim(), componentType, moduleId, order);
+        Entries[key] = new WidgetDescriptor(zone.Trim(), componentType, moduleId, order, requiredPermission);
         Changed?.Invoke();
     }
 
@@ -79,6 +85,21 @@ public static class WidgetZoneRegistry
         foreach (var key in Entries.Keys.Where(k => k.StartsWith(moduleId + ":", StringComparison.OrdinalIgnoreCase)).ToArray())
         {
             if (Entries.TryRemove(key, out _))
+                removed = true;
+        }
+        if (removed)
+            Changed?.Invoke();
+    }
+
+    /// <summary>注销不在运行集合中的模块所注册的微件（用于模块卸载/停用后的跨端状态同步）。</summary>
+    public static void UnregisterInactiveModules(IReadOnlySet<string> activeModuleIds)
+    {
+        var removed = false;
+        foreach (var key in Entries.Keys.ToArray())
+        {
+            var sep = key.IndexOf(':');
+            var moduleId = sep > 0 ? key[..sep] : key;
+            if (!activeModuleIds.Contains(moduleId) && Entries.TryRemove(key, out _))
                 removed = true;
         }
         if (removed)
