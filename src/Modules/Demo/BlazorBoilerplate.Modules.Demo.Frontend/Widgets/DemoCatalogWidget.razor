@@ -1,0 +1,14 @@
+@inject ILocalizationService L
+@inject NavigationManager Nav
+
+<BitCard Style="width:100%;padding:0.65rem 1rem;margin-bottom:0.75rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+        <BitText Class="muted" Style="font-size:0.85rem;">
+            <strong>@L["demo.widget.title"]</strong> · page_catalog_top
+        </BitText>
+        <BitButton Variant="BitVariant.Text" Size="BitSize.Small" IconName="Code" OnClick="@(() => Nav.NavigateTo("/demo"))">
+            @L["demo.widget.goto"]
+        </BitButton>
+    </div>
+</BitCard>
+

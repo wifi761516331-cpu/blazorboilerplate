@@ -1,0 +1,8 @@
+@inject ILocalizationService L
+@inject NavigationManager Nav
+
+<div class="account-separator"></div>
+<BitButton Variant="BitVariant.Text" Class="account-action" IconName="Code" OnClick="@(() => Nav.NavigateTo("/demo"))">
+    <span>@L["demo.widget.goto"]</span>
+</BitButton>
+

@@ -1,0 +1,96 @@
+@page "/demo"
+@rendermode RenderMode.InteractiveServer
+
+<BitCallout Class="page-callout">
+    <BitText Element="h1" Class="page-title">@L["demo.title"]</BitText>
+    <BitText Class="muted">@L["demo.subtitle"]</BitText>
+</BitCallout>
+
+<WidgetZone Name="demo_workbench_top" />
+
+<div class="bb-toolbar">
+    <BitButton Color="BitColor.Primary" IconName="Play" OnClick="RunShowcaseAsync" Disabled="@_busy">
+        @(_busy ? L["demo.action.running"] : L["demo.action.runShowcase"])
+    </BitButton>
+    <BitButton Color="BitColor.Info" Variant="BitVariant.Outline" IconName="Download" OnClick="ExportCsvAsync">
+        @L["demo.action.exportCsv"]
+    </BitButton>
+    <BitButton Variant="BitVariant.Outline" IconName="Refresh" OnClick="LoadOverviewAsync" Disabled="@_busy">
+        @L["platform.common.refresh"]
+    </BitButton>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <div class="page-callout error">@_error</div>
+}
+
+<BitStack Gap="1rem" Style="width:100%;">
+    @if (_overview is not null)
+    {
+        <BitCard Style="width:100%;padding:1.25rem;">
+            <BitStack Gap="0.75rem">
+                <BitText Typography="BitTypography.H6">@L["demo.overview.title"]</BitText>
+                <div><strong>@L["demo.overview.cacheStatus"]</strong> @_overview.CacheStatus</div>
+                <div><strong>@L["demo.overview.noteCount"]</strong> @L.GetString("demo.overview.noteCountUnit", _overview.DatabaseNoteCount)</div>
+                <div><strong>@L["demo.overview.ruleMatched"]</strong> <BitBadge Color="@(_overview.AdminRuleMatched ? BitColor.Success : BitColor.Warning)">@_overview.AdminRuleMatched</BitBadge></div>
+                <div><strong>@L["demo.overview.providers"]</strong> @string.Join("，", _overview.RegisteredProviders)</div>
+                <div><strong>@L["demo.overview.ruleKeys"]</strong> @string.Join("，", _overview.RegisteredRuleKeys)</div>
+
+                <div style="display:flex;gap:0.75rem;align-items:end;flex-wrap:wrap;padding-top:0.5rem;border-top:1px solid var(--bb-border, #e5e7eb);">
+                    <BitTextField Label="@L["demo.settings.greetingPrefix"]" @bind-Value="_overview.Settings.GreetingPrefix" Style="min-width:260px;" />
+                    <BitCheckbox Label="@L["demo.settings.enableAutoAudit"]" @bind-Value="_overview.Settings.EnableAutoAudit" />
+                    <BitButton Color="BitColor.Primary" Variant="BitVariant.Outline" IconName="Save" OnClick="SaveSettingsAsync" Disabled="@_busy">
+                        @L["demo.action.saveSettings"]
+                    </BitButton>
+                </div>
+            </BitStack>
+        </BitCard>
+    }
+
+    @if (_result is not null)
+    {
+        <BitCard Style="width:100%;padding:1.25rem;border-color:var(--bit-color-success, #10b981);">
+            <BitStack Gap="0.5rem">
+                <BitText Typography="BitTypography.H6">@L["demo.result.title"]</BitText>
+                <div><strong>@L["demo.result.lock"]</strong> @(_result.LockAcquired ? L["demo.result.lockAcquired"] : L["demo.result.lockMissed"])</div>
+                <div><strong>@L["demo.result.cache"]</strong> @_result.CacheValue</div>
+                <div><strong>@L["demo.result.template"]</strong> @_result.TemplateSubject — @_result.TemplateBody</div>
+                <div><strong>@L["demo.result.email"]</strong> EmailId = <code>@_result.QueuedEmailId</code></div>
+                <div><strong>@L["demo.result.rule"]</strong> @_result.RuleMatched</div>
+                <div><strong>@L["demo.result.search"]</strong> @L.GetString("demo.result.searchHits", _result.SearchHits)</div>
+                <div><strong>@L["demo.result.csv"]</strong> @L.GetString("demo.result.csvBytes", _result.ExportCsvBytes)</div>
+                <div><strong>@L["demo.result.provider"]</strong> @_result.ProviderPreview</div>
+                <div><strong>@L["demo.result.dbWrite"]</strong> @L.GetString("demo.result.dbWriteSummary", _result.SavedNoteId, _result.TotalNotes)</div>
+                <div><strong>@L["demo.result.event"]</strong> @L["demo.result.eventPublished"] <code>@_result.EventPublished</code></div>
+                <div><strong>@L["demo.result.channelBus"]</strong> @L["demo.result.eventPublished"] <code>@_result.ChannelPublished</code></div>
+            </BitStack>
+        </BitCard>
+    }
+
+    <BitCard Style="width:100%;padding:1.25rem;">
+        <BitStack Gap="0.75rem">
+            <BitText Typography="BitTypography.H6">@L["demo.odata.title"]</BitText>
+            <BitDataGrid @key="_gridVersion"
+                         TItem="DemoNoteDto"
+                         OnRead="ReadNotesAsync"
+                         Strings="@_gridStrings"
+                         Pageable="true" PageSize="5"
+                         Sortable="true" Filterable="true" FilterDebounce="300"
+                         Bordered="true" Hoverable="true" Striped="true" ShowHeader="true">
+                <Columns>
+                    <BitDataGridColumn TItem="DemoNoteDto" Property="n => n.Title" ColumnId="title" Title="@L["demo.odata.col.title"]" Sortable="true" />
+                    <BitDataGridColumn TItem="DemoNoteDto" Property="n => n.CreatedAtUtc" ColumnId="createdatutc" Title="@L["demo.odata.col.createdAt"]" Sortable="true" Filterable="false">
+                        <Template Context="n">@n.CreatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</Template>
+                    </BitDataGridColumn>
+                    <BitDataGridColumn TItem="DemoNoteDto" Property="n => n.Id" ColumnId="id" Title="@L["demo.odata.col.id"]" Sortable="true" Filterable="false" />
+                </Columns>
+                <EmptyTemplate>
+                    <BitText Class="muted">@L["demo.odata.empty"]</BitText>
+                </EmptyTemplate>
+            </BitDataGrid>
+        </BitStack>
+    </BitCard>
+
+    <WidgetZone Name="demo_workbench_bottom" />
+</BitStack>

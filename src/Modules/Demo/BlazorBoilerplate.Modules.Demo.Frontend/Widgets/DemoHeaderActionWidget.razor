@@ -1,0 +1,9 @@
+@inject ILocalizationService L
+@inject NavigationManager Nav
+
+<BitButton Variant="BitVariant.Text"
+           IconName="Code"
+           Title="@L["demo.widget.goto"]"
+           AriaLabel="@L["demo.widget.goto"]"
+           OnClick="@(() => Nav.NavigateTo("/demo"))" />
+

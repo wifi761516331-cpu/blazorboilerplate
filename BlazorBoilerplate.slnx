@@ -22,6 +22,10 @@
     <Project Path="src/Modules/Catalog/BlazorBoilerplate.Modules.Catalog/BlazorBoilerplate.Modules.Catalog.csproj" />
     <Project Path="src/Modules/Catalog/BlazorBoilerplate.Modules.Catalog.Frontend/BlazorBoilerplate.Modules.Catalog.Frontend.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Demo/">
+    <Project Path="src/Modules/Demo/BlazorBoilerplate.Modules.Demo/BlazorBoilerplate.Modules.Demo.csproj" />
+    <Project Path="src/Modules/Demo/BlazorBoilerplate.Modules.Demo.Frontend/BlazorBoilerplate.Modules.Demo.Frontend.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Identity/">
     <Project Path="src/Modules/Identity/BlazorBoilerplate.Modules.Identity/BlazorBoilerplate.Modules.Identity.csproj" />
     <Project Path="src/Modules/Identity/BlazorBoilerplate.Modules.Identity.Frontend/BlazorBoilerplate.Modules.Identity.Frontend.csproj" />

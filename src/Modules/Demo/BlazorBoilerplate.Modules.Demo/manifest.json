@@ -1,0 +1,31 @@
+{
+  "id": "demo",
+  "name": "Demo",
+  "displayName": "开发模板示例",
+  "version": "1.0.0",
+  "publisher": "BlazorBoilerplate",
+  "entryAssembly": "BlazorBoilerplate.Modules.Demo.dll",
+  "entryType": "BlazorBoilerplate.Modules.Demo.DemoModule",
+  "contractVersion": "1.0",
+  "moduleSdkVersion": "1.0",
+  "hostCompatibility": ">=1.0.0 <2.0.0",
+  "displayOrder": 200,
+  "dependencies": [],
+  "permissions": [ "demo.read", "demo.write" ],
+  "permissionItems": [
+    { "code": "demo.read", "name": "查看 Demo 示例" },
+    { "code": "demo.write", "name": "操作 Demo 示例" }
+  ],
+  "frontend": {
+    "assembly": "BlazorBoilerplate.Modules.Demo.Frontend.dll",
+    "routes": [ "/demo" ],
+    "menus": [ "Demo" ],
+    "menuItems": [
+      { "text": "开发示例", "route": "/demo", "icon": "Code", "sort": 200 }
+    ],
+    "localization": [],
+    "assets": []
+  },
+  "checksumSha256": null
+}
+
