@@ -23,13 +23,14 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                    b.Property<string>("CreatedAtUtc")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                    b.Property<string>("DeletedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("DeletedBy")
@@ -50,7 +51,7 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("ModifiedAtUtc")
+                    b.Property<string>("ModifiedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("ModifiedBy")
@@ -94,16 +95,18 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("AppliedAtUtc")
+                    b.Property<string>("AppliedAtUtc")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                    b.Property<string>("CreatedAtUtc")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                    b.Property<string>("DeletedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("DeletedBy")
@@ -112,7 +115,7 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("ModifiedAtUtc")
+                    b.Property<string>("ModifiedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("ModifiedBy")
@@ -145,13 +148,14 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                    b.Property<string>("CreatedAtUtc")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                    b.Property<string>("DeletedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("DeletedBy")
@@ -168,7 +172,7 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .HasMaxLength(2048)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("ModifiedAtUtc")
+                    b.Property<string>("ModifiedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("ModifiedBy")
@@ -178,7 +182,7 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .HasMaxLength(512)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("ReadAtUtc")
+                    b.Property<string>("ReadAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
@@ -208,13 +212,14 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .HasMaxLength(128)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                    b.Property<string>("CreatedAtUtc")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                    b.Property<string>("DeletedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("DeletedBy")
@@ -232,7 +237,7 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .HasMaxLength(512)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("ModifiedAtUtc")
+                    b.Property<string>("ModifiedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("ModifiedBy")
@@ -265,13 +270,14 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                    b.Property<string>("CreatedAtUtc")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                    b.Property<string>("DeletedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("DeletedBy")
@@ -289,7 +295,7 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("ModifiedAtUtc")
+                    b.Property<string>("ModifiedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("ModifiedBy")
@@ -329,13 +335,14 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                    b.Property<string>("CreatedAtUtc")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                    b.Property<string>("DeletedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("DeletedBy")
@@ -351,7 +358,7 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                     b.Property<bool>("IsSystem")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("ModifiedAtUtc")
+                    b.Property<string>("ModifiedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("ModifiedBy")
@@ -362,10 +369,16 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Name")
                         .HasDatabaseName("IX_Roles_Name");
+
+                    b.HasIndex("TenantId", "Name")
+                        .HasDatabaseName("IX_Roles_TenantId_Name");
 
                     b.ToTable("Roles", (string)null);
                 });
@@ -376,13 +389,14 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                    b.Property<string>("CreatedAtUtc")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                    b.Property<string>("DeletedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("DeletedBy")
@@ -394,7 +408,7 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                     b.Property<Guid>("MenuId")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("ModifiedAtUtc")
+                    b.Property<string>("ModifiedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("ModifiedBy")
@@ -425,13 +439,14 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .HasMaxLength(128)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                    b.Property<string>("CreatedAtUtc")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                    b.Property<string>("DeletedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("DeletedBy")
@@ -440,7 +455,7 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("ModifiedAtUtc")
+                    b.Property<string>("ModifiedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("ModifiedBy")
@@ -466,13 +481,14 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                    b.Property<string>("CreatedAtUtc")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                    b.Property<string>("DeletedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("DeletedBy")
@@ -488,7 +504,7 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("ModifiedAtUtc")
+                    b.Property<string>("ModifiedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("ModifiedBy")
@@ -505,6 +521,9 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Domain")
+                        .HasDatabaseName("IX_Tenants_Domain");
+
                     b.HasIndex("Name")
                         .HasDatabaseName("IX_Tenants_Name");
 
@@ -520,22 +539,24 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                     b.Property<bool>("Accepted")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("AcceptedAtUtc")
+                    b.Property<string>("AcceptedAtUtc")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                    b.Property<string>("CreatedAtUtc")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                    b.Property<string>("DeletedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("DeletedBy")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("InvitedAtUtc")
+                    b.Property<string>("InvitedAtUtc")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("IsDeleted")
@@ -544,7 +565,7 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                     b.Property<bool>("IsOwner")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("ModifiedAtUtc")
+                    b.Property<string>("ModifiedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("ModifiedBy")
@@ -573,13 +594,14 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                    b.Property<string>("CreatedAtUtc")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                    b.Property<string>("DeletedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("DeletedBy")
@@ -601,7 +623,7 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("ModifiedAtUtc")
+                    b.Property<string>("ModifiedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("ModifiedBy")
@@ -610,6 +632,10 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("UserName")
@@ -621,6 +647,9 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
 
                     b.HasIndex("Email")
                         .HasDatabaseName("IX_Users_Email");
+
+                    b.HasIndex("PhoneNumber")
+                        .HasDatabaseName("IX_Users_PhoneNumber");
 
                     b.HasIndex("UserName")
                         .HasDatabaseName("IX_Users_UserName");
@@ -638,7 +667,8 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                    b.Property<string>("CreatedAtUtc")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("CreatedBy")
@@ -649,7 +679,7 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                    b.Property<string>("DeletedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("DeletedBy")
@@ -658,7 +688,7 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("ModifiedAtUtc")
+                    b.Property<string>("ModifiedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("ModifiedBy")
@@ -694,16 +724,18 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("AssignedAtUtc")
+                    b.Property<string>("AssignedAtUtc")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                    b.Property<string>("CreatedAtUtc")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                    b.Property<string>("DeletedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("DeletedBy")
@@ -712,13 +744,16 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("ModifiedAtUtc")
+                    b.Property<string>("ModifiedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("ModifiedBy")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("RoleId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("TenantId")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("UserId")
@@ -732,6 +767,9 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                     b.HasIndex("UserId")
                         .HasDatabaseName("IX_UserRoles_UserId");
 
+                    b.HasIndex("TenantId", "UserId")
+                        .HasDatabaseName("IX_UserRoles_TenantId_UserId");
+
                     b.ToTable("UserRoles", (string)null);
                 });
 
@@ -741,7 +779,8 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                    b.Property<string>("CreatedAtUtc")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("CreatedBy")
@@ -751,7 +790,7 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                    b.Property<string>("DeletedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("DeletedBy")
@@ -768,7 +807,7 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("ModifiedAtUtc")
+                    b.Property<string>("ModifiedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("ModifiedBy")
@@ -781,13 +820,15 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.Sqlite
                         .HasMaxLength(512)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("RenewedOnUtc")
+                    b.Property<string>("RenewedOnUtc")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("RevokedAtUtc")
+                    b.Property<string>("RevokedAtUtc")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("StartedOnUtc")
+                    b.Property<string>("StartedOnUtc")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("TenantId")

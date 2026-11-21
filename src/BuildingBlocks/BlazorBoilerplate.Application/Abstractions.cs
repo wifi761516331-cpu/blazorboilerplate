@@ -32,6 +32,11 @@ public interface IEmailSender
     Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken);
 }
 
+public interface ISmsSender
+{
+    Task SendAsync(string phoneNumber, string message, CancellationToken cancellationToken);
+}
+
 /// <summary>
 /// 缓存条目策略。契约必须留在 Application 程序集（ModuleLoadContext.SharedAssemblies），
 /// 保证宿主与模块 ALC 共用同一类型身份；模块端点传入的 options 不会被缓存持有，仅 value 会。

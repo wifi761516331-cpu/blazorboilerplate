@@ -1,3 +1,4 @@
+using BlazorBoilerplate.Application.Abstractions;
 using BlazorBoilerplate.Modules.Identity.Domain;
 using BlazorBoilerplate.Modules.Identity.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -5,12 +6,26 @@ using Microsoft.EntityFrameworkCore;
 namespace BlazorBoilerplate.Modules.Identity.Services;
 
 /// <summary>用户管理。唯一性校验在代码层（数据库无唯一约束，Nova 约定）。</summary>
-public sealed class UserService(IdentityDbContext db)
+public sealed class UserService(IdentityDbContext db, ICurrentUserContext? currentUser = null)
 {
     // 主键为 Guid v7（时间有序），用它排序等价于按创建时间排序；
     // SQLite 不支持 DateTimeOffset 出现在 ORDER BY，故不直接按 CreatedAtUtc 排序。
-    public Task<List<User>> ListAsync(CancellationToken ct = default) =>
-        db.Users.AsNoTracking().OrderBy(u => u.Id).ToListAsync(ct);
+    public async Task<List<User>> ListAsync(CancellationToken ct = default, Guid? tenantId = null)
+    {
+        var effectiveTid = tenantId ?? currentUser?.TenantId;
+        if (effectiveTid is { } tid)
+        {
+            var memberIds = await db.TenantUsers.AsNoTracking()
+                .Where(tu => tu.TenantId == tid && tu.Accepted)
+                .Select(tu => tu.UserId)
+                .ToListAsync(ct);
+            return await db.Users.AsNoTracking()
+                .Where(u => memberIds.Contains(u.Id))
+                .OrderBy(u => u.Id)
+                .ToListAsync(ct);
+        }
+        return await db.Users.AsNoTracking().OrderBy(u => u.Id).ToListAsync(ct);
+    }
 
     public async Task<User> GetAsync(Guid id, CancellationToken ct = default) =>
         await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id, ct)
@@ -81,26 +96,33 @@ public sealed class UserService(IdentityDbContext db)
     }
 
     /// <summary>整体重设用户角色（差量更新）。角色必须存在。</summary>
-    public async Task AssignRolesAsync(Guid id, Guid[] roleIds, CancellationToken ct = default)
+    public async Task AssignRolesAsync(Guid id, Guid[] roleIds, CancellationToken ct = default, Guid? tenantId = null)
     {
         _ = await db.Users.FirstOrDefaultAsync(u => u.Id == id, ct)
             ?? throw new KeyNotFoundException($"用户不存在：{id}");
 
+        var tid = tenantId ?? currentUser?.TenantId;
         foreach (var roleId in roleIds)
-            if (!await db.Roles.AnyAsync(r => r.Id == roleId, ct))
-                throw new KeyNotFoundException($"角色不存在：{roleId}");
+            if (!await db.Roles.AnyAsync(r => r.Id == roleId && r.TenantId == tid, ct))
+                throw new KeyNotFoundException($"角色不存在或不属于当前租户：{roleId}");
 
-        var existing = await db.UserRoles.Where(x => x.UserId == id).ToListAsync(ct);
+        var existing = await db.UserRoles.Where(x => x.UserId == id && x.TenantId == tid).ToListAsync(ct);
         foreach (var toRemove in existing.Where(x => !roleIds.Contains(x.RoleId)))
             db.UserRoles.Remove(toRemove);
         foreach (var roleId in roleIds.Where(rid => existing.All(x => x.RoleId != rid)))
-            db.UserRoles.Add(new UserRole(id, roleId));
+            db.UserRoles.Add(new UserRole(id, roleId, tid));
 
         await db.SaveChangesAsync(ct);
     }
 
-    public Task<List<Guid>> GetRoleIdsAsync(Guid userId, CancellationToken ct = default) =>
-        db.UserRoles.AsNoTracking().Where(x => x.UserId == userId).Select(x => x.RoleId).ToListAsync(ct);
+    public Task<List<Guid>> GetRoleIdsAsync(Guid userId, CancellationToken ct = default, Guid? tenantId = null)
+    {
+        var tid = tenantId ?? currentUser?.TenantId;
+        return db.UserRoles.AsNoTracking()
+            .Where(x => x.UserId == userId && x.TenantId == tid)
+            .Select(x => x.RoleId)
+            .ToListAsync(ct);
+    }
 
     // ---- 认证 / 授权查询（供 ApiHost 的 UserController、登录流程使用）----
 
@@ -164,18 +186,25 @@ public sealed class UserService(IdentityDbContext db)
 }
 
 /// <summary>角色管理。IsSystem 角色受保护；删除时级联清理 UserRoles/RoleMenus（代码级）。</summary>
-public sealed class RoleService(IdentityDbContext db)
+public sealed class RoleService(IdentityDbContext db, ICurrentUserContext? currentUser = null)
 {
-    public Task<List<Role>> ListAsync(CancellationToken ct = default) =>
-        db.Roles.AsNoTracking().OrderBy(r => r.Id).ToListAsync(ct);
-
-    public async Task<Role> CreateAsync(string name, string? description, CancellationToken ct = default)
+    public Task<List<Role>> ListAsync(CancellationToken ct = default, Guid? tenantId = null)
     {
+        var tid = tenantId ?? currentUser?.TenantId;
+        return db.Roles.AsNoTracking()
+            .Where(r => r.TenantId == tid)
+            .OrderBy(r => r.Id)
+            .ToListAsync(ct);
+    }
+
+    public async Task<Role> CreateAsync(string name, string? description, CancellationToken ct = default, Guid? tenantId = null)
+    {
+        var tid = tenantId ?? currentUser?.TenantId;
         var roleName = name.Trim();
-        if (await db.Roles.AnyAsync(r => r.Name == roleName, ct))
+        if (await db.Roles.AnyAsync(r => r.TenantId == tid && r.Name == roleName, ct))
             throw new InvalidOperationException($"角色名已存在：{roleName}");
 
-        var role = Role.Create(roleName, description);
+        var role = Role.Create(roleName, description, tenantId: tid);
         db.Roles.Add(role);
         await db.SaveChangesAsync(ct);
         return role;
@@ -188,7 +217,7 @@ public sealed class RoleService(IdentityDbContext db)
         if (role.IsSystem && !string.Equals(role.Name, name.Trim(), StringComparison.Ordinal))
             throw new InvalidOperationException("系统内置角色不允许改名。");
         var roleName = name.Trim();
-        if (await db.Roles.AnyAsync(r => r.Name == roleName && r.Id != id, ct))
+        if (await db.Roles.AnyAsync(r => r.TenantId == role.TenantId && r.Name == roleName && r.Id != id, ct))
             throw new InvalidOperationException($"角色名已存在：{roleName}");
 
         role.Update(roleName, description);

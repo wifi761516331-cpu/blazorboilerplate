@@ -1,3 +1,4 @@
+using BlazorBoilerplate.Application.Abstractions;
 using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.Modules.Identity.Services;
 using Microsoft.AspNetCore.Http;
@@ -17,7 +18,7 @@ public sealed class IdentityEndpoints(IServiceProvider moduleServices)
         // 用户管理
         builder.Map("/api/identity/users", "GET", "identity.user.read", async ctx => await WithScope(ctx, async s =>
         {
-            var users = await s.ServiceProvider.GetRequiredService<UserService>().ListAsync(ctx.RequestAborted);
+            var users = await s.ServiceProvider.GetRequiredService<UserService>().ListAsync(ctx.RequestAborted, ResolveTenantId(ctx));
             await ctx.Response.WriteAsJsonAsync(users.Select(ToUserDto), ctx.RequestAborted);
         }));
         builder.Map("/api/identity/users", "POST", "identity.user.create", async ctx => await WithScope(ctx, async s =>
@@ -40,13 +41,13 @@ public sealed class IdentityEndpoints(IServiceProvider moduleServices)
         }));
         builder.Map("/api/identity/users/{id}/roles", "GET", "identity.user.read", async ctx => await WithScope(ctx, async s =>
         {
-            var roleIds = await s.ServiceProvider.GetRequiredService<UserService>().GetRoleIdsAsync(GetId(ctx), ctx.RequestAborted);
+            var roleIds = await s.ServiceProvider.GetRequiredService<UserService>().GetRoleIdsAsync(GetId(ctx), ctx.RequestAborted, ResolveTenantId(ctx));
             await ctx.Response.WriteAsJsonAsync(roleIds, ctx.RequestAborted);
         }));
         builder.Map("/api/identity/users/{id}/roles", "PUT", "identity.user.update", async ctx => await WithScope(ctx, async s =>
         {
             var req = await ReadJsonAsync<AssignRequest>(ctx);
-            await s.ServiceProvider.GetRequiredService<UserService>().AssignRolesAsync(GetId(ctx), req.Ids, ctx.RequestAborted);
+            await s.ServiceProvider.GetRequiredService<UserService>().AssignRolesAsync(GetId(ctx), req.Ids, ctx.RequestAborted, ResolveTenantId(ctx));
             ctx.Response.StatusCode = StatusCodes.Status204NoContent;
         }));
         builder.Map("/api/identity/users/{id}", "PUT", "identity.user.update", async ctx => await WithScope(ctx, async s =>
@@ -64,13 +65,13 @@ public sealed class IdentityEndpoints(IServiceProvider moduleServices)
         // 角色管理
         builder.Map("/api/identity/roles", "GET", "identity.role.read", async ctx => await WithScope(ctx, async s =>
         {
-            var roles = await s.ServiceProvider.GetRequiredService<RoleService>().ListAsync(ctx.RequestAborted);
+            var roles = await s.ServiceProvider.GetRequiredService<RoleService>().ListAsync(ctx.RequestAborted, ResolveTenantId(ctx));
             await ctx.Response.WriteAsJsonAsync(roles, ctx.RequestAborted);
         }));
         builder.Map("/api/identity/roles", "POST", "identity.role.create", async ctx => await WithScope(ctx, async s =>
         {
             var req = await ReadJsonAsync<RoleUpsertRequest>(ctx);
-            var role = await s.ServiceProvider.GetRequiredService<RoleService>().CreateAsync(req.Name, req.Description, ctx.RequestAborted);
+            var role = await s.ServiceProvider.GetRequiredService<RoleService>().CreateAsync(req.Name, req.Description, ctx.RequestAborted, ResolveTenantId(ctx));
             await ctx.Response.WriteAsJsonAsync(role, ctx.RequestAborted);
         }));
         builder.Map("/api/identity/roles/{id}/menus", "GET", "identity.role.read", async ctx => await WithScope(ctx, async s =>
@@ -189,6 +190,10 @@ public sealed class IdentityEndpoints(IServiceProvider moduleServices)
         return await ctx.Request.ReadFromJsonAsync<T>(ctx.RequestAborted)
             ?? throw new InvalidOperationException("请求体不能为空。");
     }
+
+    private static Guid? ResolveTenantId(HttpContext ctx) =>
+        ctx.RequestServices.GetService<ICurrentUserContext>()?.TenantId
+        ?? (Guid.TryParse(ctx.User.FindFirst("tid")?.Value, out var tid) ? tid : null);
 
     private static Guid GetId(HttpContext ctx) => GetGuid(ctx, "id");
 

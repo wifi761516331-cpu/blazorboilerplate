@@ -287,6 +287,7 @@ public static class InfrastructureServiceCollectionExtensions
             services.Remove(placeholder);
 
         services.AddSingleton<IEmailSender, SmtpEmailSender>();
+        services.AddSingleton<ISmsSender, BlazorBoilerplate.Infrastructure.Sms.LoggingSmsSender>();
         return services;
     }
 

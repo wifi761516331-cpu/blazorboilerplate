@@ -7,14 +7,16 @@ public sealed class UserRole : AuditableEntity<Guid>
 {
     private UserRole() { }
 
-    public UserRole(Guid userId, Guid roleId)
+    public UserRole(Guid userId, Guid roleId, Guid? tenantId = null)
     {
         Id = Guid.CreateVersion7();
         UserId = userId;
         RoleId = roleId;
+        TenantId = tenantId;
         AssignedAtUtc = DateTimeOffset.UtcNow;
     }
 
+    public Guid? TenantId { get; private set; }
     public Guid UserId { get; private set; }
     public Guid RoleId { get; private set; }
     public DateTimeOffset AssignedAtUtc { get; private set; }

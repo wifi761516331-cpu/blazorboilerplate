@@ -11,9 +11,12 @@ namespace BlazorBoilerplate.Modules.Identity.Persistence;
 /// </summary>
 public sealed class IdentityDatabaseMigrations : IModuleDatabaseMigrations
 {
+    public Task EnsureSchemaAsync(IServiceProvider services, CancellationToken cancellationToken) =>
+        IdentityMigrationHelper.MigrateAsync(cancellationToken: cancellationToken);
+
     public IReadOnlyList<ModuleMigrationStep> Steps { get; } =
     [
-        new ModuleMigrationStep(1, "EnsureIdentitySchema", EnsureSchemaAsync),
+        new ModuleMigrationStep(1, "EnsureIdentitySchema", (_, _) => Task.CompletedTask),
         new ModuleMigrationStep(2, "SeedButtonPermissions", (sp, ct) => SeedPermissionsAsync(sp, ButtonPermissions, ct)),
         new ModuleMigrationStep(3, "SeedPlatformMenusAndPermissions", SeedPlatformMenusAndPermissionsAsync)
     ];
@@ -44,15 +47,13 @@ public sealed class IdentityDatabaseMigrations : IModuleDatabaseMigrations
         ("tenant.create", "创建租户", "tenant"),
         ("tenant.update", "编辑租户", "tenant"),
         ("tenant.invite", "邀请租户成员", "tenant"),
+        ("tenant.manage.global", "全局管理租户", "tenant"),
         ("module.upload", "上传模块", "module"),
         ("module.pack", "打包模块", "module"),
         ("module.download", "下载模块", "module"),
         ("module.load", "加载模块", "module"),
         ("module.unload", "卸载模块", "module")
     ];
-
-    private static Task EnsureSchemaAsync(IServiceProvider sp, CancellationToken ct) =>
-        IdentityMigrationHelper.MigrateAsync(cancellationToken: ct);
 
     private static Task SeedPermissionsAsync(
         IServiceProvider sp,

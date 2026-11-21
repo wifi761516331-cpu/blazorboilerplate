@@ -62,10 +62,12 @@ public class IdentityDbContext : ModuleDbContextBase
         // 唯一性在代码层保证（Nova 约定），数据库仅建普通索引支撑查询。
         b.Property(u => u.UserName).IsRequired().HasMaxLength(64);
         b.Property(u => u.Email).IsRequired().HasMaxLength(256);
+        b.Property(u => u.PhoneNumber).HasMaxLength(32);
         b.Property(u => u.DisplayName).IsRequired().HasMaxLength(64);
         b.Property(u => u.PasswordHash).IsRequired().HasMaxLength(512);
         b.HasIndex(u => u.UserName).HasDatabaseName("IX_Users_UserName");
         b.HasIndex(u => u.Email).HasDatabaseName("IX_Users_Email");
+        b.HasIndex(u => u.PhoneNumber).HasDatabaseName("IX_Users_PhoneNumber");
     }
 
     private static void ConfigureRole(EntityTypeBuilder<Role> b)
@@ -75,6 +77,7 @@ public class IdentityDbContext : ModuleDbContextBase
         b.Property(r => r.Name).IsRequired().HasMaxLength(64);
         b.Property(r => r.Description).HasMaxLength(256);
         b.HasIndex(r => r.Name).HasDatabaseName("IX_Roles_Name");
+        b.HasIndex(r => new { r.TenantId, r.Name }).HasDatabaseName("IX_Roles_TenantId_Name");
     }
 
     private static void ConfigureMenu(EntityTypeBuilder<Menu> b)
@@ -101,6 +104,7 @@ public class IdentityDbContext : ModuleDbContextBase
         b.HasKey(x => x.Id);
         b.HasIndex(x => x.UserId).HasDatabaseName("IX_UserRoles_UserId");
         b.HasIndex(x => x.RoleId).HasDatabaseName("IX_UserRoles_RoleId");
+        b.HasIndex(x => new { x.TenantId, x.UserId }).HasDatabaseName("IX_UserRoles_TenantId_UserId");
         b.HasOne(x => x.User)
             .WithMany(u => u.UserRoles)
             .HasForeignKey(x => x.UserId)
@@ -135,6 +139,7 @@ public class IdentityDbContext : ModuleDbContextBase
         b.Property(x => x.Title).HasMaxLength(256);
         b.Property(x => x.Domain).HasMaxLength(256);
         b.HasIndex(x => x.Name).HasDatabaseName("IX_Tenants_Name");
+        b.HasIndex(x => x.Domain).HasDatabaseName("IX_Tenants_Domain");
     }
 
     private static void ConfigureTenantUser(EntityTypeBuilder<TenantUser> b)

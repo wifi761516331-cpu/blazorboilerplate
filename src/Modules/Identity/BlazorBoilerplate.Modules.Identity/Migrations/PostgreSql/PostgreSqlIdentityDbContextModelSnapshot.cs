@@ -367,10 +367,16 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.PostgreSql
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Name")
                         .HasDatabaseName("IX_Roles_Name");
+
+                    b.HasIndex("TenantId", "Name")
+                        .HasDatabaseName("IX_Roles_TenantId_Name");
 
                     b.ToTable("Roles", (string)null);
                 });
@@ -510,6 +516,9 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.PostgreSql
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Domain")
+                        .HasDatabaseName("IX_Tenants_Domain");
+
                     b.HasIndex("Name")
                         .HasDatabaseName("IX_Tenants_Name");
 
@@ -617,6 +626,10 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.PostgreSql
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<string>("UserName")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -626,6 +639,9 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.PostgreSql
 
                     b.HasIndex("Email")
                         .HasDatabaseName("IX_Users_Email");
+
+                    b.HasIndex("PhoneNumber")
+                        .HasDatabaseName("IX_Users_PhoneNumber");
 
                     b.HasIndex("UserName")
                         .HasDatabaseName("IX_Users_UserName");
@@ -726,6 +742,9 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.PostgreSql
                     b.Property<Guid>("RoleId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
@@ -736,6 +755,9 @@ namespace BlazorBoilerplate.Modules.Identity.Migrations.PostgreSql
 
                     b.HasIndex("UserId")
                         .HasDatabaseName("IX_UserRoles_UserId");
+
+                    b.HasIndex("TenantId", "UserId")
+                        .HasDatabaseName("IX_UserRoles_TenantId_UserId");
 
                     b.ToTable("UserRoles", (string)null);
                 });

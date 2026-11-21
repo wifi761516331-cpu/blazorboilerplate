@@ -10,11 +10,12 @@ public sealed class User : AuditableEntity<Guid>
 {
     private User() { }
 
-    private User(string userName, string email, string displayName, string passwordHash)
+    private User(string userName, string email, string displayName, string passwordHash, string? phoneNumber = null)
     {
         Id = Guid.CreateVersion7();
         UserName = userName;
         Email = email;
+        PhoneNumber = phoneNumber;
         DisplayName = displayName;
         PasswordHash = passwordHash;
         IsActive = true;
@@ -23,6 +24,7 @@ public sealed class User : AuditableEntity<Guid>
 
     public string UserName { get; private set; } = default!;
     public string Email { get; private set; } = default!;
+    public string? PhoneNumber { get; private set; }
     public string DisplayName { get; private set; } = default!;
     public string PasswordHash { get; private set; } = default!;
     public bool IsActive { get; private set; }
@@ -32,11 +34,20 @@ public sealed class User : AuditableEntity<Guid>
     public ICollection<UserSession> Sessions { get; private set; } = new List<UserSession>();
     public ICollection<Notification> Notifications { get; private set; } = new List<Notification>();
 
-    public static User Create(string userName, string email, string displayName, string passwordHash)
+    public static User Create(string userName, string email, string displayName, string passwordHash, string? phoneNumber = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userName);
-        ArgumentException.ThrowIfNullOrWhiteSpace(email);
-        return new User(userName.Trim(), email.Trim(), string.IsNullOrWhiteSpace(displayName) ? userName : displayName, passwordHash);
+        var normalizedEmail = email?.Trim() ?? string.Empty;
+        var normalizedPhone = string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedEmail) && string.IsNullOrWhiteSpace(normalizedPhone))
+            throw new ArgumentException("邮箱和手机号不能同时为空。", nameof(email));
+        return new User(userName.Trim(), normalizedEmail, string.IsNullOrWhiteSpace(displayName) ? userName : displayName, passwordHash, normalizedPhone);
+    }
+
+    public void SetPhoneNumber(string? phoneNumber)
+    {
+        PhoneNumber = string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim();
+        ModifiedAtUtc = DateTimeOffset.UtcNow;
     }
 
     public void Update(string email, string displayName)
