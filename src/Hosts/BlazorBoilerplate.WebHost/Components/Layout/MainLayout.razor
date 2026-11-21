@@ -106,7 +106,11 @@
                     else
                     {
                         <WidgetZone Name="layout_body_top" />
-                        @Body
+                        <div style="flex: 1 0 auto; display: flex; flex-direction: column; min-width: 0;">
+                            <WidgetZone Name="@CurrentRouteZone("top")" />
+                            @Body
+                            <WidgetZone Name="@CurrentRouteZone("bottom")" />
+                        </div>
                         <WidgetZone Name="layout_body_bottom" />
                     }
                 </div>

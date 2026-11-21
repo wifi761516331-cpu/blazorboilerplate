@@ -24,6 +24,9 @@ public static class WidgetZoneRegistry
     /// <summary>全局插槽预览开关（开启后页面高亮展示插槽名称）。</summary>
     public static bool PreviewEnabled { get; set; }
 
+    /// <summary>微件注册表变更通知（用于驱动已渲染的 WidgetZone 即时刷新）。</summary>
+    public static event Action? Changed;
+
     /// <summary>注册组件到指定插槽。</summary>
     public static void Register(string zone, Type componentType, string moduleId, int order = ModuleStartupDefaults.DefaultOrder)
     {
@@ -31,6 +34,7 @@ public static class WidgetZoneRegistry
             return;
         var key = $"{moduleId}:{zone}:{componentType.FullName}";
         Entries[key] = new WidgetDescriptor(zone.Trim(), componentType, moduleId, order);
+        Changed?.Invoke();
     }
 
     /// <summary>按插槽名获取按 Order 升序排列的微件（自动展开 DependentWidgetsAttribute 依赖且去重）。</summary>
@@ -71,7 +75,13 @@ public static class WidgetZoneRegistry
     /// <summary>注销指定模块注册的全部微件。</summary>
     public static void UnregisterModule(string moduleId)
     {
+        var removed = false;
         foreach (var key in Entries.Keys.Where(k => k.StartsWith(moduleId + ":", StringComparison.OrdinalIgnoreCase)).ToArray())
-            Entries.TryRemove(key, out _);
+        {
+            if (Entries.TryRemove(key, out _))
+                removed = true;
+        }
+        if (removed)
+            Changed?.Invoke();
     }
 }

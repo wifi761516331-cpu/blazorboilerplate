@@ -152,8 +152,12 @@ public sealed class ModuleAssemblyCatalog
     {
         try
         {
-            var descriptor = await _http.GetFromJsonAsync<ModuleDto>(new Uri(_apiBase, $"/api/modules/{moduleId}"),
-                JsonOptions, cancellationToken);
+            using var response = await _http.GetAsync(new Uri(_apiBase, $"/api/modules/{moduleId}"), cancellationToken);
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                return UnloadModule(moduleId);
+
+            response.EnsureSuccessStatusCode();
+            var descriptor = await response.Content.ReadFromJsonAsync<ModuleDto>(JsonOptions, cancellationToken);
             if (descriptor is null || descriptor.State != BlazorBoilerplate.ModuleAbstractions.ModuleState.Running)
                 return UnloadModule(moduleId);
 
@@ -185,6 +189,8 @@ public sealed class ModuleAssemblyCatalog
 
     private bool UnloadModule(string moduleId)
     {
+        BlazorBoilerplate.ModuleAbstractions.WidgetZoneRegistry.UnregisterModule(moduleId);
+
         ModuleEntry? current;
         lock (_gate)
         {
@@ -255,10 +261,31 @@ public sealed class ModuleAssemblyCatalog
         }
 
         var cssPath = ResolveScopedCssPath(dll);
+        BlazorBoilerplate.ModuleAbstractions.WidgetZoneRegistry.UnregisterModule(moduleId);
         lock (_gate)
         {
             _active[moduleId] = new ModuleEntry(loaded, context, packageVersion, cssPath);
             _assemblies = [.. _active.Values.Select(e => e.Assembly)]; // 整体替换引用：Router 下次导航重建路由表
+        }
+
+        // 热加载/切换版本时重新执行 IModuleClientStartup，使 WidgetZoneRegistry 等静态注册表同步刷新
+        if (allowDowngrade)
+        {
+            Type[] loadedTypes;
+            try { loadedTypes = loaded.GetTypes(); }
+            catch (ReflectionTypeLoadException ex) { loadedTypes = ex.Types.Where(t => t is not null).ToArray()!; }
+
+            var dummyServices = new ServiceCollection();
+            foreach (var startup in loadedTypes
+                .Where(t => t.IsClass && !t.IsAbstract
+                    && typeof(BlazorBoilerplate.ModuleAbstractions.IModuleClientStartup).IsAssignableFrom(t)
+                    && t.GetConstructor(Type.EmptyTypes) is not null)
+                .Select(t => (BlazorBoilerplate.ModuleAbstractions.IModuleClientStartup)Activator.CreateInstance(t)!)
+                .OrderBy(s => s.Order)
+                .ThenBy(s => s.GetType().FullName, StringComparer.Ordinal))
+            {
+                startup.ConfigureServices(dummyServices);
+            }
         }
 
         // 卸载旧的可回收 ALC。旧组件实例仍被活跃线路引用时卸载请求挂起，

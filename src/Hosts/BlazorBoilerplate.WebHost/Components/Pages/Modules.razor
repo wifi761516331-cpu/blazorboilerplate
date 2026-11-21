@@ -176,6 +176,14 @@ else
                                        Title="@L["platform.modules.downloadZipTitle"]" AriaLabel="@L["platform.modules.downloadLabel"]"
                                        OnClick="@(() => DownloadAsync(m))" Disabled="@_downloading.Contains(m.Id)" />
                         </PermissionView>
+                        @if (!m.IsEssential && m.State != ModuleState.Uninstalled)
+                        {
+                            <PermissionView Code="module.unload">
+                                <BitButton Color="BitColor.Error" Variant="BitVariant.Text" IconName="@BitIconName.Delete"
+                                           Title="@L["platform.modules.uninstall"]" AriaLabel="@L["platform.modules.uninstall"]"
+                                           OnClick="@(() => OpenUninstallConfirm(m))" Disabled="@_busy.Contains(m.Id)" />
+                            </PermissionView>
+                        }
                     </div>
                 </article>
             }
@@ -195,9 +203,10 @@ else
     </div>
 </BlazorBoilerplateModal>
 
-@* 开发打包弹框：选源码工程 → dotnet build Release → 组包 → 直接下载 .zip（可再上传安装） *@
+@* 开发打包弹框：选源码工程 → dotnet build Release → 组包 → 自动上传安装或直接下载 .zip *@
 <BlazorBoilerplateModal @bind-IsOpen="_packOpen" Title="@L["platform.modules.pack"]"
-                        OkText="@L["platform.modules.packAndDownload"]" Disabled="@(_packBusy || string.IsNullOrWhiteSpace(_packSource))"
+                        OkText="@(_packAutoInstall ? L["platform.modules.packAndInstall"] : L["platform.modules.packAndDownload"])"
+                        Disabled="@(_packBusy || string.IsNullOrWhiteSpace(_packSource))"
                         OnOk="PackAndDownloadAsync" CloseOnBackdrop="false">
     <div class="id-form">
         @if (_packSources.Count == 0)
@@ -207,6 +216,7 @@ else
         else
         {
             <BitDropdown Label="@L["platform.modules.sourceProjectLabel"]" @bind-Value="_packSource" Items="@_packSources" />
+            <BitCheckbox Label="@L["platform.modules.packAutoInstall"]" @bind-Value="_packAutoInstall" />
         }
         <BitText Class="muted">@L["platform.modules.packDesc"]</BitText>
     </div>
@@ -256,5 +266,15 @@ else
             }
         }
     </div>
+</BlazorBoilerplateModal>
+
+@* 彻底卸载确认弹框：触发模块清理钩子并删除本地安装包目录 *@
+<BlazorBoilerplateModal @bind-IsOpen="_uninstallOpen" Title="@L["platform.modules.uninstallConfirmTitle"]"
+                        OkText="@L["platform.modules.uninstallConfirmOk"]" Disabled="@_uninstallBusy"
+                        OnOk="ConfirmUninstallAsync" CloseOnBackdrop="false">
+    @if (_uninstallTarget is not null)
+    {
+        <BitText>@L.GetString("platform.modules.uninstallConfirmDesc", _uninstallTarget.Name, _uninstallTarget.Id)</BitText>
+    }
 </BlazorBoilerplateModal>
 

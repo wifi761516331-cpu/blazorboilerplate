@@ -10,6 +10,8 @@
     <BitText Class="muted">@L["identity.menus.subtitle"]</BitText>
 </div>
 
+<WidgetZone Name="identity_menus_top" />
+
 <div class="id-page">
     <div class="id-toolbar">
         <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="RefreshAsync" Disabled="@_loading">@L["platform.common.refresh"]</BitButton>
@@ -223,4 +225,6 @@
         </div>
     </div>
 </BlazorBoilerplateModal>
+
+<WidgetZone Name="identity_menus_bottom" />
 

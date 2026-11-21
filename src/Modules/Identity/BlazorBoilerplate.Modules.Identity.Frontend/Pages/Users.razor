@@ -6,6 +6,8 @@
     <BitText Class="muted">@L["identity.users.subtitle"]</BitText>
 </div>
 
+<WidgetZone Name="identity_users_top" />
+
 <div class="id-page">
     <div class="id-toolbar">
         <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="RefreshAsync" Disabled="@_loading">@L["platform.common.refresh"]</BitButton>
@@ -135,4 +137,6 @@
             Title="@L["identity.users.modal.deleteTitle"]" Danger OkText="@L["platform.common.delete"]"
             Message="@L.GetString("identity.users.modal.deleteConfirm", _selected?.DisplayName ?? "")"
             OnOk="DeleteUserAsync" />
+
+<WidgetZone Name="identity_users_bottom" />
 

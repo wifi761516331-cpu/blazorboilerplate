@@ -6,6 +6,8 @@
     <BitText Class="muted">@L["catalog.subtitle"]</BitText>
 </BitCallout>
 
+<WidgetZone Name="catalog_products_top" />
+
 @if (_loadError is not null)
 {
     <BitCallout Class="page-callout error">@_loadError</BitCallout>
@@ -35,3 +37,5 @@
         <BitText Class="muted">@L["catalog.empty"]</BitText>
     </EmptyTemplate>
 </BitDataGrid>
+
+<WidgetZone Name="catalog_products_bottom" />

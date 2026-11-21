@@ -7,6 +7,8 @@
     <BitText Class="muted">@L.GetString("attachments.subtitle", _storageLabel, _maxUploadSizeMb)</BitText>
 </BitCallout>
 
+<WidgetZone Name="attachments_list_top" />
+
 <div class="bb-toolbar">
     <div class="bb-search" style="flex:1; max-width:none;">
         <BitSearchBox @bind-Value="_searchText" Immediate DebounceTime="200" Placeholder="@L["attachments.searchPlaceholder"]" />
@@ -205,4 +207,6 @@ else
                         ShowCancel="true"
                         Danger="true"
                         OnOk="ExecuteDeleteAsync" />
+
+<WidgetZone Name="attachments_list_bottom" />
 

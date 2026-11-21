@@ -132,6 +132,13 @@ public sealed class BlazorBoilerplateApiClient(HttpClient http)
     {
         var response = await http.PostAsync($"api/modules/{Uri.EscapeDataString(id)}/unload", null, cancellationToken);
         if (!response.IsSuccessStatusCode)
+            throw new HttpRequestException($"停用模块失败 ({response.StatusCode}): {await response.Content.ReadAsStringAsync(cancellationToken)}");
+    }
+
+    public async Task UninstallModuleAsync(string id, CancellationToken cancellationToken = default)
+    {
+        var response = await http.PostAsync($"api/modules/{Uri.EscapeDataString(id)}/uninstall", null, cancellationToken);
+        if (!response.IsSuccessStatusCode)
             throw new HttpRequestException($"卸载模块失败 ({response.StatusCode}): {await response.Content.ReadAsStringAsync(cancellationToken)}");
     }
 

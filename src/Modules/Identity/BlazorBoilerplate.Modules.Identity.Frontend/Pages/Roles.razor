@@ -7,6 +7,8 @@
     <BitText Class="muted">@L["identity.roles.subtitle"]</BitText>
 </div>
 
+<WidgetZone Name="identity_roles_top" />
+
 <div class="id-page">
     <div class="id-toolbar">
         <PermissionGate Code="identity.role.create">
@@ -154,3 +156,5 @@
             Title="@L["identity.roles.modal.deleteTitle"]" Danger OkText="@L["platform.common.delete"]"
             Message="@L.GetString("identity.roles.modal.deleteConfirm", _selected?.Name ?? "")"
             OnOk="DeleteRoleAsync" />
+
+<WidgetZone Name="identity_roles_bottom" />

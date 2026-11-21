@@ -1,4 +1,5 @@
 @using BlazorBoilerplate.ModuleAbstractions
+@implements IDisposable
 
 @{
     var widgets = WidgetZoneRegistry.GetWidgets(Name);
@@ -57,4 +58,10 @@ else
     /// <summary>传递给微件组件的附加参数。</summary>
     [Parameter]
     public IDictionary<string, object>? Parameters { get; set; }
+
+    protected override void OnInitialized() => WidgetZoneRegistry.Changed += OnRegistryChanged;
+
+    private void OnRegistryChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => WidgetZoneRegistry.Changed -= OnRegistryChanged;
 }

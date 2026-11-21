@@ -158,6 +158,7 @@ public partial class Modules
         try
         {
             await Api.UnloadModuleAsync(id);
+            await ModuleCatalog.RefreshModuleAsync(id); // 同步卸载前端程序集并清理 WidgetZone 注册
             Toast.Success(L.GetString("platform.modules.toast.unloaded", id));
             await RefreshAsync();
             NavRefresh.Notify();
@@ -170,6 +171,45 @@ public partial class Modules
         finally
         {
             _busy.Remove(id);
+        }
+    }
+
+    private bool _uninstallOpen;
+    private bool _uninstallBusy;
+    private ModuleDescriptor? _uninstallTarget;
+
+    private void OpenUninstallConfirm(ModuleDescriptor module)
+    {
+        _uninstallTarget = module;
+        _uninstallOpen = true;
+    }
+
+    private async Task ConfirmUninstallAsync()
+    {
+        if (_uninstallTarget is null) return;
+        var target = _uninstallTarget;
+        _uninstallBusy = true;
+        _busy.Add(target.Id);
+        try
+        {
+            await Api.UninstallModuleAsync(target.Id);
+            await ModuleCatalog.RefreshModuleAsync(target.Id); // 同步卸载前端程序集并清理 WidgetZone 注册
+            Toast.Success(L.GetString("platform.modules.toast.uninstalled", target.Name));
+            _uninstallOpen = false;
+            _uninstallTarget = null;
+            await RefreshAsync();
+            NavRefresh.Notify();
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+            Toast.Error(L.GetString("platform.modules.toast.uninstallFailed", target.Id, ex.Message));
+        }
+        finally
+        {
+            _uninstallBusy = false;
+            _busy.Remove(target.Id);
+            StateHasChanged();
         }
     }
 
@@ -201,6 +241,7 @@ public partial class Modules
     private bool _packEnabled;
     private bool _packOpen;
     private string? _packSource;
+    private bool _packAutoInstall = true;
     private List<BitDropdownItem<string>> _packSources = [];
     private Dictionary<string, ModuleSourceDto> _packSourceMap = [];
     private bool _packBusy;
@@ -230,15 +271,31 @@ public partial class Modules
         StateHasChanged();
         try
         {
-            var stream = await Api.PackModuleAsync(_packSource);
+            await using var stream = await Api.PackModuleAsync(_packSource);
             // 命名与卡片「下载」一致：{id}-{version}.zip（如 catalog-1.0.0.zip）。
             var source = _packSourceMap.GetValueOrDefault(_packSource);
             var fileName = $"{source?.Id ?? _packSource}-{source?.Version ?? "0"}.zip";
-            // 与下载模块包同理：Stream 必须包 DotNetStreamReference 再交给 JS interop。
-            using var streamRef = new DotNetStreamReference(stream: stream, leaveOpen: false);
-            await JS.InvokeVoidAsync("blazorDownloadFile", fileName, "application/zip", streamRef);
-            Toast.Success(L.GetString("platform.modules.toast.packed", _packSource, fileName));
-            _packOpen = false;
+
+            if (_packAutoInstall)
+            {
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                ms.Position = 0;
+                var uploaded = await Api.UploadModuleAsync(ms, fileName);
+                await ModuleCatalog.RefreshModuleAsync(uploaded.Descriptor.Id);
+                Toast.Success(L.GetString("platform.modules.toast.packedInstalled", uploaded.Descriptor.Name, uploaded.Descriptor.Version));
+                _packOpen = false;
+                await RefreshAsync();
+                NavRefresh.Notify();
+            }
+            else
+            {
+                // 与下载模块包同理：Stream 必须包 DotNetStreamReference 再交给 JS interop。
+                using var streamRef = new DotNetStreamReference(stream: stream, leaveOpen: false);
+                await JS.InvokeVoidAsync("blazorDownloadFile", fileName, "application/zip", streamRef);
+                Toast.Success(L.GetString("platform.modules.toast.packed", _packSource, fileName));
+                _packOpen = false;
+            }
         }
         catch (Exception ex)
         {

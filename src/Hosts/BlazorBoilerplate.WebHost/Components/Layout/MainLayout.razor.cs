@@ -402,6 +402,17 @@ public partial class MainLayout
 
     private void CloseNav() => _navOpen = false;
 
+    /// <summary>
+    /// 按当前路由自动生成页面级插槽名（如 /catalog → page_catalog_top / page_catalog_bottom），
+    /// 无需修改各个模块页面即可为任意路由挂载微件。
+    /// </summary>
+    private string CurrentRouteZone(string position)
+    {
+        var path = new Uri(Navigation.Uri).AbsolutePath.Trim('/').ToLowerInvariant();
+        var slug = string.IsNullOrEmpty(path) ? "home" : path.Replace('/', '_');
+        return $"page_{slug}_{position}";
+    }
+
     private static string IconOf(string path) => path switch
     {
         "/" => "Home",

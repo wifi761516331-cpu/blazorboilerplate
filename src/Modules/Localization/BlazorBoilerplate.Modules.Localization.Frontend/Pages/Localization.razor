@@ -6,6 +6,8 @@
     <BitText Class="muted">@L["localization.subtitle"]</BitText>
 </div>
 
+<WidgetZone Name="localization_resources_top" />
+
 <div class="id-page">
     @if (!string.IsNullOrWhiteSpace(_error))
     {
@@ -340,3 +342,5 @@
     <BitTextField Multiline Rows="10" @bind-Value="_importJson"
                   Placeholder="@L["localization.res.importPlaceholder"]" Style="width:100%;" />
 </BlazorBoilerplateModal>
+
+<WidgetZone Name="localization_resources_bottom" />
