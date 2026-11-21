@@ -15,11 +15,6 @@
         </PermissionGate>
     </div>
 
-    @if (_error is not null)
-    {
-        <BitCallout Class="page-callout error">@_error</BitCallout>
-    }
-
     <div class="id-columns">
         <BitCard Class="id-list-card">
             <BitSearchBox @bind-Value="_search" Immediate DebounceTime="300" Placeholder="@L["identity.users.searchPlaceholder"]" />

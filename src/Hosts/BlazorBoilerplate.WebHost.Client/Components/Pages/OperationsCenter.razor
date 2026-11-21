@@ -9,11 +9,6 @@
 </div>
 
 <div class="id-page">
-    @if (!string.IsNullOrWhiteSpace(_error))
-    {
-        <div class="page-callout error">@_error</div>
-    }
-
     <BitPivot SelectedKey="@_activeTab" SelectedKeyChanged="OnTabChangedAsync">
         <BitPivotItem Key="tasks" HeaderText="@L["platform.ops.tab.tasks"]" ItemCount="@(_tasks.Count == 0 ? null : _tasks.Count)">
             <div class="bb-toolbar" style="margin-top: 0.75rem;">

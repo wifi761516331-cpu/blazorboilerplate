@@ -19,11 +19,6 @@
     </BitButton>
 </div>
 
-@if (!string.IsNullOrWhiteSpace(_error))
-{
-    <div class="page-callout error">@_error</div>
-}
-
 <BitStack Gap="1rem" Style="width:100%;">
     @if (_overview is not null)
     {

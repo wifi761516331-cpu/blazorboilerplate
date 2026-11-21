@@ -20,6 +20,9 @@ public partial class Home
     [Inject]
     private ILocalizationService L { get; set; } = default!;
 
+    [Inject]
+    private ToastService Toast { get; set; } = default!;
+
     private SetupStatus? _status;
     private int _moduleCount;
     private int? _productCount;
@@ -47,6 +50,7 @@ public partial class Home
         {
             Logger.LogWarning(ex, "Home 页面加载失败");
             _loadError = ex.Message;
+            Toast.Error(L.GetString("platform.home.error.apiHost", ex.Message));
         }
     }
 }

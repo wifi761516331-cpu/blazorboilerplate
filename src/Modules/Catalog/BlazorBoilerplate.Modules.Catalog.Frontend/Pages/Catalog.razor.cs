@@ -23,6 +23,9 @@ public partial class Catalog
     private ILocalizationService L { get; set; } = default!;
 
     [Inject]
+    private ToastService Toast { get; set; } = default!;
+
+    [Inject]
     private FrontendLocalizationService FrontendLoc { get; set; } = default!;
 
     private static readonly ODataFieldMap FieldMap = new(["id", "name", "price", "category"]);
@@ -93,6 +96,7 @@ public partial class Catalog
         {
             Logger.LogWarning(ex, "OData 查询失败");
             _loadError = L.GetString("catalog.error.queryFailed", ex.Message);
+            Toast.Error(_loadError);
             return new BitDataGridReadResult<ProductDto>([], 0);
         }
     }

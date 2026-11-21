@@ -87,6 +87,7 @@ public partial class SystemSettings
         catch (Exception ex)
         {
             _loadError = L.GetString("platform.sysSettings.error.loadFailed", ex.Message);
+            Toast.Error(_loadError);
         }
         finally
         {

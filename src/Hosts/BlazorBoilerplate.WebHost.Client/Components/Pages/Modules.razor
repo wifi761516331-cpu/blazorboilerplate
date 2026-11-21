@@ -6,11 +6,7 @@
     <BitText Class="muted">@L["platform.modules.subtitle"]</BitText>
 </BitCallout>
 
-@if (_loadError is not null)
-{
-    <BitCallout Class="page-callout error">@L.GetString("platform.modules.error.apiHost", _loadError)</BitCallout>
-}
-else if (_loading)
+@if (_loading)
 {
     <BitText Class="muted">@L["platform.common.loading"]</BitText>
 }

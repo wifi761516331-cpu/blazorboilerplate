@@ -1,4 +1,5 @@
 using BlazorBoilerplate.Application.Abstractions;
+using BlazorBoilerplate.Application.Localization;
 using BlazorBoilerplate.Modules.Identity.Domain;
 using BlazorBoilerplate.Modules.Identity.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -33,12 +34,19 @@ public sealed class UserService(IdentityDbContext db, ICurrentUserContext? curre
 
     public async Task<User> CreateAsync(string userName, string email, string displayName, string password, CancellationToken ct = default)
     {
-        var name = userName.Trim();
+        var name = (userName ?? string.Empty).Trim();
+        if (name.Length < 2)
+            throw new LocalizedApiException("identity.error.userNameInvalid", "用户名至少需要 2 个字符。");
+        var mail = (email ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(mail) || !mail.Contains('@'))
+            throw new LocalizedApiException("identity.error.emailInvalid", "请输入有效的邮箱地址。");
+        if (string.IsNullOrEmpty(password) || password.Length < 6)
+            throw new LocalizedApiException("identity.error.passwordMinLength", "密码长度不能少于 6 位。", 6);
+
         if (await db.Users.AnyAsync(u => u.UserName == name, ct))
-            throw new InvalidOperationException($"用户名已存在：{name}");
-        var mail = email.Trim();
+            throw new LocalizedApiException("identity.error.userNameExists", $"用户名已存在：{name}", name);
         if (await db.Users.AnyAsync(u => u.Email == mail, ct))
-            throw new InvalidOperationException($"邮箱已被占用：{mail}");
+            throw new LocalizedApiException("identity.error.emailExists", $"邮箱已被占用：{mail}", mail);
 
         var user = User.Create(name, mail, displayName, PasswordHasher.Hash(password));
         db.Users.Add(user);
@@ -50,9 +58,11 @@ public sealed class UserService(IdentityDbContext db, ICurrentUserContext? curre
     {
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id, ct)
             ?? throw new KeyNotFoundException($"用户不存在：{id}");
-        var mail = email.Trim();
+        var mail = (email ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(mail) || !mail.Contains('@'))
+            throw new LocalizedApiException("identity.error.emailInvalid", "请输入有效的邮箱地址。");
         if (await db.Users.AnyAsync(u => u.Email == mail && u.Id != id, ct))
-            throw new InvalidOperationException($"邮箱已被占用：{mail}");
+            throw new LocalizedApiException("identity.error.emailExists", $"邮箱已被占用：{mail}", mail);
 
         user.Update(mail, displayName);
         await db.SaveChangesAsync(ct);
@@ -61,6 +71,8 @@ public sealed class UserService(IdentityDbContext db, ICurrentUserContext? curre
 
     public async Task ResetPasswordAsync(Guid id, string newPassword, CancellationToken ct = default)
     {
+        if (string.IsNullOrEmpty(newPassword) || newPassword.Length < 6)
+            throw new LocalizedApiException("identity.error.passwordMinLength", "密码长度不能少于 6 位。", 6);
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id, ct)
             ?? throw new KeyNotFoundException($"用户不存在：{id}");
         user.SetPassword(PasswordHasher.Hash(newPassword));
@@ -200,9 +212,11 @@ public sealed class RoleService(IdentityDbContext db, ICurrentUserContext? curre
     public async Task<Role> CreateAsync(string name, string? description, CancellationToken ct = default, Guid? tenantId = null)
     {
         var tid = tenantId ?? currentUser?.TenantId;
-        var roleName = name.Trim();
+        var roleName = (name ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(roleName))
+            throw new LocalizedApiException("identity.error.roleNameRequired", "角色名称不能为空。");
         if (await db.Roles.AnyAsync(r => r.TenantId == tid && r.Name == roleName, ct))
-            throw new InvalidOperationException($"角色名已存在：{roleName}");
+            throw new LocalizedApiException("identity.error.roleNameExists", $"角色名已存在：{roleName}", roleName);
 
         var role = Role.Create(roleName, description, tenantId: tid);
         db.Roles.Add(role);
@@ -214,11 +228,13 @@ public sealed class RoleService(IdentityDbContext db, ICurrentUserContext? curre
     {
         var role = await db.Roles.FirstOrDefaultAsync(r => r.Id == id, ct)
             ?? throw new KeyNotFoundException($"角色不存在：{id}");
-        if (role.IsSystem && !string.Equals(role.Name, name.Trim(), StringComparison.Ordinal))
-            throw new InvalidOperationException("系统内置角色不允许改名。");
-        var roleName = name.Trim();
+        var roleName = (name ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(roleName))
+            throw new LocalizedApiException("identity.error.roleNameRequired", "角色名称不能为空。");
+        if (role.IsSystem && !string.Equals(role.Name, roleName, StringComparison.Ordinal))
+            throw new LocalizedApiException("identity.error.systemRoleRenameForbidden", "系统内置角色不允许改名。");
         if (await db.Roles.AnyAsync(r => r.TenantId == role.TenantId && r.Name == roleName && r.Id != id, ct))
-            throw new InvalidOperationException($"角色名已存在：{roleName}");
+            throw new LocalizedApiException("identity.error.roleNameExists", $"角色名已存在：{roleName}", roleName);
 
         role.Update(roleName, description);
         await db.SaveChangesAsync(ct);
@@ -229,7 +245,7 @@ public sealed class RoleService(IdentityDbContext db, ICurrentUserContext? curre
         var role = await db.Roles.FirstOrDefaultAsync(r => r.Id == id, ct)
             ?? throw new KeyNotFoundException($"角色不存在：{id}");
         if (role.IsSystem)
-            throw new InvalidOperationException("系统内置角色不允许删除。");
+            throw new LocalizedApiException("identity.error.systemRoleDeleteForbidden", "系统内置角色不允许删除。");
 
         db.UserRoles.RemoveRange(await db.UserRoles.Where(x => x.RoleId == id).ToListAsync(ct));
         db.RoleMenus.RemoveRange(await db.RoleMenus.Where(x => x.RoleId == id).ToListAsync(ct));
@@ -304,6 +320,10 @@ public sealed class MenuService(IdentityDbContext db)
         CancellationToken ct = default, string? moduleId = null, string? permissionCode = null, string? kind = null,
         bool isVisible = true)
     {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new LocalizedApiException("identity.error.menuNameRequired", "菜单名称不能为空。");
+        if (string.IsNullOrWhiteSpace(path))
+            throw new LocalizedApiException("identity.error.menuPathRequired", "菜单路由不能为空。");
         if (parentId is { } pid && !await db.Menus.AnyAsync(m => m.Id == pid, ct))
             throw new KeyNotFoundException($"父菜单不存在：{pid}");
 
@@ -318,17 +338,21 @@ public sealed class MenuService(IdentityDbContext db)
     public async Task UpdateAsync(Guid id, string name, string path, string? icon, Guid? parentId, int sort, bool isVisible,
         CancellationToken ct = default, string? moduleId = null, string? permissionCode = null, string? kind = null)
     {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new LocalizedApiException("identity.error.menuNameRequired", "菜单名称不能为空。");
+        if (string.IsNullOrWhiteSpace(path))
+            throw new LocalizedApiException("identity.error.menuPathRequired", "菜单路由不能为空。");
         var menu = await db.Menus.FirstOrDefaultAsync(m => m.Id == id, ct)
             ?? throw new KeyNotFoundException($"菜单不存在：{id}");
 
         if (parentId is { } pid)
         {
             if (pid == id)
-                throw new InvalidOperationException("菜单不能以自己为父节点。");
+                throw new LocalizedApiException("identity.error.menuSelfParent", "菜单不能以自己为父节点。");
             if (!await db.Menus.AnyAsync(m => m.Id == pid, ct))
                 throw new KeyNotFoundException($"父菜单不存在：{pid}");
             if (!await IsDescendantFreeAsync(id, pid, ct))
-                throw new InvalidOperationException("不能把菜单移动到自己的子树之下（会形成循环）。");
+                throw new LocalizedApiException("identity.error.menuCycleParent", "不能把菜单移动到自己的子树之下（会形成循环）。");
         }
 
         menu.Update(name, path, icon, parentId, sort, isVisible, moduleId, permissionCode, kind ?? "menu");
@@ -364,7 +388,7 @@ public sealed class MenuService(IdentityDbContext db)
         var menu = await db.Menus.FirstOrDefaultAsync(m => m.Id == id, ct)
             ?? throw new KeyNotFoundException($"菜单不存在：{id}");
         if (await db.Menus.AnyAsync(m => m.ParentId == id, ct))
-            throw new InvalidOperationException("该菜单存在子菜单，请先删除或移动子菜单。");
+            throw new LocalizedApiException("identity.error.menuHasChildren", "该菜单存在子菜单，请先删除或移动子菜单。");
 
         db.RoleMenus.RemoveRange(await db.RoleMenus.Where(x => x.MenuId == id).ToListAsync(ct));
         db.Menus.Remove(menu);

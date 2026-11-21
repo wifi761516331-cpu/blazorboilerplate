@@ -265,29 +265,47 @@ public partial class Roles
     private async Task CreateRoleAsync()
     {
         _error = null;
+        var name = (NewRoleName ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            var msg = L["identity.error.roleNameRequired"];
+            _error = msg;
+            Toast.Warning(msg);
+            return;
+        }
+
         try
         {
-            var response = await Api.PostAsync("api/identity/roles", new { Name = NewRoleName, Description = (string?)null });
-            EnsureOk(response);
-            Toast.Success(L.GetString("identity.roles.toast.created", NewRoleName));
+            var response = await Api.PostAsync("api/identity/roles", new { Name = name, Description = (string?)null });
+            await BlazorBoilerplateApiClient.EnsureSuccessAsync(response);
+            Toast.Success(L.GetString("identity.roles.toast.created", name));
             NewRoleName = string.Empty;
             await RefreshAsync();
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.roles.toast.createFailed", ex.Message)); }
+        catch (Exception ex) { var msg = ex.GetUserMessage(L); _error = msg; Toast.Error(L.GetString("identity.roles.toast.createFailed", msg)); }
     }
 
     private async Task SaveRoleAsync()
     {
         if (_selected is null) return;
         _error = null;
+        var name = (EditName ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            var msg = L["identity.error.roleNameRequired"];
+            _error = msg;
+            Toast.Warning(msg);
+            return;
+        }
+
         try
         {
-            var response = await Api.PutAsync($"api/identity/roles/{_selected.Id}", new { Name = EditName, Description = EditDescription });
-            EnsureOk(response);
-            Toast.Success(L.GetString("identity.roles.toast.saved", EditName));
+            var response = await Api.PutAsync($"api/identity/roles/{_selected.Id}", new { Name = name, Description = EditDescription });
+            await BlazorBoilerplateApiClient.EnsureSuccessAsync(response);
+            Toast.Success(L.GetString("identity.roles.toast.saved", name));
             await RefreshAsync();
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.roles.toast.saveFailed", ex.Message)); }
+        catch (Exception ex) { var msg = ex.GetUserMessage(L); _error = msg; Toast.Error(L.GetString("identity.roles.toast.saveFailed", msg)); }
     }
 
     private async Task DeleteRoleAsync()
@@ -298,13 +316,13 @@ public partial class Roles
         try
         {
             var response = await Api.DeleteAsync($"api/identity/roles/{_selected.Id}");
-            EnsureOk(response);
+            await BlazorBoilerplateApiClient.EnsureSuccessAsync(response);
             _deleteDialogOpen = false;
             Toast.Success(L.GetString("identity.roles.toast.deleted", name));
             _selected = null;
             await RefreshAsync();
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.roles.toast.deleteFailed", ex.Message)); }
+        catch (Exception ex) { var msg = ex.GetUserMessage(L); _error = msg; Toast.Error(L.GetString("identity.roles.toast.deleteFailed", msg)); }
     }
 
     private async Task SaveMenusAsync()
@@ -315,16 +333,10 @@ public partial class Roles
         {
             var ids = _menuSelection.Where(kv => kv.Value).Select(kv => kv.Key).ToArray();
             var response = await Api.PutAsync($"api/identity/roles/{_selected.Id}/menus", new { Ids = ids });
-            EnsureOk(response);
+            await BlazorBoilerplateApiClient.EnsureSuccessAsync(response);
             _menuDirty = false;
             Toast.Success(L.GetString("identity.roles.toast.menusSaved", _selected.Name));
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.roles.toast.saveMenusFailed", ex.Message)); }
-    }
-
-    private static void EnsureOk(HttpResponseMessage response)
-    {
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"{(int)response.StatusCode}: {response.Content.ReadAsStringAsync().GetAwaiter().GetResult()}");
+        catch (Exception ex) { var msg = ex.GetUserMessage(L); _error = msg; Toast.Error(L.GetString("identity.roles.toast.saveMenusFailed", msg)); }
     }
 }

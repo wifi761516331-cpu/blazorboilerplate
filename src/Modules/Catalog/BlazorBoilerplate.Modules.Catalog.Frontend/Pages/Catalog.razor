@@ -7,11 +7,6 @@
 
 <WidgetZone Name="catalog_products_top" />
 
-@if (_loadError is not null)
-{
-    <BitCallout Class="page-callout error">@_loadError</BitCallout>
-}
-
 @* BitDataGrid 服务端模式：OnRead 把 skip/take/sorts/filters 映射到服务端 OData，翻页/排序/筛选都不走内存。
    表头下方是内置筛选行（每列一个输入框）；排序点表头，箭头由 BitDataGrid 内置渲染；
    ColumnId 设为 OData 白名单字段名。 *@

@@ -8,10 +8,6 @@
 <WidgetZone Name="localization_resources_top" />
 
 <div class="id-page">
-    @if (!string.IsNullOrWhiteSpace(_error))
-    {
-        <BitCallout Class="page-callout error">@_error</BitCallout>
-    }
     @if (!string.IsNullOrWhiteSpace(_notice))
     {
         <BitCallout Class="page-callout">@_notice</BitCallout>

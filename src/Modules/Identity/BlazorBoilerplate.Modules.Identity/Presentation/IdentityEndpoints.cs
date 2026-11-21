@@ -1,4 +1,5 @@
 using BlazorBoilerplate.Application.Abstractions;
+using BlazorBoilerplate.Application.Localization;
 using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.Modules.Identity.Services;
 using Microsoft.AspNetCore.Http;
@@ -177,6 +178,11 @@ public sealed class IdentityEndpoints(IServiceProvider moduleServices)
         {
             ctx.Response.StatusCode = StatusCodes.Status404NotFound;
             await ctx.Response.WriteAsJsonAsync(new { error = ex.Message }, ctx.RequestAborted);
+        }
+        catch (LocalizedApiException ex)
+        {
+            ctx.Response.StatusCode = StatusCodes.Status409Conflict;
+            await ctx.Response.WriteAsJsonAsync(new { error = ex.Message, errorCode = ex.ErrorCode, errorArgs = ex.Args }, ctx.RequestAborted);
         }
         catch (InvalidOperationException ex)
         {

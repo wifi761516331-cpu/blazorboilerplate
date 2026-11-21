@@ -138,18 +138,36 @@ public partial class Users
     private async Task CreateUserAsync()
     {
         _error = null;
+        var userName = (NewUserName ?? string.Empty).Trim();
+        var email = (NewEmail ?? string.Empty).Trim();
+        if (userName.Length < 2)
+        {
+            Toast.Warning(L["identity.error.userNameInvalid"]);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
+        {
+            Toast.Warning(L["identity.error.emailInvalid"]);
+            return;
+        }
+        if (string.IsNullOrEmpty(NewPassword) || NewPassword.Length < 6)
+        {
+            Toast.Warning(L.GetString("identity.error.passwordMinLength", 6));
+            return;
+        }
+
         try
         {
-            var body = new { UserName = NewUserName, Email = NewEmail, DisplayName = NewDisplayName, Password = NewPassword };
+            var body = new { UserName = userName, Email = email, DisplayName = NewDisplayName, Password = NewPassword };
             var response = await Api.PostAsync("api/identity/users", body);
-            EnsureOk(response);
+            await BlazorBoilerplateApiClient.EnsureSuccessAsync(response);
             _createDialogOpen = false;
-            Toast.Success(L.GetString("identity.users.toast.created", NewUserName));
+            Toast.Success(L.GetString("identity.users.toast.created", userName));
             NewUserName = NewEmail = NewPassword = string.Empty;
             NewDisplayName = null;
             await RefreshAsync();
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.users.toast.createFailed", ex.Message)); }
+        catch (Exception ex) { var msg = ex.GetUserMessage(L); _error = msg; Toast.Error(L.GetString("identity.users.toast.createFailed", msg)); }
     }
 
     private Task OpenEditDialogAsync()
@@ -165,30 +183,43 @@ public partial class Users
     {
         if (_selected is null) return;
         _error = null;
+        var email = (EditEmail ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
+        {
+            Toast.Warning(L["identity.error.emailInvalid"]);
+            return;
+        }
+
         try
         {
-            var body = new { UserName = _selected.UserName, Email = EditEmail, DisplayName = EditDisplayName, Password = string.Empty };
+            var body = new { UserName = _selected.UserName, Email = email, DisplayName = EditDisplayName, Password = string.Empty };
             var response = await Api.PutAsync($"api/identity/users/{_selected.Id}", body);
-            EnsureOk(response);
+            await BlazorBoilerplateApiClient.EnsureSuccessAsync(response);
             _editDialogOpen = false;
             Toast.Success(L.GetString("identity.users.toast.profileSaved", _selected.DisplayName));
             await RefreshAsync();
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.users.toast.saveProfileFailed", ex.Message)); }
+        catch (Exception ex) { var msg = ex.GetUserMessage(L); _error = msg; Toast.Error(L.GetString("identity.users.toast.saveProfileFailed", msg)); }
     }
 
     private async Task ResetPasswordAsync()
     {
         if (_selected is null) return;
         _error = null;
+        if (string.IsNullOrEmpty(ResetPw) || ResetPw.Length < 6)
+        {
+            Toast.Warning(L.GetString("identity.error.passwordMinLength", 6));
+            return;
+        }
+
         try
         {
             var response = await Api.PutAsync($"api/identity/users/{_selected.Id}/password", new { Password = ResetPw });
-            EnsureOk(response);
+            await BlazorBoilerplateApiClient.EnsureSuccessAsync(response);
             _resetPwDialogOpen = false;
             Toast.Success(L.GetString("identity.users.toast.passwordReset", _selected.DisplayName));
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.users.toast.resetPasswordFailed", ex.Message)); }
+        catch (Exception ex) { var msg = ex.GetUserMessage(L); _error = msg; Toast.Error(L.GetString("identity.users.toast.resetPasswordFailed", msg)); }
     }
 
     private async Task ToggleActiveAsync()
@@ -202,11 +233,11 @@ public partial class Users
             var enabling = !_selected.IsActive;
             var name = _selected.DisplayName;
             var response = await Api.PutAsync($"api/identity/users/{_selected.Id}/active", new { IsActive = !_selected.IsActive });
-            EnsureOk(response);
+            await BlazorBoilerplateApiClient.EnsureSuccessAsync(response);
             Toast.Success(L.GetString(enabling ? "identity.users.toast.enabled" : "identity.users.toast.disabled", name));
             await RefreshAsync();
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.users.toast.toggleActiveFailed", ex.Message)); }
+        catch (Exception ex) { var msg = ex.GetUserMessage(L); _error = msg; Toast.Error(L.GetString("identity.users.toast.toggleActiveFailed", msg)); }
         finally { _busy.Remove(key); }
     }
 
@@ -218,13 +249,13 @@ public partial class Users
         try
         {
             var response = await Api.DeleteAsync($"api/identity/users/{_selected.Id}");
-            EnsureOk(response);
+            await BlazorBoilerplateApiClient.EnsureSuccessAsync(response);
             _deleteDialogOpen = false;
             Toast.Success(L.GetString("identity.users.toast.deleted", name));
             _selected = null;
             await RefreshAsync();
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.users.toast.deleteFailed", ex.Message)); }
+        catch (Exception ex) { var msg = ex.GetUserMessage(L); _error = msg; Toast.Error(L.GetString("identity.users.toast.deleteFailed", msg)); }
     }
 
     private async Task SaveRolesAsync()
@@ -237,17 +268,11 @@ public partial class Users
         {
             var ids = _roleSelection.Where(kv => kv.Value).Select(kv => kv.Key).ToArray();
             var response = await Api.PutAsync($"api/identity/users/{_selected.Id}/roles", new { Ids = ids });
-            EnsureOk(response);
+            await BlazorBoilerplateApiClient.EnsureSuccessAsync(response);
             _roleDirty = false;
             Toast.Success(L.GetString("identity.users.toast.rolesSaved", _selected.DisplayName));
         }
-        catch (Exception ex) { _error = ex.Message; Toast.Error(L.GetString("identity.users.toast.saveRolesFailed", ex.Message)); }
+        catch (Exception ex) { var msg = ex.GetUserMessage(L); _error = msg; Toast.Error(L.GetString("identity.users.toast.saveRolesFailed", msg)); }
         finally { _busy.Remove(key); }
-    }
-
-    private static void EnsureOk(HttpResponseMessage response)
-    {
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"{(int)response.StatusCode}: {response.Content.ReadAsStringAsync().GetAwaiter().GetResult()}");
     }
 }

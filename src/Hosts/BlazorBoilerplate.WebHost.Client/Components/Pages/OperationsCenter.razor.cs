@@ -127,6 +127,7 @@ public partial class OperationsCenter
         catch (Exception ex)
         {
             _error = ex.Message;
+            Toast.Error(ex.Message);
             return new BitDataGridReadResult<QueuedEmailItem>([], 0);
         }
     }
@@ -180,6 +181,7 @@ public partial class OperationsCenter
         catch (Exception ex)
         {
             _error = ex.Message;
+            Toast.Error(ex.Message);
             return new BitDataGridReadResult<ActivityLogEntry>([], 0);
         }
     }

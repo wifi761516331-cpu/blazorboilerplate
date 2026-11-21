@@ -471,7 +471,7 @@ public sealed class BlazorBoilerplateApiClient(HttpClient http)
         return parts.Count == 0 ? string.Empty : "?" + string.Join("&", parts);
     }
 
-    private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    public static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken = default)
     {
         if (!response.IsSuccessStatusCode)
         {

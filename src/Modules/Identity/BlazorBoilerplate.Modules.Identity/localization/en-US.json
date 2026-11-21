@@ -213,5 +213,19 @@
   "identity.menus.toast.saved": "Menu \"{0}\" has been saved.",
   "identity.menus.toast.saveFailed": "Failed to save menu: {0}",
   "identity.menus.toast.deleted": "Menu \"{0}\" has been deleted.",
-  "identity.menus.toast.deleteFailed": "Failed to delete menu: {0}"
+  "identity.menus.toast.deleteFailed": "Failed to delete menu: {0}",
+  "identity.error.userNameInvalid": "Username must be at least 2 characters.",
+  "identity.error.emailInvalid": "Please enter a valid email address.",
+  "identity.error.passwordMinLength": "Password must be at least {0} characters.",
+  "identity.error.userNameExists": "Username already exists: {0}",
+  "identity.error.emailExists": "Email is already in use: {0}",
+  "identity.error.roleNameRequired": "Role name cannot be empty.",
+  "identity.error.roleNameExists": "Role name already exists: {0}",
+  "identity.error.systemRoleRenameForbidden": "Built-in system roles cannot be renamed.",
+  "identity.error.systemRoleDeleteForbidden": "Built-in system roles cannot be deleted.",
+  "identity.error.menuNameRequired": "Menu name cannot be empty.",
+  "identity.error.menuPathRequired": "Menu route cannot be empty.",
+  "identity.error.menuSelfParent": "A menu cannot be its own parent.",
+  "identity.error.menuCycleParent": "Cannot move a menu under its own descendant (would create a cycle).",
+  "identity.error.menuHasChildren": "This menu has child menus; please delete or move them first."
 }

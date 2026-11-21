@@ -73,6 +73,7 @@ public partial class Modules
         {
             Logger.LogWarning(ex, "刷新模块列表失败");
             _loadError = ex.Message;
+            Toast.Error(L.GetString("platform.modules.error.apiHost", ex.Message));
         }
         finally
         {

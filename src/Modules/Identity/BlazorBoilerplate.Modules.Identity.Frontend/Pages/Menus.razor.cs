@@ -442,8 +442,9 @@ public partial class Menus
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
-            Toast.Error(L.GetString("identity.menus.toast.saveFailed", ex.Message));
+            var msg = ex.GetUserMessage(L);
+            _error = msg;
+            Toast.Error(L.GetString("identity.menus.toast.saveFailed", msg));
         }
         finally
         {
@@ -468,14 +469,12 @@ public partial class Menus
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
-            Toast.Error(L.GetString("identity.menus.toast.deleteFailed", ex.Message));
+            var msg = ex.GetUserMessage(L);
+            _error = msg;
+            Toast.Error(L.GetString("identity.menus.toast.deleteFailed", msg));
         }
     }
 
-    private static async Task EnsureOkAsync(HttpResponseMessage response)
-    {
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"{(int)response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
-    }
+    private static Task EnsureOkAsync(HttpResponseMessage response) =>
+        BlazorBoilerplateApiClient.EnsureSuccessAsync(response);
 }

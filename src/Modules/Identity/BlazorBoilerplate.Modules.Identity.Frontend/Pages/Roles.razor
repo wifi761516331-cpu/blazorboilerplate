@@ -17,11 +17,6 @@
         <BitButton Variant="BitVariant.Outline" IconName="@BitIconName.Refresh" OnClick="RefreshAsync" Disabled="@_loading">@L["platform.common.refresh"]</BitButton>
     </div>
 
-    @if (_error is not null)
-    {
-        <BitCallout Class="page-callout error">@_error</BitCallout>
-    }
-
     <div class="id-columns">
         <BitCard Class="id-list-card">
             <BitSearchBox @bind-Value="_search" Immediate DebounceTime="300" Placeholder="@L["identity.roles.searchPlaceholder"]" />

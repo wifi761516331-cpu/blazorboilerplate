@@ -12,11 +12,6 @@
 <div class="mytenants-root">
 <BitText Typography="BitTypography.H4">@L["platform.nav.myTenant"]</BitText>
 
-@if (_loadError is not null)
-{
-    <BitCallout Class="page-callout error">@_loadError</BitCallout>
-}
-
 @if (_loading)
 {
     <div class="mytenants-loading"><span class="blazorboilerplate-spinner"></span> @L["platform.common.loading"]</div>

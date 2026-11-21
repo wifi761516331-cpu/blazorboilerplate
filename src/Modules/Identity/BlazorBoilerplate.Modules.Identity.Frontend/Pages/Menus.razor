@@ -29,11 +29,6 @@
         <BitCheckbox @bind-Value="_showHidden" @bind-Value:after="RebuildNavAndParents" Label="@L["identity.menus.showHidden"]" />
     </div>
 
-    @if (_error is not null)
-    {
-        <BitCallout Class="page-callout error">@_error</BitCallout>
-    }
-
     <div class="id-columns">
         <BitCard Class="id-list-card">
             <div class="menu-tree-header">

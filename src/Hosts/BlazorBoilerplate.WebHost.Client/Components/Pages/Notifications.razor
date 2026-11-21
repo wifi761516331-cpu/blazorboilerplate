@@ -6,11 +6,6 @@
     <BitText Class="muted">@L["platform.notifications.subtitle"]</BitText>
 </BitCallout>
 
-@if (_loadError is not null)
-{
-    <BitCallout Class="page-callout error">@_loadError</BitCallout>
-}
-
 <div class="bb-toolbar">
     <span class="muted">@L.GetString("platform.notifications.summary", _notifications.Count, UnreadCount)</span>
     <div class="bb-spacer"></div>
