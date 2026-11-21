@@ -13,11 +13,6 @@ public sealed class CurrentUserFactory(IdentityDbContext db)
 {
     public async Task<CurrentUserDto> BuildAsync(User user, Guid? tenantId, CancellationToken ct)
     {
-        var roleNames = await (from ur in db.UserRoles
-                               join r in db.Roles on ur.RoleId equals r.Id
-                               where ur.UserId == user.Id
-                               select r.Name).Distinct().ToArrayAsync(ct);
-
         // 初始化时的第一个用户（按 CreatedAtUtc / Id 最早）拥有全量权限，免校验（无论其角色是否被改动）
         var firstUserId = (await db.Users.AsNoTracking()
             .Select(u => new { u.Id, u.CreatedAtUtc })
@@ -30,8 +25,16 @@ public sealed class CurrentUserFactory(IdentityDbContext db)
         var isAdmin = firstUserId == user.Id ||
                       await (from ur in db.UserRoles
                              join r in db.Roles on ur.RoleId equals r.Id
-                             where ur.UserId == user.Id && r.IsSystem && r.Name == "管理员"
+                             where ur.UserId == user.Id && r.TenantId == null && r.IsSystem && r.Name == "管理员"
                              select r.Id).AnyAsync(ct);
+
+        var scopedRoleQuery = from ur in db.UserRoles.AsNoTracking()
+                              join r in db.Roles.AsNoTracking() on ur.RoleId equals r.Id
+                              where ur.UserId == user.Id && ur.TenantId == tenantId && r.TenantId == tenantId
+                              select new { r.Id, r.Name };
+
+        var roleNames = await scopedRoleQuery.Select(x => x.Name).Distinct().ToArrayAsync(ct);
+        var scopedRoleIds = await scopedRoleQuery.Select(x => x.Id).Distinct().ToArrayAsync(ct);
 
         string[] permissions;
         if (isAdmin)
@@ -40,11 +43,11 @@ public sealed class CurrentUserFactory(IdentityDbContext db)
         }
         else
         {
-            var roleIds = await db.UserRoles.AsNoTracking()
-                .Where(x => x.UserId == user.Id).Select(x => x.RoleId).ToArrayAsync(ct);
-            permissions = await db.RolePermissions.AsNoTracking()
-                .Where(p => roleIds.Contains(p.RoleId))
-                .Select(p => p.Code).Distinct().ToArrayAsync(ct);
+            permissions = scopedRoleIds.Length == 0
+                ? []
+                : await db.RolePermissions.AsNoTracking()
+                    .Where(p => scopedRoleIds.Contains(p.RoleId))
+                    .Select(p => p.Code).Distinct().ToArrayAsync(ct);
         }
 
         string[] menuPaths;
@@ -55,25 +58,36 @@ public sealed class CurrentUserFactory(IdentityDbContext db)
         }
         else
         {
-            var roleIds = await db.UserRoles.AsNoTracking()
-                .Where(x => x.UserId == user.Id).Select(x => x.RoleId).ToArrayAsync(ct);
-            var menuIds = await db.RoleMenus.AsNoTracking()
-                .Where(x => roleIds.Contains(x.RoleId)).Select(x => x.MenuId).Distinct().ToArrayAsync(ct);
-            menuPaths = await db.Menus.AsNoTracking()
-                .Where(m => m.IsVisible && menuIds.Contains(m.Id))
-                .Select(m => m.Path).ToArrayAsync(ct);
+            var menuIds = scopedRoleIds.Length == 0
+                ? []
+                : await db.RoleMenus.AsNoTracking()
+                    .Where(x => scopedRoleIds.Contains(x.RoleId)).Select(x => x.MenuId).Distinct().ToArrayAsync(ct);
+            menuPaths = menuIds.Length == 0
+                ? []
+                : await db.Menus.AsNoTracking()
+                    .Where(m => m.IsVisible && menuIds.Contains(m.Id))
+                    .Select(m => m.Path).ToArrayAsync(ct);
         }
 
+        Guid? effectiveTenantId = null;
         string? tenantName = null;
         if (tenantId is { } tid)
-            tenantName = await db.Tenants.AsNoTracking().Where(t => t.Id == tid)
-                .Select(t => t.Title ?? t.Name).FirstOrDefaultAsync(ct);
+        {
+            var isMember = await db.TenantUsers.AsNoTracking()
+                .AnyAsync(tu => tu.UserId == user.Id && tu.TenantId == tid && tu.Accepted, ct);
+            if (isMember)
+            {
+                effectiveTenantId = tid;
+                tenantName = await db.Tenants.AsNoTracking().Where(t => t.Id == tid)
+                    .Select(t => t.Title ?? t.Name).FirstOrDefaultAsync(ct);
+            }
+        }
 
         var notificationsEnabled = await db.UserPreferences.AsNoTracking()
             .Where(p => p.UserId == user.Id).Select(p => p.NotificationsEnabled).FirstOrDefaultAsync(ct);
 
         return new CurrentUserDto(
             user.Id, user.UserName, user.Email, user.DisplayName,
-            roleNames, permissions, menuPaths, tenantId, tenantName, notificationsEnabled);
+            roleNames, permissions, menuPaths, effectiveTenantId, tenantName, notificationsEnabled);
     }
 }

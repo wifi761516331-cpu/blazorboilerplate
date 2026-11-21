@@ -20,8 +20,11 @@ public sealed class HttpCurrentUserContext(IHttpContextAccessor httpContextAcces
     {
         get
         {
-            var raw = httpContextAccessor.HttpContext?.User.FindFirstValue("tid");
-            return Guid.TryParse(raw, out var id) ? id : null;
+            var ctx = httpContextAccessor.HttpContext;
+            var raw = ctx?.User.FindFirstValue("tid");
+            if (Guid.TryParse(raw, out var id))
+                return id;
+            return ctx.GetResolvedTenant()?.Id;
         }
     }
 }

@@ -1,8 +1,10 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
 namespace BlazorBoilerplate.ApiHost.Auth;
@@ -26,10 +28,18 @@ public sealed class AppBearerHandler(
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         var header = Request.Headers.Authorization.ToString();
-        if (string.IsNullOrWhiteSpace(header) || !header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        string? rawToken = null;
+        if (!string.IsNullOrWhiteSpace(header) && header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            rawToken = header[7..].Trim();
+        else if (Request.Path.StartsWithSegments("/hubs") &&
+                 Request.Query.TryGetValue("access_token", out var qsToken) &&
+                 !string.IsNullOrWhiteSpace(qsToken))
+            rawToken = qsToken.ToString().Trim();
+
+        if (string.IsNullOrWhiteSpace(rawToken))
             return Task.FromResult(AuthenticateResult.NoResult());
 
-        var payload = tokens.Validate(header[7..].Trim(), JwtTokenService.AccessType);
+        var payload = tokens.Validate(rawToken, JwtTokenService.AccessType);
         if (payload is null)
             return Task.FromResult(AuthenticateResult.Fail("Invalid or expired access token."));
 
@@ -121,6 +131,69 @@ public sealed class RequirePermissionAttribute(string permission) : Attribute, I
     }
 }
 
+/// <summary>高权限二次认证令牌服务（15 分钟有效，绑定当前 SessionId）。</summary>
+public sealed class ElevatedAccessService(IMemoryCache cache)
+{
+    private static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(15);
+
+    private static string Key(Guid sessionId) => $"elevated:{sessionId:N}";
+
+    public (string Token, DateTimeOffset ExpiresAtUtc) Issue(Guid sessionId)
+    {
+        var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(24));
+        var expires = DateTimeOffset.UtcNow.Add(Lifetime);
+        cache.Set(Key(sessionId), token, expires);
+        return (token, expires);
+    }
+
+    public bool Validate(Guid sessionId, string? token)
+    {
+        if (sessionId == Guid.Empty || string.IsNullOrWhiteSpace(token))
+            return false;
+        return cache.TryGetValue(Key(sessionId), out string? expected) &&
+               !string.IsNullOrWhiteSpace(expected) &&
+               CryptographicOperations.FixedTimeEquals(
+                   System.Text.Encoding.UTF8.GetBytes(expected),
+                   System.Text.Encoding.UTF8.GetBytes(token.Trim()));
+    }
+}
+
+/// <summary>高权限二次认证拦截器（对应 Bluebird AuthPolicies.ELEVATED_ACCESS）。</summary>
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
+public sealed class RequireElevatedAccessAttribute : Attribute, IAsyncActionFilter
+{
+    public const string HeaderName = "X-Elevated-Token";
+    public const string ErrorCode = "ELEVATED_ACCESS_REQUIRED";
+
+    public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+    {
+        var user = context.HttpContext.User;
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            context.Result = new UnauthorizedResult();
+            return;
+        }
+
+        var sessionId = user.GetSessionId();
+        var token = context.HttpContext.Request.Headers[HeaderName].FirstOrDefault();
+        var service = context.HttpContext.RequestServices.GetRequiredService<ElevatedAccessService>();
+        if (!service.Validate(sessionId, token))
+        {
+            context.Result = new ObjectResult(new
+            {
+                error = "需要高权限二次验证，请先输入当前登录密码。",
+                errorCode = ErrorCode
+            })
+            {
+                StatusCode = StatusCodes.Status403Forbidden
+            };
+            return;
+        }
+
+        await next();
+    }
+}
+
 /// <summary>ApiHost 认证与端点权限中间件扩展。</summary>
 public static class AppAuthPipelineExtensions
 {
@@ -139,6 +212,7 @@ public static class AppAuthPipelineExtensions
             .AddScheme<AuthenticationSchemeOptions, AppBearerHandler>(AppAuthSchemes.Bearer, null);
         services.AddAuthorization();
         services.AddSingleton<JwtTokenService>();
+        services.AddSingleton<ElevatedAccessService>();
         services.AddScoped<CurrentUserFactory>();
         return services;
     }

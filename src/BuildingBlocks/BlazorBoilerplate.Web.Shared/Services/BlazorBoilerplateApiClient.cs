@@ -231,7 +231,31 @@ public sealed class BlazorBoilerplateApiClient(HttpClient http)
         GetSingleAsync<TenantDto?>(TenantBase + "GetCurrentTenant", ct);
 
     public Task<IReadOnlyList<TenantDto>> GetAllTenantsAsync(CancellationToken ct = default) =>
-        GetListAsync<TenantDto>(TenantBase + "GetTenants", ct);
+        GetListAsync<TenantDto>("api/v1/TenantManagement/GetTenants", ct);
+
+    public Task<ODataPage<TenantDto>> QueryAllTenantsODataAsync(ODataQuery query, CancellationToken ct = default)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(query.Filter)) parts.Add("$filter=" + Uri.EscapeDataString(query.Filter));
+        if (!string.IsNullOrWhiteSpace(query.OrderBy)) parts.Add("$orderby=" + Uri.EscapeDataString(query.OrderBy));
+        if (query.Top is { } top) parts.Add($"$top={top}");
+        if (query.Skip is { } skip) parts.Add($"$skip={skip}");
+        if (query.Count) parts.Add("$count=true");
+        var qs = parts.Count == 0 ? string.Empty : "?" + string.Join("&", parts);
+        return GetSingleAsync<ODataPage<TenantDto>>("api/v1/TenantManagement/QueryTenants" + qs, ct);
+    }
+
+    public Task<ElevatedAccessResponseDto> VerifyElevatedAccessAsync(string password, CancellationToken ct = default) =>
+        PostSingleAsync<ElevatedAccessResponseDto>(UserBase + "VerifyElevatedAccess", new ElevatedAccessRequestDto(password), ct);
+
+    public Task<TenantDto> AdminCreateTenantAsync(TenantDto tenant, CancellationToken ct = default) =>
+        PostSingleAsync<TenantDto>("api/v1/TenantManagement/Create", tenant, ct);
+
+    public Task<TenantDto> AdminUpdateTenantAsync(TenantDto tenant, CancellationToken ct = default) =>
+        PutSingleAsync<TenantDto>("api/v1/TenantManagement/Update", tenant, ct);
+
+    public Task AcceptTenantInvitationAsync(Guid tenantId, CancellationToken ct = default) =>
+        PostVoidAsync(TenantBase + $"AcceptInvitation/{tenantId}", new { }, ct);
 
     public Task<TenantDto> CreateTenantAsync(TenantDto tenant, CancellationToken ct = default) =>
         PostSingleAsync<TenantDto>(TenantBase + "Create", tenant, ct);
@@ -241,6 +265,12 @@ public sealed class BlazorBoilerplateApiClient(HttpClient http)
 
     public Task InviteTenantUserAsync(InviteUserToTenantRequestDto request, CancellationToken ct = default) =>
         PostVoidAsync(TenantBase + "InviteUser", request, ct);
+
+    public Task<IReadOnlyList<TenantMemberDto>> GetTenantMembersAsync(Guid tenantId, CancellationToken ct = default) =>
+        GetListAsync<TenantMemberDto>(TenantBase + $"GetMembers/{tenantId}", ct);
+
+    public Task RemoveTenantUserAsync(Guid tenantId, Guid userId, CancellationToken ct = default) =>
+        PostVoidAsync(TenantBase + $"RemoveUser/{tenantId}/{userId}", new { }, ct);
 
     public Task<TokenResponseDto> SwitchTenantAsync(Guid tenantId, CancellationToken ct = default) =>
         PostSingleAsync<TokenResponseDto>(TenantBase + $"Switch/{tenantId}", new { }, ct);

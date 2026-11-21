@@ -16,6 +16,7 @@ builder.Services
     .AddApiHostPlatform(builder.Configuration, builder.Environment.ContentRootPath)
     .AddAppAuthentication()
     .AddApiHostModules(builder.Configuration, builder.Environment.ContentRootPath);
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -25,6 +26,7 @@ app.UseHttpLogging();
 app.UseCors("web");
 app.UseRateLimiter();
 app.UseSetupBootstrapGate();
+app.UseTenantResolution();
 app.UsePlatformRequestLocalization();
 
 app.UseRouting();
@@ -38,6 +40,7 @@ app.MapOpenApi("/openapi/v1.json");
 app.MapSetupEndpoints();
 app.MapModuleManagementEndpoints();
 app.MapControllers();
+app.MapHub<BlazorBoilerplate.ApiHost.Hubs.AppHub>(BlazorBoilerplate.ApiHost.Hubs.AppHub.HubPath);
 
 await app.InitializeModulesOnStartupAsync();
 

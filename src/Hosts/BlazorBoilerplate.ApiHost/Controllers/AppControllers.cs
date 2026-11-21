@@ -1,5 +1,9 @@
 using System.Security.Claims;
 using BlazorBoilerplate.ApiHost.Auth;
+using BlazorBoilerplate.ApiHost.Hubs;
+using BlazorBoilerplate.Application.OData;
+using BlazorBoilerplate.ModuleAbstractions;
+using Microsoft.AspNetCore.SignalR;
 using BlazorBoilerplate.ApiHost.Services;
 using BlazorBoilerplate.Application.Abstractions;
 using BlazorBoilerplate.Infrastructure.Email;
@@ -65,7 +69,7 @@ public sealed class IdentityController(
     {
         var account = (request.UserName ?? string.Empty).Trim();
         var user = await Db.Users.AsNoTracking().FirstOrDefaultAsync(
-            u => u.UserName.ToLower() == account.ToLower() || u.Email.ToLower() == account.ToLower(), cancellationToken);
+            u => u.UserName.ToLower() == account.ToLower() || u.Email.ToLower() == account.ToLower() || (TenantValidator.NormalizePhone(account) != null && u.PhoneNumber == TenantValidator.NormalizePhone(account)), cancellationToken);
         if (user is null || !user.IsActive || !PasswordHasher.Verify(request.Password ?? string.Empty, user.PasswordHash))
             throw new UnauthorizedAccessException("账号或密码不正确，或账号已停用。");
 
@@ -83,7 +87,20 @@ public sealed class IdentityController(
                 activeSessions[i].Revoke();
         }
 
-        Guid? tenantId = Guid.TryParse(request.TenantId, out var tid) ? tid : null;
+        Guid? tenantId = Guid.TryParse(request.TenantId, out var tid)
+            ? tid
+            : HttpContext.GetResolvedTenant()?.Id;
+        if (tenantId is { } targetTid)
+        {
+            var tenant = await Db.Tenants.AsNoTracking().FirstOrDefaultAsync(t => t.Id == targetTid, cancellationToken);
+            if (tenant is null || !tenant.IsActive)
+                throw new UnauthorizedAccessException("目标租户不存在或已停用。");
+
+            var isMember = await Db.TenantUsers.AsNoTracking()
+                .AnyAsync(t => t.TenantId == targetTid && t.UserId == user.Id && t.Accepted, cancellationToken);
+            if (!isMember)
+                throw new UnauthorizedAccessException($"当前账号未加入租户「{tenant.Title ?? tenant.Name}」，无权登录。");
+        }
         var defaultCulture = string.IsNullOrWhiteSpace(sys.DefaultCulture) ? "zh-CN" : sys.DefaultCulture;
         var defaultTimeZone = string.IsNullOrWhiteSpace(sys.DefaultTimeZone) ? "Asia/Shanghai" : sys.DefaultTimeZone;
         var session = UserSession.Create(user.Id, tenantId, ClientIp, "Blazor Server", defaultCulture, defaultTimeZone, false, null);
@@ -136,11 +153,32 @@ public sealed class IdentityController(
         Guid? tenantId = session.TenantId;
         if (Guid.TryParse(request.RequestedTenantId, out var requested))
         {
-            var allowed = await Db.TenantUsers.AsNoTracking().AnyAsync(
-                t => t.TenantId == requested && t.UserId == userId, cancellationToken);
-            if (!allowed) throw new UnauthorizedAccessException("无权访问该租户。");
+            var tenant = await Db.Tenants.AsNoTracking().FirstOrDefaultAsync(t => t.Id == requested, cancellationToken);
+            if (tenant is null || !tenant.IsActive)
+                throw new UnauthorizedAccessException("目标租户不存在或已停用。");
+
+            var link = await Db.TenantUsers.FirstOrDefaultAsync(
+                t => t.TenantId == requested && t.UserId == userId, cancellationToken)
+                ?? throw new UnauthorizedAccessException("无权访问该租户。");
+            if (!link.Accepted)
+            {
+                link.Accept();
+                await TenantValidator.EnsureTenantMemberRoleAsync(Db, requested, userId, cancellationToken);
+            }
+
             tenantId = requested;
             session.SwitchTenant(requested);
+        }
+        else if (tenantId is { } currentTid)
+        {
+            var tenant = await Db.Tenants.AsNoTracking().FirstOrDefaultAsync(t => t.Id == currentTid, cancellationToken);
+            if (tenant is null || !tenant.IsActive)
+                throw new UnauthorizedAccessException("当前租户不存在或已停用。");
+
+            var isMember = await Db.TenantUsers.AsNoTracking()
+                .AnyAsync(t => t.TenantId == currentTid && t.UserId == userId && t.Accepted, cancellationToken);
+            if (!isMember)
+                throw new UnauthorizedAccessException("您已不是该租户成员，请重新登录。");
         }
 
         // 不轮换 refresh_token：WebHost 把它放在 HttpOnly Cookie 认证票据里，
@@ -271,7 +309,7 @@ public sealed class UserController(IdentityDbContext db, JwtTokenService tokens,
                           where tu.UserId == UserId
                           select new { t, tu.Accepted }).ToListAsync(cancellationToken);
         return rows.Select(x => new TenantDto(x.t.Id, x.t.Name, x.t.Title, x.t.Domain,
-            x.t.IsActive, x.Accepted, x.t.Id == TenantId)).ToArray();
+            x.t.IsActive, x.Accepted, x.Accepted && x.t.Id == TenantId)).ToArray();
     }
 
     [HttpPost("{tenantId}")]
@@ -280,8 +318,29 @@ public sealed class UserController(IdentityDbContext db, JwtTokenService tokens,
         var link = await Db.TenantUsers.FirstOrDefaultAsync(
             t => t.TenantId == tenantId && t.UserId == UserId, cancellationToken)
             ?? throw new KeyNotFoundException("未加入该租户。");
+        if (link.IsOwner)
+        {
+            var hasOtherOwner = await Db.TenantUsers.AsNoTracking().AnyAsync(
+                t => t.TenantId == tenantId && t.UserId != UserId && t.IsOwner, cancellationToken);
+            if (!hasOtherOwner)
+                throw new InvalidOperationException("您是该租户唯一的所有者，无法直接退出。");
+        }
+
         Db.TenantUsers.Remove(link);
+        var tenantRoles = await Db.UserRoles
+            .Where(ur => ur.UserId == UserId && ur.TenantId == tenantId)
+            .ToListAsync(cancellationToken);
+        if (tenantRoles.Count > 0)
+            Db.UserRoles.RemoveRange(tenantRoles);
+
+        var revokedIds = await TenantValidator.RevokeTenantUserSessionsAsync(
+            Db, tenantId, UserId, TenantId == tenantId ? SessionId : null, cancellationToken);
         await Db.SaveChangesAsync(cancellationToken);
+        if (revokedIds.Count > 0)
+        {
+            var hub = HttpContext.RequestServices.GetRequiredService<IHubContext<AppHub>>();
+            await TenantValidator.NotifySessionsRevokedAsync(hub, revokedIds, tenantId, "left_tenant", cancellationToken);
+        }
     }
 
     [HttpGet]
@@ -312,9 +371,19 @@ public sealed class UserController(IdentityDbContext db, JwtTokenService tokens,
             Db.RolePermissions.Add(new RolePermission(roleId, code));
         await Db.SaveChangesAsync(cancellationToken);
     }
+
+    [HttpPost]
+    public async Task<ElevatedAccessResponseDto> VerifyElevatedAccess(ElevatedAccessRequestDto request, CancellationToken cancellationToken)
+    {
+        var user = await RequireUserAsync(cancellationToken);
+        if (!user.IsActive || !PasswordHasher.Verify(request.Password ?? string.Empty, user.PasswordHash))
+            throw new UnauthorizedAccessException("密码不正确，无法完成高权限二次验证。");
+        var (token, expiresAtUtc) = HttpContext.RequestServices.GetRequiredService<ElevatedAccessService>().Issue(SessionId);
+        return new ElevatedAccessResponseDto(token, expiresAtUtc);
+    }
 }
 
-/// <summary>租户管理 / 切换（切换时轮换 token，把新 t-id 写进 claims）。</summary>
+/// <summary>租户管理 / 切换（仅操作当前用户所属或当前已切入的租户）。</summary>
 [ApiController, Authorize]
 [Route("api/v1/[controller]/[action]")]
 public sealed class TenantController(
@@ -322,10 +391,21 @@ public sealed class TenantController(
     JwtTokenService tokens,
     CurrentUserFactory factory,
     IEmailSender emailSender,
+    ISmsSender smsSender,
     ISmtpSettingsProvider smtpSettingsProvider,
+    Microsoft.Extensions.Caching.Memory.IMemoryCache cache,
     ILogger<TenantController> logger)
     : AppControllerBase(db, tokens, factory), ITenantController
 {
+    [HttpGet, AllowAnonymous]
+    public TenantDto? ResolveByDomain()
+    {
+        var resolved = HttpContext.GetResolvedTenant();
+        return resolved is null
+            ? null
+            : new TenantDto(resolved.Id, resolved.Name, resolved.Title, resolved.Domain, resolved.IsActive, true, true);
+    }
+
     [HttpGet]
     public async Task<TenantDto?> GetCurrentTenant(CancellationToken cancellationToken)
     {
@@ -335,78 +415,164 @@ public sealed class TenantController(
             tenant.IsActive, true, true);
     }
 
+    /// <summary>仅返回当前用户所属的租户（含待接受邀请），防止枚举全平台租户。</summary>
     [HttpGet]
-    public async Task<IReadOnlyList<TenantDto>> GetTenants(CancellationToken cancellationToken) =>
-        await Db.Tenants.AsNoTracking().OrderBy(t => t.Name)
-            .Select(t => new TenantDto(t.Id, t.Name, t.Title, t.Domain, t.IsActive, true, t.Id == TenantId))
-            .ToArrayAsync(cancellationToken);
+    public async Task<IReadOnlyList<TenantDto>> GetTenants(CancellationToken cancellationToken)
+    {
+        var rows = await (from tu in Db.TenantUsers.AsNoTracking()
+                          join t in Db.Tenants.AsNoTracking() on tu.TenantId equals t.Id
+                          where tu.UserId == UserId
+                          orderby t.Name
+                          select new { t, tu.Accepted }).ToListAsync(cancellationToken);
+        return rows.Select(x => new TenantDto(x.t.Id, x.t.Name, x.t.Title, x.t.Domain,
+            x.t.IsActive, x.Accepted, x.Accepted && x.t.Id == TenantId)).ToArray();
+    }
 
     [HttpPost]
-    [RequirePermission("tenant.create")]
+    [RequirePermission("tenant.create"), RequireElevatedAccess]
     public async Task<TenantDto> Create(TenantDto request, CancellationToken cancellationToken)
     {
-        var name = (request.Name ?? string.Empty).Trim();
-        if (await Db.Tenants.AnyAsync(t => t.Name == name, cancellationToken))
-            throw new InvalidOperationException("租户名已存在。");
-        var tenant = Tenant.Create(name, request.Title, request.Domain);
+        var (name, title, domain) = await TenantValidator.ValidateAndNormalizeAsync(
+            Db, null, request.Name, request.Title, request.Domain, HttpContext.Request.Host.Host, cancellationToken);
+
+        var tenant = Tenant.Create(name, title, domain);
         Db.Tenants.Add(tenant);
         Db.TenantUsers.Add(TenantUser.Create(tenant.Id, UserId, isOwner: true, accepted: true));
+        await TenantValidator.ProvisionTenantRolesAsync(Db, tenant.Id, UserId, cancellationToken);
         await Db.SaveChangesAsync(cancellationToken);
+        TenantHttpItems.InvalidateLookupCache(cache);
+        await TenantValidator.RunProvisioningHandlersAsync(HttpContext.RequestServices, tenant.Id, tenant.Name, cancellationToken);
         return new TenantDto(tenant.Id, tenant.Name, tenant.Title, tenant.Domain, tenant.IsActive, true, false);
     }
 
     [HttpPut]
-    [RequirePermission("tenant.update")]
+    [RequirePermission("tenant.update"), RequireElevatedAccess]
     public async Task<TenantDto> Update(TenantDto request, CancellationToken cancellationToken)
     {
-        var tenant = await Db.Tenants.FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken)
+        if (TenantId is not { } currentTid || request.Id != currentTid)
+            throw new UnauthorizedAccessException("只能修改当前已切入的租户。");
+
+        var isAcceptedMember = await Db.TenantUsers.AsNoTracking()
+            .AnyAsync(t => t.TenantId == currentTid && t.UserId == UserId && t.Accepted, cancellationToken);
+        if (!isAcceptedMember)
+            throw new UnauthorizedAccessException("您不是该租户的正式成员，无权修改。");
+
+        var tenant = await Db.Tenants.FirstOrDefaultAsync(t => t.Id == currentTid, cancellationToken)
             ?? throw new KeyNotFoundException("租户不存在。");
-        tenant.Update(request.Name, request.Title, request.Domain, request.IsActive);
+
+        var (name, title, domain) = await TenantValidator.ValidateAndNormalizeAsync(
+            Db, tenant.Id, request.Name, request.Title, request.Domain, HttpContext.Request.Host.Host, cancellationToken);
+
+        // 租户内管理员不可自行修改 IsActive，仅平台全局管理员可通过 TenantManagementController 启停。
+        tenant.Update(name, title, domain, tenant.IsActive);
         await Db.SaveChangesAsync(cancellationToken);
-        return new TenantDto(tenant.Id, tenant.Name, tenant.Title, tenant.Domain, tenant.IsActive, true, tenant.Id == TenantId);
+        TenantHttpItems.InvalidateLookupCache(cache);
+        return new TenantDto(tenant.Id, tenant.Name, tenant.Title, tenant.Domain, tenant.IsActive, true, true);
     }
 
     [HttpPost]
-    [RequirePermission("tenant.invite")]
+    [RequirePermission("tenant.invite"), RequireElevatedAccess]
     public async Task InviteUser(InviteUserToTenantRequestDto request, CancellationToken cancellationToken)
     {
-        var tenant = await Db.Tenants.AsNoTracking().FirstOrDefaultAsync(t => t.Id == request.TenantId, cancellationToken)
-            ?? throw new KeyNotFoundException("租户不存在。");
-        var user = await Db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken)
-            ?? throw new KeyNotFoundException("该邮箱没有对应的用户。");
-        var exists = await Db.TenantUsers.AnyAsync(
-            t => t.TenantId == request.TenantId && t.UserId == user.Id, cancellationToken);
-        if (!exists) Db.TenantUsers.Add(TenantUser.Create(request.TenantId, user.Id));
-        await Db.SaveChangesAsync(cancellationToken);
+        if (TenantId is not { } currentTid || request.TenantId != currentTid)
+            throw new UnauthorizedAccessException("只能向当前已切入的租户邀请成员。");
 
-        if (smtpSettingsProvider.GetSettings().IsConfigured && !string.IsNullOrWhiteSpace(user.Email))
+        var isAcceptedMember = await Db.TenantUsers.AsNoTracking()
+            .AnyAsync(t => t.TenantId == currentTid && t.UserId == UserId && t.Accepted, cancellationToken);
+        if (!isAcceptedMember)
+            throw new UnauthorizedAccessException("您不是该租户的正式成员，无权邀请成员。");
+
+        await TenantValidator.InviteUserAsync(Db, emailSender, smsSender, smtpSettingsProvider, logger, request.TenantId, UserId, request.Email, request.PhoneNumber, cancellationToken);
+    }
+
+    [HttpGet("{tenantId}")]
+    [RequirePermission("tenant.invite")]
+    public async Task<IReadOnlyList<TenantMemberDto>> GetMembers(Guid tenantId, CancellationToken cancellationToken)
+    {
+        if (TenantId is not { } currentTid || tenantId != currentTid)
+            throw new UnauthorizedAccessException("只能查看当前已切入租户的成员。");
+
+        var callerAccepted = await Db.TenantUsers.AsNoTracking()
+            .AnyAsync(t => t.TenantId == currentTid && t.UserId == UserId && t.Accepted, cancellationToken);
+        if (!callerAccepted)
+            throw new UnauthorizedAccessException("您不是该租户的正式成员，无权查看成员列表。");
+
+        return await (from tu in Db.TenantUsers.AsNoTracking()
+                      join u in Db.Users.AsNoTracking() on tu.UserId equals u.Id
+                      where tu.TenantId == currentTid
+                      orderby tu.IsOwner descending, u.UserName
+                      select new TenantMemberDto(u.Id, u.UserName, u.Email, u.PhoneNumber, u.DisplayName, tu.IsOwner, tu.Accepted))
+            .ToArrayAsync(cancellationToken);
+    }
+
+    [HttpPost("{tenantId}/{userId}")]
+    [RequirePermission("tenant.invite"), RequireElevatedAccess]
+    public async Task RemoveUser(Guid tenantId, Guid userId, CancellationToken cancellationToken)
+    {
+        if (TenantId is not { } currentTid || tenantId != currentTid)
+            throw new UnauthorizedAccessException("只能从当前已切入的租户移除成员。");
+
+        var callerAccepted = await Db.TenantUsers.AsNoTracking()
+            .AnyAsync(t => t.TenantId == currentTid && t.UserId == UserId && t.Accepted, cancellationToken);
+        if (!callerAccepted)
+            throw new UnauthorizedAccessException("您不是该租户的正式成员，无权移除成员。");
+
+        var link = await Db.TenantUsers.FirstOrDefaultAsync(
+            t => t.TenantId == tenantId && t.UserId == userId, cancellationToken)
+            ?? throw new KeyNotFoundException("该用户不在当前租户中。");
+
+        if (link.IsOwner)
         {
-            try
-            {
-                var inviter = await Db.Users.AsNoTracking()
-                    .Where(u => u.Id == UserId)
-                    .Select(u => u.DisplayName)
-                    .FirstOrDefaultAsync(cancellationToken);
-                var title = $"租户邀请：{tenant.Title ?? tenant.Name}";
-                var body = EmailTemplateBuilder.BuildNotificationEmail(
-                    title: title,
-                    message: $"{(string.IsNullOrWhiteSpace(inviter) ? "管理员" : inviter)} 邀请您加入租户「{tenant.Title ?? tenant.Name}」，请登录平台查看并接受邀请。",
-                    recipientName: user.DisplayName);
-                await emailSender.SendAsync(user.Email, title, body, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "租户邀请邮件发送失败：TenantId={TenantId}, Email={Email}", request.TenantId, user.Email);
-            }
+            var hasOtherOwner = await Db.TenantUsers.AsNoTracking().AnyAsync(
+                t => t.TenantId == tenantId && t.UserId != userId && t.IsOwner, cancellationToken);
+            if (!hasOtherOwner)
+                throw new InvalidOperationException("无法移除该租户唯一的所有者。");
         }
+
+        Db.TenantUsers.Remove(link);
+        var tenantRoles = await Db.UserRoles
+            .Where(ur => ur.UserId == userId && ur.TenantId == tenantId)
+            .ToListAsync(cancellationToken);
+        if (tenantRoles.Count > 0)
+            Db.UserRoles.RemoveRange(tenantRoles);
+
+        var revokedIds = await TenantValidator.RevokeTenantUserSessionsAsync(
+            Db, tenantId, userId, null, cancellationToken);
+        await Db.SaveChangesAsync(cancellationToken);
+        if (revokedIds.Count > 0)
+        {
+            var hub = HttpContext.RequestServices.GetRequiredService<IHubContext<AppHub>>();
+            await TenantValidator.NotifySessionsRevokedAsync(hub, revokedIds, tenantId, "kicked_from_tenant", cancellationToken);
+        }
+    }
+
+    [HttpPost("{tenantId}")]
+    public async Task AcceptInvitation(Guid tenantId, CancellationToken cancellationToken)
+    {
+        var link = await Db.TenantUsers.FirstOrDefaultAsync(
+            t => t.TenantId == tenantId && t.UserId == UserId, cancellationToken)
+            ?? throw new KeyNotFoundException("邀请记录不存在。");
+        link.Accept();
+        await TenantValidator.EnsureTenantMemberRoleAsync(Db, tenantId, UserId, cancellationToken);
+        await Db.SaveChangesAsync(cancellationToken);
     }
 
     [HttpPost("{tenantId}")]
     public async Task<TokenResponseDto> Switch(Guid tenantId, CancellationToken cancellationToken)
     {
-        var allowed = await Db.TenantUsers.AsNoTracking().AnyAsync(
-            t => t.TenantId == tenantId && t.UserId == UserId, cancellationToken);
-        if (!allowed) throw new UnauthorizedAccessException("无权访问该租户。");
+        var tenant = await Db.Tenants.AsNoTracking().FirstOrDefaultAsync(t => t.Id == tenantId, cancellationToken);
+        if (tenant is null || !tenant.IsActive)
+            throw new UnauthorizedAccessException("目标租户不存在或已停用。");
+
+        var link = await Db.TenantUsers.FirstOrDefaultAsync(
+            t => t.TenantId == tenantId && t.UserId == UserId, cancellationToken)
+            ?? throw new UnauthorizedAccessException("无权访问该租户。");
+
+        if (!link.Accepted)
+        {
+            link.Accept();
+            await TenantValidator.EnsureTenantMemberRoleAsync(Db, tenantId, UserId, cancellationToken);
+        }
 
         var session = await Db.UserSessions.FirstOrDefaultAsync(s => s.Id == SessionId, cancellationToken)
             ?? throw new UnauthorizedAccessException("会话不存在。");
@@ -422,6 +588,115 @@ public sealed class TenantController(
         var access = Tokens.IssueAccessToken(user.Id, user.UserName, user.Email, session.Id, tenantId,
             current.Roles, current.Permissions);
         return new TokenResponseDto(access, refresh, Tokens.AccessTokenLifetimeSeconds);
+    }
+}
+
+/// <summary>平台全局租户管理（仅限平台超级管理员）。</summary>
+[ApiController, Authorize]
+[Route("api/v1/[controller]/[action]")]
+[RequirePermission("tenant.manage.global")]
+public sealed class TenantManagementController(
+    IdentityDbContext db,
+    JwtTokenService tokens,
+    CurrentUserFactory factory,
+    Microsoft.Extensions.Caching.Memory.IMemoryCache cache)
+    : AppControllerBase(db, tokens, factory), ITenantManagementController
+{
+    [HttpGet]
+    public async Task<IReadOnlyList<TenantDto>> GetTenants(CancellationToken cancellationToken) =>
+        await Db.Tenants.AsNoTracking().OrderBy(t => t.Name)
+            .Select(t => new TenantDto(t.Id, t.Name, t.Title, t.Domain, t.IsActive, true, t.Id == TenantId))
+            .ToArrayAsync(cancellationToken);
+
+    private static readonly ODataFieldMap TenantODataFields = new(["id", "name", "title", "domain", "isactive"]);
+    private static readonly ODataQueryApplier<TenantDto> TenantODataApplier = new(
+        TenantODataFields,
+        (t, f) => f.ToLowerInvariant() switch
+        {
+            "id" => t.Id,
+            "name" => t.Name,
+            "title" => t.Title,
+            "domain" => t.Domain,
+            "isactive" => t.IsActive,
+            _ => null
+        },
+        (f, raw) => f.ToLowerInvariant() switch
+        {
+            "id" => Guid.Parse(raw),
+            "isactive" => bool.Parse(raw),
+            _ => raw
+        });
+
+    [HttpGet]
+    public async Task<ODataPage<TenantDto>> QueryTenants(CancellationToken cancellationToken)
+    {
+        var items = await GetTenants(cancellationToken);
+        var q = HttpContext.Request.Query;
+        var query = new ODataQuery
+        {
+            Filter = q["$filter"].FirstOrDefault(),
+            OrderBy = q["$orderby"].FirstOrDefault(),
+            Top = int.TryParse(q["$top"].FirstOrDefault(), out var top) ? top : null,
+            Skip = int.TryParse(q["$skip"].FirstOrDefault(), out var skip) ? skip : null,
+            Count = string.Equals(q["$count"].FirstOrDefault(), "true", StringComparison.OrdinalIgnoreCase)
+        };
+        return TenantODataApplier.Apply(items, query);
+    }
+
+    [HttpPost, RequireElevatedAccess]
+    public async Task<TenantDto> Create(TenantDto request, CancellationToken cancellationToken)
+    {
+        var (name, title, domain) = await TenantValidator.ValidateAndNormalizeAsync(
+            Db, null, request.Name, request.Title, request.Domain, HttpContext.Request.Host.Host, cancellationToken);
+
+        var tenant = Tenant.Create(name, title, domain);
+        if (!request.IsActive)
+            tenant.Update(name, title, domain, false);
+
+        Db.Tenants.Add(tenant);
+        Db.TenantUsers.Add(TenantUser.Create(tenant.Id, UserId, isOwner: true, accepted: true));
+        await TenantValidator.ProvisionTenantRolesAsync(Db, tenant.Id, UserId, cancellationToken);
+        await Db.SaveChangesAsync(cancellationToken);
+        TenantHttpItems.InvalidateLookupCache(cache);
+        await TenantValidator.RunProvisioningHandlersAsync(HttpContext.RequestServices, tenant.Id, tenant.Name, cancellationToken);
+        return new TenantDto(tenant.Id, tenant.Name, tenant.Title, tenant.Domain, tenant.IsActive, true, false);
+    }
+
+    [HttpPut, RequireElevatedAccess]
+    public async Task<TenantDto> Update(TenantDto request, CancellationToken cancellationToken)
+    {
+        var tenant = await Db.Tenants.FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken)
+            ?? throw new KeyNotFoundException("租户不存在。");
+
+        var wasActive = tenant.IsActive;
+        var (name, title, domain) = await TenantValidator.ValidateAndNormalizeAsync(
+            Db, tenant.Id, request.Name, request.Title, request.Domain, HttpContext.Request.Host.Host, cancellationToken);
+
+        tenant.Update(name, title, domain, request.IsActive);
+
+        List<Guid> revokedSessionIds = [];
+        if (wasActive && !tenant.IsActive)
+        {
+            var sessions = await Db.UserSessions
+                .Where(s => s.TenantId == tenant.Id && s.RevokedAtUtc == null)
+                .ToListAsync(cancellationToken);
+            foreach (var session in sessions)
+            {
+                session.Revoke();
+                revokedSessionIds.Add(session.Id);
+            }
+        }
+
+        await Db.SaveChangesAsync(cancellationToken);
+        if (revokedSessionIds.Count > 0)
+        {
+            var hub = HttpContext.RequestServices.GetRequiredService<IHubContext<AppHub>>();
+            await Task.WhenAll(revokedSessionIds.Select(sid =>
+                hub.Clients.Group(AppHub.SessionGroup(sid))
+                    .SendAsync(AppHub.SessionRevokedMethod, new { tenantId = tenant.Id, reason = "tenant_deactivated" }, cancellationToken)));
+        }
+        TenantHttpItems.InvalidateLookupCache(cache);
+        return new TenantDto(tenant.Id, tenant.Name, tenant.Title, tenant.Domain, tenant.IsActive, true, tenant.Id == TenantId);
     }
 }
 

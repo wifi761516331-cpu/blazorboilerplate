@@ -1,18 +1,33 @@
+using BlazorBoilerplate.Application.OData;
 using BlazorBoilerplate.Shared.Features.Identity;
 using BlazorBoilerplate.Shared.Infrastructure.Services.Contracts;
 
 namespace BlazorBoilerplate.Shared.Features.Account;
 
-/// <summary>租户（Bluebird ITenantController 的等价契约；Switch 通过刷新 access token 切换 t-id claim）。</summary>
+/// <summary>租户契约（Switch 通过刷新 access token 切换 t-id claim）。</summary>
 [Route("api/v1/[controller]/[action]/"), AuthorizedApi]
 public interface ITenantController : IAppController
 {
     [HttpGet] Task<TenantDto?> GetCurrentTenant(CancellationToken cancellationToken) => default!;
     [HttpGet] Task<IReadOnlyList<TenantDto>> GetTenants(CancellationToken cancellationToken) => default!;
+    [HttpGet] Task<ODataPage<TenantDto>> QueryTenants(CancellationToken cancellationToken) => default!;
     [HttpPost] Task<TenantDto> Create(TenantDto request, CancellationToken cancellationToken) => default!;
     [HttpPut] Task<TenantDto> Update(TenantDto request, CancellationToken cancellationToken) => default!;
     [HttpPost] Task InviteUser(InviteUserToTenantRequestDto request, CancellationToken cancellationToken);
+    [HttpGet("{tenantId}")] Task<IReadOnlyList<TenantMemberDto>> GetMembers(Guid tenantId, CancellationToken cancellationToken) => default!;
+    [HttpPost("{tenantId}/{userId}")] Task RemoveUser(Guid tenantId, Guid userId, CancellationToken cancellationToken);
+    [HttpPost("{tenantId}")] Task AcceptInvitation(Guid tenantId, CancellationToken cancellationToken);
     [HttpPost("{tenantId}")] Task<TokenResponseDto> Switch(Guid tenantId, CancellationToken cancellationToken) => default!;
+}
+
+/// <summary>平台全局租户管理（仅限平台超级管理员）。</summary>
+[Route("api/v1/[controller]/[action]/"), AuthorizedApi]
+public interface ITenantManagementController : IAppController
+{
+    [HttpGet] Task<IReadOnlyList<TenantDto>> GetTenants(CancellationToken cancellationToken) => default!;
+    [HttpGet] Task<ODataPage<TenantDto>> QueryTenants(CancellationToken cancellationToken) => default!;
+    [HttpPost] Task<TenantDto> Create(TenantDto request, CancellationToken cancellationToken) => default!;
+    [HttpPut] Task<TenantDto> Update(TenantDto request, CancellationToken cancellationToken) => default!;
 }
 
 /// <summary>
@@ -51,7 +66,20 @@ public interface IPushNotificationController : IAppController
 
 // ---- DTO ----
 
-public sealed record InviteUserToTenantRequestDto(Guid TenantId, string Email);
+public sealed record InviteUserToTenantRequestDto(Guid TenantId, string? Email = null, string? PhoneNumber = null);
+
+public sealed record TenantMemberDto(
+    Guid UserId,
+    string UserName,
+    string Email,
+    string? PhoneNumber,
+    string DisplayName,
+    bool IsOwner,
+    bool Accepted);
+
+public sealed record ElevatedAccessRequestDto(string Password);
+
+public sealed record ElevatedAccessResponseDto(string Token, DateTimeOffset ExpiresAtUtc);
 
 /// <summary>设备偏好：语言 / 时区 / 主题 / 强调色 / 通知开关。</summary>
 public sealed record UserPreferenceDto(
