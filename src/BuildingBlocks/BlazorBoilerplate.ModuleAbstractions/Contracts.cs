@@ -10,24 +10,6 @@ namespace BlazorBoilerplate.ModuleAbstractions;
 /// 这里只允许放稳定接口、标识、版本与跨边界 DTO，禁止放模块私有实现类型。
 /// </summary>
 
-public enum ModuleState
-{
-    Discovered,
-    Verifying,
-    Staging,
-    Installed,
-    Loading,
-    Running,
-    Draining,
-    Disabling,
-    Disabled,
-    Updating,
-    Unloading,
-    Uninstalled,
-    Failed,
-    Quarantined
-}
-
 public sealed class ModuleManifest
 {
     public string Id { get; set; } = string.Empty;
@@ -104,38 +86,6 @@ public sealed class ModuleMenuManifest
     public int Sort { get; set; }
 }
 
-/// <summary>Host 对外暴露的稳定模块快照，绝不包含模块私有 Type/Assembly。</summary>
-public sealed record ModuleDescriptor(
-    string Id,
-    string Name,
-    string Version,
-    string Publisher,
-    ModuleState State,
-    string PackagePath,
-    DateTimeOffset? LoadedAtUtc,
-    string? Error,
-    string[] Permissions,
-    int Order = ModuleStartupDefaults.DefaultOrder,
-    bool IsEssential = false,
-    int VersionCount = 1,
-    string? DisplayName = null)
-{
-    /// <summary>UI 展示名：优先 DisplayName（中文名），为空回退 Name。</summary>
-    public string DisplayTitle => string.IsNullOrWhiteSpace(DisplayName) ? Name : DisplayName;
-
-    /// <summary>模块声明的页面路由（frontend.routes ∪ menuItems[].route），导航据此判断菜单归属模块。</summary>
-    public string[] Routes { get; init; } = [];
-}
-
-/// <summary>模块某版本的快照，供「版本历史」接口与 UI 使用。</summary>
-public sealed record ModuleVersionDto(
-    string Id,
-    string Version,
-    ModuleState State,
-    bool IsActive,
-    DateTimeOffset? LoadedAtUtc,
-    string? Error);
-
 public sealed class ModuleEndpointDefinition
 {
     public required string Pattern { get; init; }
@@ -157,13 +107,6 @@ public interface IModuleContext
     ILoggerFactory LoggerFactory { get; }
     IModuleAudit Audit { get; }
     CancellationToken HostStopping { get; }
-}
-
-/// <summary>模块启动顺序常量（普通模块默认 3000）。</summary>
-public static class ModuleStartupDefaults
-{
-    /// <summary>普通模块默认启动顺序。</summary>
-    public const int DefaultOrder = 3000;
 }
 
 /// <summary>
@@ -206,14 +149,6 @@ public interface IModuleLifecycleHooks
     /// <summary>彻底卸载模块时触发。</summary>
     Task UninstallAsync(IModuleContext context, CancellationToken cancellationToken) => Task.CompletedTask;
 }
-
-public sealed record ModuleAuditEntry(
-    DateTimeOffset AtUtc,
-    string ModuleId,
-    string Version,
-    string Operation,
-    string Result,
-    string? Detail);
 
 public interface IModuleAudit
 {

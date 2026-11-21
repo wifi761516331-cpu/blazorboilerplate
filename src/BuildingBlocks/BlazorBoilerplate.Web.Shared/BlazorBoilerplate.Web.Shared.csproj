@@ -20,7 +20,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\BlazorBoilerplate.Application\BlazorBoilerplate.Application.csproj" />
-    <ProjectReference Include="..\BlazorBoilerplate.ModuleAbstractions\BlazorBoilerplate.ModuleAbstractions.csproj" />
   </ItemGroup>
 
 </Project>
