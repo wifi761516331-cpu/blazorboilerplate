@@ -7,6 +7,9 @@ namespace BlazorBoilerplate.Modules.Catalog.Application;
 /// <summary>稳定 DTO，跨边界序列化用，不暴露 Domain Entity。</summary>
 public sealed record ProductDto(Guid Id, string Name, decimal Price, string Category);
 
+public sealed record CatalogCategoryStatDto(string Category, int Count);
+public sealed record CatalogStatsDto(int TotalCount, IReadOnlyList<CatalogCategoryStatDto> Categories);
+
 public interface IProductRepository
 {
     Task<IReadOnlyList<Product>> ListAsync(CancellationToken cancellationToken);
@@ -24,6 +27,18 @@ public sealed class ProductService(IProductRepository repository)
         var items = (await repository.ListAsync(cancellationToken))
             .Select(p => new ProductDto(p.Id, p.Name, p.Price, p.Category));
         return Applier.Apply(items, query);
+    }
+
+    public async Task<CatalogStatsDto> GetStatsAsync(CancellationToken cancellationToken)
+    {
+        var all = await repository.ListAsync(cancellationToken);
+        var categories = all
+            .GroupBy(p => string.IsNullOrWhiteSpace(p.Category) ? "未分类" : p.Category.Trim())
+            .Select(g => new CatalogCategoryStatDto(g.Key, g.Count()))
+            .OrderByDescending(x => x.Count)
+            .ThenBy(x => x.Category, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        return new CatalogStatsDto(all.Count, categories);
     }
 
     private static object? FieldValue(ProductDto product, string field) => field.ToLowerInvariant() switch

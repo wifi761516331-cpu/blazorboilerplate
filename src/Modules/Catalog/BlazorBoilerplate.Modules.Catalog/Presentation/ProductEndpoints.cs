@@ -13,6 +13,13 @@ public sealed class ProductEndpoints(ProductService service)
     {
         builder.Map("/api/catalog/products", "GET", "catalog.product.read", ListAsync);
         builder.Map("/api/catalog/products/{id}", "GET", "catalog.product.read", GetByIdAsync);
+        builder.Map("/api/catalog/stats", "GET", "catalog.product.read", GetStatsAsync);
+    }
+
+    private async Task GetStatsAsync(HttpContext context)
+    {
+        var stats = await service.GetStatsAsync(context.RequestAborted);
+        await context.Response.WriteAsJsonAsync(stats, context.RequestAborted);
     }
 
     private async Task ListAsync(HttpContext context)

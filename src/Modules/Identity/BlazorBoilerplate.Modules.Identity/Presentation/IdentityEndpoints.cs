@@ -16,6 +16,17 @@ public sealed class IdentityEndpoints(IServiceProvider moduleServices)
 {
     public void Map(IModuleEndpointBuilder builder)
     {
+        // 用户统计（供首页微件展示真实用户数）
+        builder.Map("/api/identity/stats", "GET", "identity.user.read", async ctx => await WithScope(ctx, async s =>
+        {
+            var users = await s.ServiceProvider.GetRequiredService<UserService>().ListAsync(ctx.RequestAborted, ResolveTenantId(ctx));
+            await ctx.Response.WriteAsJsonAsync(new
+            {
+                TotalUsers = users.Count,
+                ActiveUsers = users.Count(u => u.IsActive)
+            }, ctx.RequestAborted);
+        }));
+
         // 用户管理
         builder.Map("/api/identity/users", "GET", "identity.user.read", async ctx => await WithScope(ctx, async s =>
         {

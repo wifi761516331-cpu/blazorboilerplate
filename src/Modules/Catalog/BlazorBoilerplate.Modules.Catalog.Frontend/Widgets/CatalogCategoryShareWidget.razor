@@ -1,0 +1,27 @@
+@namespace BlazorBoilerplate.Modules.Catalog.Widgets
+
+<DashboardWidgetCard Title="@L["platform.home.widget.productShare"]" Span="2">
+    @if (_categories.Count == 0 || _total == 0)
+    {
+        <BitText Class="muted">@L["catalog.empty"]</BitText>
+    }
+    else
+    {
+        <div class="bb-pie-row">
+            <div class="bb-pie" style="background: @BuildConicGradient()">
+                <div class="bb-pie-hole">@_total</div>
+            </div>
+            <div class="bb-legend">
+                @for (var i = 0; i < _categories.Count; i++)
+                {
+                    var c = _categories[i];
+                    var color = CatalogStatsClient.Palette[i % CatalogStatsClient.Palette.Length];
+                    <div class="bb-legend-item">
+                        <span class="bb-swatch" style="background:@color"></span>
+                        <span>@c.Category · @c.Count</span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</DashboardWidgetCard>

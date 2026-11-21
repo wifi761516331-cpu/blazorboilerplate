@@ -1,0 +1,24 @@
+@namespace BlazorBoilerplate.Modules.Catalog.Widgets
+
+<DashboardWidgetCard Title="@L["platform.home.widget.categoryCounts"]" Subtitle="@(_total > 0 ? _total.ToString() : null)" Span="4">
+    @if (_categories.Count == 0)
+    {
+        <BitText Class="muted">@L["catalog.empty"]</BitText>
+    }
+    else
+    {
+        var max = Math.Max(1, _categories.Max(c => c.Count));
+        <div class="bb-chart">
+            @for (var i = 0; i < _categories.Count; i++)
+            {
+                var c = _categories[i];
+                var color = CatalogStatsClient.Palette[i % CatalogStatsClient.Palette.Length];
+                <div class="bb-bar-wrap">
+                    <span class="bb-bar-value">@c.Count</span>
+                    <div class="bb-bar" style="height:@(c.Count * 100 / max)%;background:@color"></div>
+                    <span class="bb-bar-label" title="@c.Category">@c.Category</span>
+                </div>
+            }
+        </div>
+    }
+</DashboardWidgetCard>
