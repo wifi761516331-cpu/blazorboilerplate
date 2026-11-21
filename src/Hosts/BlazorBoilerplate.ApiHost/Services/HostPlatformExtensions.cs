@@ -40,13 +40,24 @@ public static class HostPlatformExtensions
         services.AddBlazorBoilerplateModuleStorage(configuration);
 
         var dataDir = Path.Combine(contentRootPath, "data");
-        services.AddSingleton<ISettingService>(_ => new JsonSettingService(dataDir));
-        services.AddSingleton<IActivityLogService>(_ => new JsonActivityLogService(dataDir));
-        services.AddSingleton<IMessageTemplateService>(_ => new JsonMessageTemplateService(dataDir));
-        services.AddSingleton<IQueuedEmailService>(sp => new JsonQueuedEmailService(
-            dataDir,
-            sp.GetRequiredService<Application.Abstractions.IEmailSender>(),
-            sp.GetRequiredService<ILogger<JsonQueuedEmailService>>()));
+        services.AddSingleton<ISettingService>(_ =>
+            new Persistence.Platform.EfSettingService(new JsonSettingService(dataDir)));
+        services.AddSingleton<IActivityLogService>(_ =>
+            new Persistence.Platform.EfActivityLogService(new JsonActivityLogService(dataDir)));
+        services.AddSingleton<IMessageTemplateService>(_ =>
+            new Persistence.Platform.EfMessageTemplateService(new JsonMessageTemplateService(dataDir)));
+        services.AddSingleton<IQueuedEmailService>(sp =>
+        {
+            var sender = sp.GetRequiredService<Application.Abstractions.IEmailSender>();
+            var jsonFallback = new JsonQueuedEmailService(
+                dataDir,
+                sender,
+                sp.GetRequiredService<ILogger<JsonQueuedEmailService>>());
+            return new Persistence.Platform.EfQueuedEmailService(
+                sender,
+                sp.GetRequiredService<ILogger<Persistence.Platform.EfQueuedEmailService>>(),
+                jsonFallback);
+        });
         services.AddSingleton<IScheduleTaskManager, ModuleScheduleTaskManager>();
         services.AddSingleton<IProviderManager>(_ => new ModuleProviderManager(dataDir));
         services.AddSingleton<ModularAssetManager>();
