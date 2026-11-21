@@ -13,6 +13,8 @@ public sealed class ClientModuleCatalogControl(
     public bool IsFrontendOnlyModule(string moduleId) =>
         catalog.Manifest?.Modules.Any(m => string.Equals(m.ModuleId, moduleId, StringComparison.OrdinalIgnoreCase)) ?? false;
 
+    public Type? ResolveComponent(string path) => catalog.ResolveComponent(path);
+
     public bool IsAutoRenderMode(string moduleId) =>
         catalog.Manifest?.Modules.FirstOrDefault(m => string.Equals(m.ModuleId, moduleId, StringComparison.OrdinalIgnoreCase))
             ?.RenderMode.Equals("Auto", StringComparison.OrdinalIgnoreCase) ?? false;
@@ -40,6 +42,7 @@ public sealed class ClientModuleCatalogControl(
         else
         {
             WidgetZoneRegistry.UnregisterModule(moduleId);
+        DomainRouteResolverRegistry.UnregisterModule(moduleId);
         }
     }
 }

@@ -2,14 +2,21 @@
         AdditionalAssemblies="@ModuleCatalog.Assemblies"
         OnNavigateAsync="OnNavigateAsync">
     <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        <RouteView RouteData="@routeData" DefaultLayout="@PickLayout()" />
         <FocusOnNavigate RouteData="@routeData" Selector="h1" />
     </Found>
     <NotFound>
-        <LayoutView Layout="@typeof(MainLayout)">
-            <div class="page-callout">
-                @L["platform.error.routeNotFound"]
-            </div>
+        <LayoutView Layout="@PickLayout()">
+            @if (_notFoundDomainComponent is not null)
+            {
+                <DynamicComponent Type="@_notFoundDomainComponent" />
+            }
+            else
+            {
+                <div class="page-callout">
+                    @L["platform.error.routeNotFound"]
+                </div>
+            }
         </LayoutView>
     </NotFound>
 </Router>

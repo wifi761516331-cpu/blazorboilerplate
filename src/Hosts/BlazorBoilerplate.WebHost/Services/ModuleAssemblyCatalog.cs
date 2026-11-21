@@ -201,6 +201,7 @@ public sealed class ModuleAssemblyCatalog
     private bool UnloadModule(string moduleId)
     {
         BlazorBoilerplate.ModuleAbstractions.WidgetZoneRegistry.UnregisterModule(moduleId);
+        BlazorBoilerplate.ModuleAbstractions.DomainRouteResolverRegistry.UnregisterModule(moduleId);
 
         ModuleEntry? current;
         lock (_gate)
@@ -278,6 +279,7 @@ public sealed class ModuleAssemblyCatalog
         var strategy = !isFrontendOnly ? ModuleRenderStrategy.Server : ModuleRenderStrategy.Auto;
         var versionStr = packageVersion?.ToString() ?? "0.0.0.0";
         BlazorBoilerplate.ModuleAbstractions.WidgetZoneRegistry.UnregisterModule(moduleId);
+        BlazorBoilerplate.ModuleAbstractions.DomainRouteResolverRegistry.UnregisterModule(moduleId);
         lock (_gate)
         {
             _active[moduleId] = new ModuleEntry(loaded, context, packageVersion, cssPath, dll, strategy, isFrontendOnly);

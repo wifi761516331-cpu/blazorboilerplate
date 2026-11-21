@@ -7,5 +7,6 @@ public interface IModuleCatalogControl
     bool IsAutoRenderMode(string moduleId);
     Task<bool> SetRenderModeAsync(string moduleId, bool useAuto, CancellationToken ct = default);
     Task RefreshModuleAsync(string moduleId, CancellationToken ct = default);
+    Type? ResolveComponent(string path);
 }
 

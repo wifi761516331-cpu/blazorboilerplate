@@ -1,6 +1,9 @@
 using BlazorBoilerplate.Application.Localization;
+using BlazorBoilerplate.ModuleAbstractions;
+using BlazorBoilerplate.Web.Shared.Components.Layout;
 using BlazorBoilerplate.Web.Shared.Localization;
 using BlazorBoilerplate.WebHost.Client.Services;
+using BlazorBoilerplate.WebHost.Components.Layout;
 using BlazorBoilerplate.WebHost.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Routing;
@@ -24,6 +27,12 @@ public partial class ClientRoutes
     [Inject]
     private FrontendLocalizationService FrontendLoc { get; set; } = default!;
 
+    [Inject]
+    private HttpClient Http { get; set; } = default!;
+
+    private DomainRouteMatch? _domainMatch;
+    private Type? _notFoundDomainComponent;
+
     protected override async Task OnInitializedAsync()
     {
         if (OperatingSystem.IsBrowser())
@@ -31,6 +40,20 @@ public partial class ClientRoutes
             await FrontendLoc.EnsureLoadedAsync();
             await Account.EnsureLoadedAsync();
         }
+
+        if (DomainRouteResolverRegistry.Current is { } resolver)
+            _domainMatch = await resolver.ResolveAsync(Http, new Uri(Navigation.BaseUri).Host);
+    }
+
+    private Type PickLayout()
+    {
+        var path = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/');
+        if (path is "/sign-in" or "/sign-up" or "/forgot-password" or "/setup")
+            return typeof(IdentityLayout);
+
+        return _domainMatch is { AllowAdminRoutes: false }
+            ? typeof(PortalLayout)
+            : typeof(MainLayout);
     }
 
     private async Task OnNavigateAsync(NavigationContext args)
@@ -50,8 +73,36 @@ public partial class ClientRoutes
             return;
         }
 
-        var requiresForceLoad = await ModuleCatalog.EnsureRouteReadyAsync(path, args.CancellationToken);
+        _notFoundDomainComponent = null;
+        var ensurePath = path;
+
+        if (DomainRouteResolverRegistry.Current is { } resolver)
+        {
+            _domainMatch ??= await resolver.ResolveAsync(Http, new Uri(Navigation.BaseUri).Host, args.CancellationToken);
+            if (_domainMatch is not null)
+            {
+                if (DomainRouteResolverRegistry.TryStripEntryPrefix(_domainMatch, path, out var stripped))
+                {
+                    Navigation.NavigateTo(stripped, replace: true);
+                    return;
+                }
+                if (DomainRouteResolverRegistry.ShouldRedirectAdminRoute(_domainMatch, clean))
+                {
+                    Navigation.NavigateTo("/", replace: true);
+                    return;
+                }
+                ensurePath = DomainRouteResolverRegistry.ResolveTargetPath(_domainMatch, clean);
+            }
+        }
+
+        var requiresForceLoad = await ModuleCatalog.EnsureRouteReadyAsync(ensurePath, args.CancellationToken);
         if (requiresForceLoad)
+        {
             Navigation.NavigateTo(args.Path ?? "/", forceLoad: true);
+            return;
+        }
+
+        if (_domainMatch is not null && clean != "/")
+            _notFoundDomainComponent = ModuleCatalog.ResolveComponent(ensurePath);
     }
 }

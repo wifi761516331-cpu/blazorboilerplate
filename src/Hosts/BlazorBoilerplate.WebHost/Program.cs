@@ -110,6 +110,12 @@ app.MapBffApiProxy();
 // 动态模块前端样式、版本清单、DLL 与渲染策略切换端点。
 app.MapModuleClientEndpoints();
 
+// 可选域名路由契约分发（仅当已安装模块注册了解析器时生效，零模块硬编码）。
+app.UseDomainRouting();
+
+// 未登录首屏 HTTP 守卫：在 SSR 渲染前直接 302 跳转登录页，避免先闪现 Home 再跳转。
+app.UseAuthGate();
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddInteractiveWebAssemblyRenderMode()

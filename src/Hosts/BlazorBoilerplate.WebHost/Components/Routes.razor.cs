@@ -19,17 +19,28 @@ public partial class Routes
     [Inject]
     private ILocalizationService L { get; set; } = default!;
 
+    [Inject]
+    private IHttpContextAccessor HttpContextAccessor { get; set; } = default!;
+
     /// <summary>
-    /// 按路由集中选择布局：登录页 /sign-in 与安装向导 /setup 使用独立的 IdentityLayout（无侧边栏）；
-    /// 其余路由使用主布局 MainLayout。
-    /// 原因：模块页面（如 SignIn.razor）的 @layout 指令在 SSR 预渲染阶段不可靠（实测会回退到默认 MainLayout），
-    /// 故不依赖页面级 @layout，而在路由层统一裁决，确保登录/安装页始终以 IdentityLayout 渲染。
+    /// 按路由与域名契约集中选择布局：
+    /// 1) 登录页 /sign-in 与安装向导 /setup 使用独立的 IdentityLayout；
+    /// 2) 命中域名路由且 AllowAdminRoutes=false 时使用无后台侧边栏的 C 端门户布局 PortalLayout；
+    /// 3) 其余路由使用主布局 MainLayout。
     /// </summary>
     private Type PickLayout()
     {
         var path = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/');
-        return path is "/sign-in" or "/sign-up" or "/forgot-password" or "/setup"
-            ? typeof(IdentityLayout)
-            : typeof(MainLayout);
+        if (path is "/sign-in" or "/sign-up" or "/forgot-password" or "/setup")
+            return typeof(IdentityLayout);
+
+        if (HttpContextAccessor.HttpContext?.Items.TryGetValue(
+                BlazorBoilerplate.ModuleAbstractions.DomainRouteResolverRegistry.HttpItemKey, out var raw) == true &&
+            raw is BlazorBoilerplate.ModuleAbstractions.DomainRouteMatch { AllowAdminRoutes: false })
+        {
+            return typeof(PortalLayout);
+        }
+
+        return typeof(MainLayout);
     }
 }

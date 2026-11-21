@@ -17,5 +17,7 @@ public sealed class ServerModuleCatalogControl(ModuleAssemblyCatalog catalog) : 
 
     public Task RefreshModuleAsync(string moduleId, CancellationToken ct = default) =>
         catalog.RefreshModuleAsync(moduleId, ct);
+
+    public Type? ResolveComponent(string path) => catalog.ResolveComponent(path);
 }
 

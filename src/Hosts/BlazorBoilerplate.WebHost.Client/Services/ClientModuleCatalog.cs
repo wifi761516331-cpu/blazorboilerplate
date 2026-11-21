@@ -31,6 +31,33 @@ public sealed class ClientModuleCatalog(HttpClient http)
     private ClientModuleManifest? _manifest;
 
     public IReadOnlyList<Assembly> Assemblies => _assemblies;
+
+    public Type? ResolveComponent(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return null;
+        var normalized = path.Split('?', '#')[0].TrimEnd('/');
+        if (normalized.Length == 0) normalized = "/";
+
+        foreach (var asm in _assemblies)
+        {
+            Type[] types;
+            try { types = asm.GetTypes(); }
+            catch (ReflectionTypeLoadException ex) { types = ex.Types.Where(t => t is not null).Select(t => t!).ToArray(); }
+
+            foreach (var type in types)
+            {
+                if (!typeof(Microsoft.AspNetCore.Components.IComponent).IsAssignableFrom(type)) continue;
+                var route = type.GetCustomAttribute<Microsoft.AspNetCore.Components.RouteAttribute>()?.Template;
+                if (string.IsNullOrEmpty(route)) continue;
+                var template = route.TrimEnd('/');
+                if (template.Length == 0) template = "/";
+                if (string.Equals(template, normalized, StringComparison.OrdinalIgnoreCase))
+                    return type;
+            }
+        }
+        return null;
+    }
     public ClientModuleManifest? Manifest => _manifest;
 
     public async Task RefreshManifestAsync(CancellationToken ct = default)
@@ -44,6 +71,7 @@ public sealed class ClientModuleCatalog(HttpClient http)
                 foreach (var loadedId in _loaded.Keys.Where(id => !activeIds.Contains(id)).ToList())
                 {
                     WidgetZoneRegistry.UnregisterModule(loadedId);
+        DomainRouteResolverRegistry.UnregisterModule(loadedId);
                     _loaded.Remove(loadedId);
                 }
             }
@@ -133,6 +161,7 @@ public sealed class ClientModuleCatalog(HttpClient http)
         if (asm is not null)
         {
             WidgetZoneRegistry.UnregisterModule(moduleId);
+        DomainRouteResolverRegistry.UnregisterModule(moduleId);
             RegisterModuleServices(asm, new ServiceCollection());
         }
     }
