@@ -388,4 +388,38 @@ public class PlatformExtensionsTests : IDisposable
         Assert.Equal(ModuleResourceType.Stylesheet, attrs[0].Type);
         Assert.Equal("/_modules/assets/demo/chart.js", attrs[1].Url);
     }
+
+    private sealed class DemoLifecycleHook(List<string> events) : IModuleLifecycleHooks
+    {
+        public Task InstallAsync(IModuleContext context, CancellationToken cancellationToken)
+        {
+            events.Add("install");
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(IModuleContext context, string previousVersion, string targetVersion, CancellationToken cancellationToken)
+        {
+            events.Add($"update:{previousVersion}->{targetVersion}");
+            return Task.CompletedTask;
+        }
+
+        public Task UninstallAsync(IModuleContext context, CancellationToken cancellationToken)
+        {
+            events.Add("uninstall");
+            return Task.CompletedTask;
+        }
+    }
+
+    [Fact]
+    public async Task ModuleLifecycleHooks_CoverInstallUpdateAndUninstall()
+    {
+        var events = new List<string>();
+        IModuleLifecycleHooks hook = new DemoLifecycleHook(events);
+
+        await hook.InstallAsync(null!, CancellationToken.None);
+        await hook.UpdateAsync(null!, "1.0.0", "1.1.0", CancellationToken.None);
+        await hook.UninstallAsync(null!, CancellationToken.None);
+
+        Assert.Equal(["install", "update:1.0.0->1.1.0", "uninstall"], events);
+    }
 }

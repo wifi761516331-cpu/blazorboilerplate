@@ -38,9 +38,9 @@ public sealed class ModulePackService(
         var root = SourceRoot;
         if (root is null) return [];
         var sources = new List<ModuleSourceInfo>();
-        // 兼容 src/Modules/<工程> 与 src/Modules/<分类>/<工程> 两种布局。
+        // 兼容 src/Modules/<工程> 与 src/Modules/<分类>/<工程> 两种布局（即使分类目录下有 README.md 等说明文件也能正确下钻）。
         var projectDirs = Directory.EnumerateDirectories(root)
-            .SelectMany(d => Directory.EnumerateFileSystemEntries(d).Any(File.Exists)
+            .SelectMany(d => File.Exists(Path.Combine(d, "manifest.json"))
                 ? [d]
                 : Directory.EnumerateDirectories(d))
             .Distinct(StringComparer.OrdinalIgnoreCase);

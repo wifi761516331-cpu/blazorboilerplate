@@ -336,6 +336,27 @@ public static class ModuleManagementEndpoints
             })
             .WithSummary("Drain, stop and unload a module without restarting the host")
             .RequirePermission("module.unload");
+
+        group.MapPost("/{id}/uninstall", async (string id, ModuleLifecycleManager manager,
+                    HttpContext context, CancellationToken cancellationToken) =>
+            {
+                try
+                {
+                    await manager.UninstallAsync(id, cancellationToken);
+                    await ModuleDataHooks.OnUnloadedAsync(context.RequestServices, id, cancellationToken);
+                    return Results.Ok(new { id, state = nameof(ModuleState.Uninstalled) });
+                }
+                catch (KeyNotFoundException)
+                {
+                    return Results.NotFound(new { error = $"Module '{id}' not found." });
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return Results.Conflict(new { error = ex.Message });
+                }
+            })
+            .WithSummary("Trigger uninstall lifecycle hooks, unload ALC and remove the module package")
+            .RequirePermission("module.unload");
     }
 
     private static bool TryGetDescriptor(string id, ModuleLifecycleManager manager, out ModuleDescriptor descriptor)

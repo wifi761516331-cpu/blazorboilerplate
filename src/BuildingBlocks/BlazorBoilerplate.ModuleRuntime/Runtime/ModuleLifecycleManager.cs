@@ -316,6 +316,7 @@ public sealed class ModuleLifecycleManager(
 
             var services = new ServiceCollection();
             services.AddSingleton(loggerFactory);
+            services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
 
             // 宿主事件总线注入模块 DI：DbContext 的写后发布拦截器与模块 handler 共用同一实例。
             // IEventPublisher / IChannelBus 契约在 Domain（共享程序集），类型身份一致。
@@ -530,6 +531,123 @@ public sealed class ModuleLifecycleManager(
             await SafeDisposeAsync(handle, cancellationToken);
             throw;
         }
+    }
+
+    /// <summary>
+    /// 彻底卸载模块：触发 IModuleLifecycleHooks.UninstallAsync 业务清理钩子，
+    /// 停用并释放 ALC，清除生命周期版本记录并移除磁盘包目录。
+    /// </summary>
+    public async Task UninstallAsync(string id, CancellationToken cancellationToken = default)
+    {
+        if (!catalog.TryGet(id, out var entry))
+            throw new InvalidOperationException($"Module '{id}' not found in catalog.");
+        if (entry.Manifest.IsEssential)
+            throw new InvalidOperationException($"Module '{id}' is essential and cannot be uninstalled.");
+
+        if (_handles.TryGetValue(id, out var runningHandle))
+        {
+            await RunUninstallHooksAsync(
+                runningHandle.Module!,
+                runningHandle.Module!.GetType().Assembly,
+                runningHandle.Services!,
+                runningHandle,
+                cancellationToken);
+            await UnloadAsync(id, cancellationToken);
+        }
+        else
+        {
+            var entryAssemblyPath = Path.Combine(entry.Descriptor.PackagePath, entry.Manifest.EntryAssembly);
+            if (File.Exists(entryAssemblyPath))
+            {
+                var tempAlc = loadContextFactory.Create(id, entry.Descriptor.Version, entryAssemblyPath);
+                try
+                {
+                    var assembly = tempAlc.LoadAssemblyNoLock(entryAssemblyPath);
+                    var entryType = assembly.GetType(entry.Manifest.EntryType, throwOnError: true)!;
+                    var module = (IModule)Activator.CreateInstance(entryType)!;
+                    await using var sp = new ServiceCollection().BuildServiceProvider();
+                    var tempCtx = new UninstallModuleContext(id, entry.Descriptor.Version, hostServices, loggerFactory, audit, cancellationToken);
+                    await RunUninstallHooksAsync(module, assembly, sp, tempCtx, cancellationToken);
+                    await module.DisposeAsync();
+                }
+                finally
+                {
+                    tempAlc.Unload();
+                }
+            }
+        }
+
+        var stateFile = Path.Combine(AppContext.BaseDirectory, "data", "module-lifecycle-versions.json");
+        var versions = LoadLifecycleVersions(stateFile);
+        if (versions.Remove(id))
+            SaveLifecycleVersions(stateFile, versions);
+
+        foreach (var verEntry in catalog.ListVersions(id))
+        {
+            var pkgPath = verEntry.Descriptor.PackagePath;
+            if (!string.IsNullOrWhiteSpace(pkgPath) && Directory.Exists(pkgPath))
+            {
+                try { Directory.Delete(pkgPath, recursive: true); }
+                catch (Exception ex) { logger.LogWarning(ex, "清理已卸载模块目录失败：{Path}", pkgPath); }
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(entry.Descriptor.PackagePath))
+        {
+            var moduleRootDir = Directory.GetParent(entry.Descriptor.PackagePath);
+            if (moduleRootDir is not null &&
+                string.Equals(moduleRootDir.Name, id, StringComparison.OrdinalIgnoreCase) &&
+                moduleRootDir.Exists &&
+                !moduleRootDir.EnumerateFileSystemInfos().Any())
+            {
+                try { moduleRootDir.Delete(recursive: false); }
+                catch (Exception ex) { logger.LogWarning(ex, "清理空模块根目录失败：{Path}", moduleRootDir.FullName); }
+            }
+        }
+
+        catalog.Remove(id);
+        stateStore?.Save(id, entry.Descriptor.Version, isRunning: false);
+        audit.Record(new ModuleAuditEntry(DateTimeOffset.UtcNow, id, entry.Descriptor.Version, "Uninstall", "OK", null));
+    }
+
+    private sealed class UninstallModuleContext(
+        string moduleId,
+        string version,
+        IServiceProvider hostServices,
+        ILoggerFactory loggerFactory,
+        IModuleAudit audit,
+        CancellationToken hostStopping) : IModuleContext
+    {
+        public string ModuleId { get; } = moduleId;
+        public string Version { get; } = version;
+        public IServiceProvider HostServices { get; } = hostServices;
+        public ILoggerFactory LoggerFactory { get; } = loggerFactory;
+        public IModuleAudit Audit { get; } = audit;
+        public CancellationToken HostStopping { get; } = hostStopping;
+    }
+
+    private static async Task RunUninstallHooksAsync(
+        IModule module,
+        System.Reflection.Assembly assembly,
+        IServiceProvider provider,
+        IModuleContext context,
+        CancellationToken ct)
+    {
+        var hookInstances = new List<IModuleLifecycleHooks>();
+        if (module is IModuleLifecycleHooks entryHook)
+            hookInstances.Add(entryHook);
+
+        var extraHookTypes = assembly.GetTypes()
+            .Where(t => t != module.GetType()
+                && t.IsClass
+                && !t.IsAbstract
+                && typeof(IModuleLifecycleHooks).IsAssignableFrom(t))
+            .ToArray();
+        foreach (var t in extraHookTypes)
+            hookInstances.Add((IModuleLifecycleHooks)ActivatorUtilities.CreateInstance(provider, t));
+
+        foreach (var hook in hookInstances)
+            await hook.UninstallAsync(context, ct);
     }
 
     private static async Task RunInstallOrUpdateHooksAsync(
