@@ -1,9 +1,6 @@
 @page "/"
 @namespace BlazorBoilerplate.WebHost.Components.Pages
 
-@* 页面骨架：
-   <section> + 4 统计卡 + 6 列 Widget 网格。
-   前 3 张统计卡仍取真实 ApiHost 数据，其余 Widget 使用 DashboardMockData（后续接接口时替换该静态源）。 *@
 @if (_domainComponentType is not null)
 {
     <DynamicComponent Type="@_domainComponentType" />
@@ -12,130 +9,60 @@ else
 {
 <section>
     <WidgetZone Name="home_widgets_top" />
+
     <div class="bb-stat-row">
-        <div class="bb-stat">
-            <div class="bb-stat-icon"><AppIcon Name="Info" /></div>
-            <div class="bb-stat-body">
-                <p class="bb-stat-value">@(_status?.Mode ?? "—")</p>
-                <span class="bb-stat-label">@L["platform.home.stat.mode"]</span>
-            </div>
-        </div>
-        <div class="bb-stat">
-            <div class="bb-stat-icon"><AppIcon Name="Puzzle" /></div>
-            <div class="bb-stat-body">
-                <p class="bb-stat-value">@_moduleCount</p>
-                <span class="bb-stat-label">@L["platform.home.stat.modules"]</span>
-            </div>
-        </div>
-        <div class="bb-stat">
-            <div class="bb-stat-icon"><AppIcon Name="Shop" /></div>
-            <div class="bb-stat-body">
-                <p class="bb-stat-value">@(_productCount?.ToString() ?? "—")</p>
-                <span class="bb-stat-label">@L["platform.home.stat.products"]</span>
-            </div>
-        </div>
-        <div class="bb-stat">
-            <div class="bb-stat-icon"><AppIcon Name="People" /></div>
-            <div class="bb-stat-body">
-                <p class="bb-stat-value">@DashboardMockData.MockUserCount</p>
-                <span class="bb-stat-label">@L["platform.home.stat.activeUsers"]</span>
-            </div>
-        </div>
+        <DashboardStatCard Icon="Info" Value="@(_status?.Mode ?? "—")" Label="@L["platform.home.stat.mode"]" />
+        <DashboardStatCard Icon="Puzzle" Value="@_moduleCount.ToString()" Label="@L["platform.home.stat.modules"]" />
+        <WidgetZone Name="home_stats" />
     </div>
 
     <div class="bb-widgets">
-        <div class="bb-widget span-4">
-            <div class="bb-widget-head">
-                <h2 class="bb-widget-title">@L["platform.home.widget.categoryCounts"]</h2>
-                <span class="bb-widget-sub">@L["platform.home.widget.mock30Days"]</span>
-            </div>
-            <div class="bb-chart">
-                @{ var max = DashboardMockData.Categories.Max(c => c.Count); }
-                @foreach (var c in DashboardMockData.Categories)
+        <WidgetZone Name="home_widgets" />
+
+        <PermissionView Code="system.settings.read">
+            <DashboardWidgetCard Title="@L["platform.home.widget.recentActivity"]" Span="3">
+                @if (_activities.Count == 0)
                 {
-                    <div class="bb-bar-wrap">
-                        <span class="bb-bar-value">@c.Count</span>
-                        <div class="bb-bar" style="height:@(c.Count * 100 / max)%;background:@c.Color"></div>
-                        <span class="bb-bar-label">@c.Name</span>
-                    </div>
+                    <BitText Class="muted">@L["platform.common.empty"]</BitText>
                 }
-            </div>
-        </div>
-
-        <div class="bb-widget span-2">
-            <div class="bb-widget-head">
-                <h2 class="bb-widget-title">@L["platform.home.widget.productShare"]</h2>
-                <span class="bb-widget-sub">mock</span>
-            </div>
-            <div class="bb-pie-row">
-                <div class="bb-pie">
-                    <div class="bb-pie-hole">@DashboardMockData.MockCategoryTotal</div>
-                </div>
-                <div class="bb-legend">
-                    @foreach (var c in DashboardMockData.Categories)
-                    {
-                        <div class="bb-legend-item">
-                            <span class="bb-swatch" style="background:@c.Color"></span>
-                            <span>@c.Name · @c.Count</span>
-                        </div>
-                    }
-                </div>
-            </div>
-        </div>
-
-        <div class="bb-widget span-3">
-            <div class="bb-widget-head">
-                <h2 class="bb-widget-title">@L["platform.home.widget.recentActivity"]</h2>
-                <span class="bb-widget-sub">mock</span>
-            </div>
-            <ul class="bb-activity">
-                @foreach (var a in DashboardMockData.Activities)
+                else
                 {
-                    <li>
-                        <span class="bb-dot"></span>
-                        <span>@a.Text</span>
-                        <time>@a.Time</time>
-                    </li>
+                    <ul class="bb-activity">
+                        @foreach (var a in _activities)
+                        {
+                            <li>
+                                <span class="bb-dot"></span>
+                                <span>@a.Comment</span>
+                                <time>@a.CreatedAtUtc.ToLocalTime().ToString("MM-dd HH:mm")</time>
+                            </li>
+                        }
+                    </ul>
                 }
-            </ul>
-        </div>
+            </DashboardWidgetCard>
+        </PermissionView>
 
-        <div class="bb-widget span-3">
-            <div class="bb-widget-head">
-                <h2 class="bb-widget-title">@L["platform.home.widget.quickLinks"]</h2>
-                <span class="bb-widget-sub">@L["platform.home.widget.platformFeatures"]</span>
-            </div>
+        <DashboardWidgetCard Title="@L["platform.home.widget.quickLinks"]" Subtitle="@L["platform.home.widget.platformFeatures"]" Span="3">
             <div class="bb-quick">
-                @foreach (var link in DashboardMockData.QuickLinks)
+                @foreach (var link in _quickLinks)
                 {
-                    <a href="@link.Href">
-                        <AppIcon Name="@link.Icon" />
-                        <span>@link.Text</span>
+                    <a href="@link.Path">
+                        <AppIcon Name="@(string.IsNullOrWhiteSpace(link.Icon) ? "Grid" : link.Icon!)" />
+                        <span>@link.Name</span>
                     </a>
                 }
-                @* 按钮级权限示范：仅当账户具备 identity.user.update（或 "*"）时显示入口 *@
-                <PermissionView Code="identity.user.update">
-                    <a href="/profile">
-                        <AppIcon Name="Contact" />
-                        <span>@L["platform.nav.profile"]</span>
-                    </a>
-                </PermissionView>
             </div>
-        </div>
+        </DashboardWidgetCard>
 
-        <div class="bb-widget span-6">
-            <div class="bb-widget-head">
-                <h2 class="bb-widget-title">@L.GetString("platform.home.aboutTitle", SysState.Public.SystemName)</h2>
-                <span class="bb-widget-sub">@SysState.Public.FooterText</span>
-            </div>
+        <DashboardWidgetCard Title="@L.GetString("platform.home.aboutTitle", SysState.Public.SystemName)"
+                             Subtitle="@SysState.Public.FooterText"
+                             Span="6">
             <p class="muted">@L["platform.home.aboutDesc"]</p>
             <div class="row">
                 <BitLink Href="/modules">@L["platform.home.openModules"] →</BitLink>
-                <BitLink Href="/catalog">@L["platform.home.openCatalog"] →</BitLink>
             </div>
-        </div>
+        </DashboardWidgetCard>
     </div>
+
     <WidgetZone Name="home_widgets_bottom" />
 </section>
 }
-

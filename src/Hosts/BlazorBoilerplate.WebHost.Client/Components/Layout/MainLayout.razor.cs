@@ -127,7 +127,7 @@ public partial class MainLayout
         if (!string.IsNullOrWhiteSpace(menu.ModuleId) && _moduleStates.Count > 0)
         {
             var mod = _moduleStates.FirstOrDefault(x => string.Equals(x.Id, menu.ModuleId, StringComparison.OrdinalIgnoreCase));
-            return mod is null || mod.State == ModuleState.Running;
+            return mod is not null && mod.State == ModuleState.Running;
         }
         return true;
     }
@@ -314,6 +314,14 @@ public partial class MainLayout
         try
         {
             _moduleStates = [.. await Api.GetModulesAsync()];
+            if (_moduleStates.Count > 0)
+            {
+                var runningIds = _moduleStates
+                    .Where(m => m.State == ModuleState.Running)
+                    .Select(m => m.Id)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                WidgetZoneRegistry.UnregisterInactiveModules(runningIds);
+            }
         }
         catch
         {

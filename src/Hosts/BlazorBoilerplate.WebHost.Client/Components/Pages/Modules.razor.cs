@@ -225,6 +225,8 @@ public partial class Modules
         try
         {
             var result = await Api.LoadAllModulesAsync();
+            foreach (var mod in result.Where(m => m.State == ModuleState.Running))
+                await ModuleCatalog.RefreshModuleAsync(mod.Id);
             var running = result.Count(m => m.State == ModuleState.Running);
             Toast.Success(L.GetString("platform.modules.toast.loadAllSuccess", running, result.Count));
             _modules = result.OrderBy(m => m.Order).ThenBy(m => m.Name).ToList();

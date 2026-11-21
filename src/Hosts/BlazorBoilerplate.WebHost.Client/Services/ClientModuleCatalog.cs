@@ -71,8 +71,10 @@ public sealed class ClientModuleCatalog(HttpClient http)
                 foreach (var loadedId in _loaded.Keys.Where(id => !activeIds.Contains(id)).ToList())
                 {
                     WidgetZoneRegistry.UnregisterModule(loadedId);
-        DomainRouteResolverRegistry.UnregisterModule(loadedId);
-                    _loaded.Remove(loadedId);
+                    DomainRouteResolverRegistry.UnregisterModule(loadedId);
+                    if (_loaded.Remove(loadedId, out var removed))
+                        _assemblies.Remove(removed.Assembly);
+                    _bootRegistered.Remove(loadedId);
                 }
             }
         }
