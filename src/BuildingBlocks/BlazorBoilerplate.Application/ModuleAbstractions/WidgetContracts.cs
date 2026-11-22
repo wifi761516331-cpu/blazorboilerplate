@@ -28,13 +28,21 @@ public static class WidgetZoneRegistry
     /// <summary>微件注册表变更通知（用于驱动已渲染的 WidgetZone 即时刷新）。</summary>
     public static event Action? Changed;
 
-    /// <summary>注册组件到指定插槽。</summary>
+    /// <summary>注册组件到指定插槽（兼容已编译模块的四参数二进制签名）。</summary>
     public static void Register(
         string zone,
         Type componentType,
         string moduleId,
-        int order = ModuleStartupDefaults.DefaultOrder,
-        string? requiredPermission = null)
+        int order = ModuleStartupDefaults.DefaultOrder) =>
+        Register(zone, componentType, moduleId, order, requiredPermission: null);
+
+    /// <summary>注册组件到指定插槽（支持权限过滤）。</summary>
+    public static void Register(
+        string zone,
+        Type componentType,
+        string moduleId,
+        int order,
+        string? requiredPermission)
     {
         if (string.IsNullOrWhiteSpace(zone) || componentType is null)
             return;

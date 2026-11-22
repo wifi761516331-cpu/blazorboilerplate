@@ -338,6 +338,8 @@ public sealed class ModuleLifecycleManager(
                 services.AddSingleton(messageTemplate);
             if (hostServices.GetService(typeof(IQueuedEmailService)) is IQueuedEmailService queuedEmail)
                 services.AddSingleton(queuedEmail);
+            if (hostServices.GetService(typeof(ISystemEmailProvider)) is ISystemEmailProvider systemEmail)
+                services.AddSingleton(systemEmail);
             if (hostServices.GetService(typeof(ICacheService)) is ICacheService cacheService)
                 services.AddSingleton(cacheService);
             if (hostServices.GetService(typeof(IScheduleTaskManager)) is IScheduleTaskManager scheduleTasks)

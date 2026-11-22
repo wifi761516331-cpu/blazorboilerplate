@@ -89,6 +89,8 @@ public sealed class ModuleMenuManifest
     public string Text { get; set; } = string.Empty;
     public string Route { get; set; } = string.Empty;
     public string? Icon { get; set; }
+    public string? Group { get; set; }
+    public string? GroupIcon { get; set; }
     public int Sort { get; set; }
 }
 

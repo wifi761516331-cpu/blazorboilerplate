@@ -32,6 +32,12 @@ public interface IEmailSender
     Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken);
 }
 
+/// <summary>解析系统管理员配置的服务/通知邮箱（优先取系统设置中的 SMTP 发件人邮箱）。</summary>
+public interface ISystemEmailProvider
+{
+    string? GetAdminEmail();
+}
+
 public interface ISmsSender
 {
     Task SendAsync(string phoneNumber, string message, CancellationToken cancellationToken);
