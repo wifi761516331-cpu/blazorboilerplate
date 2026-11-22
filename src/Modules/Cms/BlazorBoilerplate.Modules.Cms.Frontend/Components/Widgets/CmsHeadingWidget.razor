@@ -1,0 +1,20 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<div class="cms-w-heading" style="@AlignStyle">
+    @switch ((_props.Level ?? "h2").ToLowerInvariant())
+    {
+        case "h1":
+            <h1>@_props.Title</h1>
+            break;
+        case "h3":
+            <h3>@_props.Title</h3>
+            break;
+        default:
+            <h2>@_props.Title</h2>
+            break;
+    }
+    @if (!string.IsNullOrWhiteSpace(_props.Subtitle))
+    {
+        <p class="cms-heading-sub">@_props.Subtitle</p>
+    }
+</div>

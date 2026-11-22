@@ -1,0 +1,23 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<figure class="cms-w-video">
+    @if (!string.IsNullOrWhiteSpace(_props.VideoUrl))
+    {
+        <video src="@_props.VideoUrl"
+               poster="@_props.PosterUrl"
+               controls="@_props.Controls"
+               autoplay="@_props.AutoPlay"
+               loop="@_props.Loop"
+               muted="@_props.AutoPlay"
+               playsinline="true"
+               style="@($"max-height:{Math.Clamp(_props.MaxHeight, 180, 720)}px;")"></video>
+    }
+    else
+    {
+        <div class="cms-media-placeholder">请填写视频 URL（MP4 / WebM）</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(_props.Caption))
+    {
+        <figcaption>@_props.Caption</figcaption>
+    }
+</figure>

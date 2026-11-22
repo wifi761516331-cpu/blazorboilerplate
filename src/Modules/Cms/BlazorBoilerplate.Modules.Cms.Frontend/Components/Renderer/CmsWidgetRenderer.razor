@@ -1,0 +1,35 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Renderer
+
+<div @ref="_boxRef"
+     class="cms-widget-box @(IsDesignMode ? "is-design" : "") @(IsSelected ? "is-selected" : "") @StyleClass"
+     style="@InlineStyle"
+     draggable="@(IsDesignMode ? "true" : "false")"
+     ondragenter="@(IsDesignMode ? "event.preventDefault();" : null)"
+     ondragover="@(IsDesignMode ? "event.preventDefault();" : null)"
+     @ondragstart="HandleDragStart"
+     @ondrop="HandleDropOnSelfAsync"
+     @ondrop:stopPropagation="@IsDesignMode"
+     @onclick="HandleSelectAsync"
+     @onclick:stopPropagation="@IsDesignMode"
+     @ondblclick="HandleDoubleClickAsync"
+     @ondblclick:stopPropagation="@IsDesignMode">
+    @if (IsDesignMode)
+    {
+        <div class="cms-widget-design-bar">
+            <span>☰ @Widget.Title</span>
+            <div class="cms-widget-design-actions">
+                <button type="button" title="上移" @onclick="() => HandleMoveOrderAsync(-1)" @onclick:stopPropagation="true">↑</button>
+                <button type="button" title="下移" @onclick="() => HandleMoveOrderAsync(1)" @onclick:stopPropagation="true">↓</button>
+                <button type="button" title="复制" @onclick="HandleDuplicateAsync" @onclick:stopPropagation="true">⧉</button>
+                <button type="button" title="删除" @onclick="HandleDeleteAsync" @onclick:stopPropagation="true">✕</button>
+            </div>
+        </div>
+    }
+    <DynamicComponent Type="@ComponentType" Parameters="@WidgetParameters" />
+    @if (IsDesignMode && IsSelected)
+    {
+        <div class="cms-widget-resize-e" title="拖拽调整宽度" draggable="false" @onpointerdown='() => StartResizeAsync("e")' @onpointerdown:stopPropagation="true"></div>
+        <div class="cms-widget-resize-s" title="拖拽调整高度" draggable="false" @onpointerdown='() => StartResizeAsync("s")' @onpointerdown:stopPropagation="true"></div>
+        <div class="cms-widget-resize-se" title="拖拽调整宽高" draggable="false" @onpointerdown='() => StartResizeAsync("se")' @onpointerdown:stopPropagation="true"></div>
+    }
+</div>

@@ -1,0 +1,27 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<div class="cms-w-gallery">
+    @if (!string.IsNullOrWhiteSpace(_props.Heading))
+    {
+        <h2 class="cms-sec-heading">@_props.Heading</h2>
+    }
+    @if (_props.Items.Count == 0)
+    {
+        <div class="cms-gallery-empty">暂无图片，请在右侧属性面板从附件库添加图片。</div>
+    }
+    else
+    {
+        <div class="cms-gallery-grid">
+            @foreach (var img in _props.Items)
+            {
+                <figure class="cms-gallery-card">
+                    <img src="@img.Url" alt="@img.Caption" loading="lazy" />
+                    @if (!string.IsNullOrWhiteSpace(img.Caption))
+                    {
+                        <figcaption>@img.Caption</figcaption>
+                    }
+                </figure>
+            }
+        </div>
+    }
+</div>

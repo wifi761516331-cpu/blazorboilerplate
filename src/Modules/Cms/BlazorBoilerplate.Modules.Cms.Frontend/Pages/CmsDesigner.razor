@@ -1,0 +1,435 @@
+@page "/cms/designer/{SiteId:guid}"
+@attribute [Authorize]
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Pages
+
+<div class="cms-designer-root">
+    @if (_loading)
+    {
+        <div class="cms-designer-loading">@L["cms.designer.loading"]</div>
+    }
+    else if (_design is null)
+    {
+        <div class="cms-designer-loading">@L["cms.designer.notFound"]</div>
+    }
+    else
+    {
+        <header class="cms-designer-bar">
+            <div class="cms-bar-left">
+                <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick='() => Navigation.NavigateTo("/cms")'>@L["cms.action.back"]</BitButton>
+                <strong>@_design.Site.Name</strong>
+                <BitTag Size="BitSize.Small" Color="@(_design.Site.IsPublished ? BitColor.Success : BitColor.Warning)">
+                    @(_design.Site.IsPublished ? L["cms.status.published"] : L["cms.status.draft"])
+                </BitTag>
+            </div>
+
+            <div class="cms-bar-center">
+                <BitButton Size="BitSize.Small" Variant='@(_viewport == "desktop" ? BitVariant.Fill : BitVariant.Outline)' OnClick='() => _viewport = "desktop"'>@L["cms.designer.viewport.desktop"]</BitButton>
+                <BitButton Size="BitSize.Small" Variant='@(_viewport == "tablet" ? BitVariant.Fill : BitVariant.Outline)' OnClick='() => _viewport = "tablet"'>@L["cms.designer.viewport.tablet"]</BitButton>
+                <BitButton Size="BitSize.Small" Variant='@(_viewport == "mobile" ? BitVariant.Fill : BitVariant.Outline)' OnClick='() => _viewport = "mobile"'>@L["cms.designer.viewport.mobile"]</BitButton>
+                @if (_design.Site.SupportedCultures.Count > 1)
+                {
+                    <select class="cms-culture-select" value="@_activeCulture" @onchange="OnCultureChangedAsync">
+                        @foreach (var lang in _design.Site.SupportedCultures)
+                        {
+                            <option value="@lang">@lang</option>
+                        }
+                    </select>
+                }
+                @if (_design.Sections.Count == 0 && !string.Equals(_activeCulture, _design.Site.DefaultCulture, StringComparison.OrdinalIgnoreCase))
+                {
+                    <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick="CloneFromDefaultCultureAsync">
+                        @L.GetString("cms.designer.cloneCulture", _design.Site.DefaultCulture)
+                    </BitButton>
+                }
+            </div>
+
+            <div class="cms-bar-right">
+                @if (IsDefaultTemplate)
+                {
+                    <PermissionGate Code="cms.site.write">
+                        <BitButton Size="BitSize.Small" Variant="BitVariant.Fill" OnClick="CloneCurrentSiteAsync" IsEnabled="@(!_busy)">复制为新站点</BitButton>
+                    </PermissionGate>
+                }
+                else
+                {
+                    <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick="UndoAsync" IsEnabled="@(_undoStack.Count > 0 && !_busy)">↩ 撤销 (@_undoStack.Count)</BitButton>
+                    <PermissionGate Code="cms.ai.generate">
+                        <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick="OpenAiModal">@L["cms.designer.aiBtn"]</BitButton>
+                    </PermissionGate>
+                }
+                <BitButton Size="BitSize.Small"
+                           Variant="@(_isLivePreview ? BitVariant.Fill : BitVariant.Outline)"
+                           OnClick="ToggleLivePreview">
+                    @(_isLivePreview ? "退出预览" : L["cms.designer.previewBtn"])
+                </BitButton>
+                <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick="OpenPublishedSite">已发布</BitButton>
+                @if (!IsDefaultTemplate)
+                {
+                    <PermissionGate Code="cms.site.publish">
+                        <BitButton Size="BitSize.Small" Variant="BitVariant.Fill" OnClick="PublishAsync" IsEnabled="@(!_busy)">@L["cms.designer.publishBtn"]</BitButton>
+                    </PermissionGate>
+                }
+            </div>
+        </header>
+
+        @if (IsDefaultTemplate && !_isLivePreview)
+        {
+            <div class="cms-readonly-banner">
+                <span>当前为默认官网模板（只读保护），不可直接编辑或删除；如需定制，请点击「复制为新站点」。</span>
+                <BitButton Size="BitSize.Small" Variant="BitVariant.Fill" OnClick="CloneCurrentSiteAsync" IsEnabled="@(!_busy)">复制为新站点</BitButton>
+            </div>
+        }
+
+        <div class="cms-designer-body @(EffectiveLivePreview ? "is-preview" : "")">
+            @if (!EffectiveLivePreview)
+            {
+            <!-- 左侧：组件库 & 区块大纲 -->
+            <aside class="cms-panel-left">
+                <div class="cms-panel-tabs">
+                    <button type="button" class='@(_leftTab == "widgets" ? "is-active" : "")' @onclick='() => _leftTab = "widgets"'>@L["cms.designer.tab.widgets"]</button>
+                    <button type="button" class='@(_leftTab == "sections" ? "is-active" : "")' @onclick='() => _leftTab = "sections"'>@L.GetString("cms.designer.tab.sections", _design.Sections.Count)</button>
+                </div>
+
+                @if (_leftTab == "widgets")
+                {
+                    <div class="cms-palette-list">
+                        <p class="cms-hint">@L["cms.designer.widgetsHint"]</p>
+                        <input class="cms-palette-search"
+                               type="search"
+                               placeholder="搜索组件..."
+                               @bind="_widgetFilter"
+                               @bind:event="oninput" />
+                        @foreach (var grp in CmsWidgetCatalog.All
+                            .Where(d => string.IsNullOrWhiteSpace(_widgetFilter)
+                                || d.Name.Contains(_widgetFilter, StringComparison.OrdinalIgnoreCase)
+                                || d.Description.Contains(_widgetFilter, StringComparison.OrdinalIgnoreCase)
+                                || d.Category.Contains(_widgetFilter, StringComparison.OrdinalIgnoreCase))
+                            .GroupBy(d => d.Category))
+                        {
+                            <div class="cms-palette-group-title">@grp.Key</div>
+                            @foreach (var def in grp)
+                            {
+                                <div class="cms-palette-card"
+                                     draggable="true"
+                                     @ondragstart="() => StartDragNewWidget(def.Type)"
+                                     @onclick="() => QuickAddWidgetAsync(def)">
+                                    <div class="cms-palette-icon"><AppIcon Name="@def.Icon" /></div>
+                                    <div class="cms-palette-info">
+                                        <strong>@def.Name</strong>
+                                        <small>@def.Description</small>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="cms-section-list">
+                        <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick="OpenAddSectionModal">@L["cms.designer.addSection"]</BitButton>
+                        @{ var orderedSections = _design.Sections.OrderBy(s => s.SortOrder).ToList(); }
+                        @for (var i = 0; i < orderedSections.Count; i++)
+                        {
+                            var idx = i;
+                            var sec = orderedSections[idx];
+                            <div class="cms-sec-item @(_activeSectionId == sec.Id ? "is-active" : "")"
+                                 @onclick="() => SelectSection(sec)">
+                                <div>
+                                    <strong>@sec.Title</strong>
+                                    <small>#@sec.AnchorSlug</small>
+                                </div>
+                                <div class="cms-sec-ops" @onclick:stopPropagation="true">
+                                    <button type="button" class="cms-sec-del" title="上移" disabled="@(idx == 0)"
+                                            @onclick="() => MoveSectionAsync(idx, -1)">↑</button>
+                                    <button type="button" class="cms-sec-del" title="下移" disabled="@(idx == orderedSections.Count - 1)"
+                                            @onclick="() => MoveSectionAsync(idx, 1)">↓</button>
+                                    <button type="button" class="cms-sec-del" title="删除区块"
+                                            @onclick="() => DeleteSectionAsync(sec.Id)">✕</button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </aside>
+            }
+
+            <!-- 中间：所见即所得实时画布 -->
+            <main class="cms-canvas-wrap" @onclick="ClearWidgetSelection">
+                <div class="cms-canvas-frame viewport-@_viewport" style="@ThemeVariablesStyle">
+                    <header class="cms-spa-nav" @onclick:stopPropagation="true">
+                        <div class="cms-container cms-spa-nav-inner">
+                            <span class="cms-brand-btn">
+                                @if (!string.IsNullOrWhiteSpace(_design.Site.LogoUrl))
+                                {
+                                    <img src="@_design.Site.LogoUrl" alt="@_design.Site.Title" class="cms-brand-logo @(EffectiveLivePreview ? "" : "cms-nav-editable")" title="@(EffectiveLivePreview ? "" : "双击更换 Logo")" @ondblclick="StartPickSiteLogo" />
+                                }
+                                @if (_editingSiteTitle)
+                                {
+                                    <input class="cms-nav-inline-input"
+                                           @bind="_editSiteTitleValue"
+                                           @bind:event="oninput"
+                                           @onblur="CommitSiteTitleAsync"
+                                           @onkeydown="OnSiteTitleKeyDownAsync"
+                                           autofocus />
+                                }
+                                else
+                                {
+                                    <span class="@(EffectiveLivePreview ? "" : "cms-nav-editable")"
+                                          title="@(EffectiveLivePreview ? "" : "双击编辑站点标题")"
+                                          @ondblclick="BeginEditSiteTitle">@_design.Site.Title</span>
+                                }
+                            </span>
+                            <nav class="cms-spa-links">
+                                @{
+                                    var navSections = _design.Sections.Where(s => s.NavVisible).OrderBy(s => s.SortOrder).ToList();
+                                    for (var i = 0; i < navSections.Count; i++)
+                                    {
+                                        var sec = navSections[i];
+                                        var isActive = _activeSectionId == sec.Id || (_activeSectionId is null && i == 0);
+                                        if (_editingNavSectionId == sec.Id)
+                                        {
+                                            <input class="cms-nav-inline-input cms-nav-inline-link-input"
+                                                   @bind="_editNavSectionTitle"
+                                                   @bind:event="oninput"
+                                                   @onblur="() => CommitNavSectionAsync(sec)"
+                                                   @onkeydown="e => OnNavSectionKeyDownAsync(e, sec)"
+                                                   autofocus />
+                                        }
+                                        else
+                                        {
+                                            <span class="cms-spa-link @(isActive ? "is-active" : "") @(EffectiveLivePreview ? "" : "cms-nav-editable")"
+                                                  title="@(EffectiveLivePreview ? "" : "单击选中区块，双击修改导航名称")"
+                                                  @onclick="() => SelectSection(sec)"
+                                                  @ondblclick="() => BeginEditNavSection(sec)">@sec.Title</span>
+                                        }
+                                    }
+                                }
+                            </nav>
+                            <div class="cms-nav-right">
+                                @if (!EffectiveLivePreview)
+                                {
+                                    <button type="button"
+                                            class="cms-nav-edit-btn @(_editingNavbar ? "is-active" : "")"
+                                            title="编辑站点标题、Logo 与顶部导航"
+                                            @onclick="OpenNavbarEditor">
+                                        ✎ 编辑导航
+                                    </button>
+                                }
+                                @if (_design.Site.SupportedCultures.Count > 1)
+                                {
+                                    <div class="cms-lang-switch">
+                                        @foreach (var lang in _design.Site.SupportedCultures)
+                                        {
+                                            <span class="cms-lang-btn @(string.Equals(_activeCulture, lang, StringComparison.OrdinalIgnoreCase) ? "is-active" : "")"
+                                                  style="cursor:pointer;"
+                                                  title="@lang"
+                                                  @onclick="() => SwitchCultureAsync(lang)">
+                                                @if (lang.StartsWith("zh", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    <svg class="cms-lang-flag" viewBox="0 0 30 20" aria-hidden="true">
+                                                        <rect width="30" height="20" rx="2" fill="#de2910" />
+                                                        <polygon points="5,3.5 5.9,6.2 8.7,6.2 6.4,7.8 7.3,10.5 5,8.8 2.7,10.5 3.6,7.8 1.3,6.2 4.1,6.2" fill="#ffde00" />
+                                                    </svg>
+                                                }
+                                                else if (lang.StartsWith("en", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    <svg class="cms-lang-flag" viewBox="0 0 30 20" aria-hidden="true">
+                                                        <rect width="30" height="20" rx="2" fill="#fff" />
+                                                        <rect y="0" width="30" height="3" fill="#b22234" />
+                                                        <rect y="6" width="30" height="3" fill="#b22234" />
+                                                        <rect y="12" width="30" height="3" fill="#b22234" />
+                                                        <rect y="17" width="30" height="3" fill="#b22234" />
+                                                        <rect width="12.5" height="11" fill="#3c3b6e" />
+                                                    </svg>
+                                                }
+                                                else
+                                                {
+                                                    @lang
+                                                }
+                                            </span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </header>
+
+                    @foreach (var sec in _design.Sections.OrderBy(s => s.SortOrder))
+                    {
+                        var pubSec = ToPublishedSection(sec);
+                        <div class="@(EffectiveLivePreview ? "" : $"cms-design-section-wrap {(_activeSectionId == sec.Id ? "is-active-sec" : "")}")"
+                             @onclick="() => SelectSection(sec)">
+                            @if (!EffectiveLivePreview)
+                            {
+                                <div class="cms-design-sec-tag">@L.GetString("cms.designer.sectionTag", sec.Title, sec.AnchorSlug)</div>
+                            }
+                            <CmsSectionRenderer Section="@pubSec"
+                                                SiteKey="@_design.Site.SiteKey"
+                                                IsDesignMode="@(!EffectiveLivePreview)"
+                                                SelectedWidgetId="@(EffectiveLivePreview ? null : _selectedWidget?.Id)"
+                                                OnSelectWidget="SelectWidget"
+                                                OnMoveWidgetOrder="MoveWidgetOrderAsync"
+                                                OnDuplicateWidget="DuplicateWidgetAsync"
+                                                OnDeleteWidget="DeleteWidgetAsync"
+                                                OnDragStartWidget="StartDragExistingWidget"
+                                                OnDropToZone="HandleDropToZoneAsync"
+                                                OnDropOnWidget="HandleDropOnWidgetAsync"
+                                                OnResizeWidget="ResizeWidgetAsync"
+                                                OnInlineEditText="InlineEditWidgetTextAsync"
+                                                OnInlineEditImage="StartInlineImagePick" />
+                        </div>
+                    }
+                </div>
+            </main>
+
+            @if (!EffectiveLivePreview)
+            {
+            <!-- 右侧：属性与主题配置面板 -->
+            <aside class="cms-panel-right">
+                @if (_selectedWidget is not null)
+                {
+                    <div class="cms-inspector">
+                        <div class="cms-inspector-head">
+                            <h4>@L["cms.designer.inspector.widget"]</h4>
+                            <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick="ClearWidgetSelection">@L["cms.action.close"]</BitButton>
+                        </div>
+                        <BitTextField @bind-Value="_editWidgetTitle" @bind-Value:after="SyncLiveWidgetPreview" Immediate="true" Label="@L["cms.designer.inspector.widgetTitle"]" />
+                        <CmsWidgetPropertyEditor WidgetId="@_selectedWidget.Id"
+                                                   WidgetType="@_selectedWidget.WidgetType"
+                                                   PropsJson="@_editWidgetPropsJson"
+                                                   PropsJsonChanged="OnEditorPropsChanged"
+                                                   StyleJson="@_editWidgetStyleJson"
+                                                   StyleJsonChanged="OnEditorStyleChanged"
+                                                   OnPickImage="OpenMediaPickerForWidget" />
+                        <div class="cms-inspector-actions">
+                            <BitButton Variant="BitVariant.Fill" OnClick="SaveWidgetAsync" IsEnabled="@(!_busy)">@L["cms.designer.inspector.apply"]</BitButton>
+                            <BitButton Variant="BitVariant.Outline" OnClick="DiscardWidgetChangesAsync" IsEnabled="@(!_busy)">放弃修改</BitButton>
+                            <BitButton Variant="BitVariant.Outline" Color="BitColor.Error" OnClick="() => DeleteWidgetAsync(_selectedWidget.Id)">@L["cms.designer.inspector.deleteWidget"]</BitButton>
+                        </div>
+                    </div>
+                }
+                else if (_editingNavbar)
+                {
+                    <div class="cms-inspector">
+                        <div class="cms-inspector-head">
+                            <h4>顶部导航与品牌</h4>
+                            <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick="CloseNavbarEditor">@L["cms.action.close"]</BitButton>
+                        </div>
+
+                        <BitTextField @bind-Value="_navSiteTitle" Immediate="true" Label="站点标题" />
+
+                        <div class="cms-nav-logo-box">
+                            <label class="cms-nav-field-label">站点 Logo</label>
+                            <div class="cms-nav-logo-row">
+                                @if (!string.IsNullOrWhiteSpace(_navSiteLogoUrl))
+                                {
+                                    <img src="@_navSiteLogoUrl" alt="Logo" class="cms-nav-logo-preview" />
+                                }
+                                <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick="StartPickSiteLogo">选择 Logo</BitButton>
+                                @if (!string.IsNullOrWhiteSpace(_navSiteLogoUrl))
+                                {
+                                    <BitButton Size="BitSize.Small" Variant="BitVariant.Text" Color="BitColor.Error" OnClick="ClearSiteLogoAsync" IsEnabled="@(!_busy)">清除</BitButton>
+                                }
+                            </div>
+                        </div>
+
+                        <BitButton Variant="BitVariant.Fill" OnClick="SaveNavbarBrandAsync" IsEnabled="@(!_busy)">保存品牌信息</BitButton>
+
+                        <hr class="cms-nav-divider" />
+
+                        <label class="cms-nav-field-label">导航菜单项（区块标题）</label>
+                        <div class="cms-nav-sec-list">
+                            @foreach (var sec in _design.Sections.OrderBy(s => s.SortOrder))
+                            {
+                                var secId = sec.Id;
+                                var titleVal = _navSectionTitles.TryGetValue(secId, out var t) ? t : sec.Title;
+                                var visVal = _navSectionVisible.TryGetValue(secId, out var v) ? v : sec.NavVisible;
+                                <div class="cms-nav-sec-edit-row">
+                                    <input class="cms-nav-sec-input"
+                                           value="@titleVal"
+                                           @oninput="e => _navSectionTitles[secId] = e.Value?.ToString() ?? string.Empty" />
+                                    <label class="cms-nav-vis-chk" title="显示在顶部导航">
+                                        <input type="checkbox"
+                                               checked="@visVal"
+                                               @onchange="e => _navSectionVisible[secId] = e.Value is bool b && b" />
+                                        显示
+                                    </label>
+                                </div>
+                            }
+                        </div>
+                        <BitButton Variant="BitVariant.Fill" OnClick="SaveNavbarSectionsAsync" IsEnabled="@(!_busy)">保存导航菜单</BitButton>
+                    </div>
+                }
+                else
+                {
+                    <div class="cms-inspector">
+                        <h4>@L["cms.designer.inspector.theme"]</h4>
+                        <div class="cms-color-row">
+                            <input type="color" class="cms-color-picker" title="选择 Primary 颜色" value="@NormalizeHex(_themePrimary, "#0f6cbd")" @oninput='e => _themePrimary = e.Value?.ToString() ?? _themePrimary' />
+                            <BitTextField @bind-Value="_themePrimary" Immediate="true" Label="Primary" />
+                        </div>
+                        <div class="cms-color-row">
+                            <input type="color" class="cms-color-picker" title="选择 Accent 颜色" value="@NormalizeHex(_themeAccent, "#115ea3")" @oninput='e => _themeAccent = e.Value?.ToString() ?? _themeAccent' />
+                            <BitTextField @bind-Value="_themeAccent" Immediate="true" Label="Accent" />
+                        </div>
+                        <div class="cms-color-row">
+                            <input type="color" class="cms-color-picker" title="选择 Background 颜色" value="@NormalizeHex(_themeBg, "#ffffff")" @oninput='e => _themeBg = e.Value?.ToString() ?? _themeBg' />
+                            <BitTextField @bind-Value="_themeBg" Immediate="true" Label="Background" />
+                        </div>
+                        <div class="cms-color-row">
+                            <input type="color" class="cms-color-picker" title="选择 Surface 颜色" value="@NormalizeHex(_themeSurface, "#f5f7fa")" @oninput='e => _themeSurface = e.Value?.ToString() ?? _themeSurface' />
+                            <BitTextField @bind-Value="_themeSurface" Immediate="true" Label="Surface" />
+                        </div>
+                        <div class="cms-color-row">
+                            <input type="color" class="cms-color-picker" title="选择 Text 颜色" value="@NormalizeHex(_themeText, "#1f2328")" @oninput='e => _themeText = e.Value?.ToString() ?? _themeText' />
+                            <BitTextField @bind-Value="_themeText" Immediate="true" Label="Text" />
+                        </div>
+                        <BitTextField @bind-Value="_themeRadius" Immediate="true" Label="Border Radius" />
+                        <BitButton Variant="BitVariant.Fill" OnClick="SaveThemeAsync" IsEnabled="@(!_busy)">@L["cms.designer.inspector.saveTheme"]</BitButton>
+                    </div>
+                }
+            </aside>
+            }
+        </div>
+    }
+</div>
+
+<!-- 新增区块弹窗 -->
+<BitModal IsOpen="@_addSectionOpen" IsOpenChanged="v => _addSectionOpen = v">
+    <div class="cms-modal-box">
+        <h3>新增单页区块</h3>
+        <div class="cms-form-stack">
+            <BitTextField @bind-Value="_newSecTitle" Label="区块名称 *" Placeholder="例如：产品优势" />
+            <BitTextField @bind-Value="_newSecSlug" Label="锚点标识 (Slug) *" Placeholder="例如：advantages" />
+            <BitDropdown Label="选择布局模板" Items="@_layoutDropdownItems" @bind-Value="_newSecLayoutId" />
+            <BitToggle @bind-Value="_newSecNavVisible" Text="显示在顶部单页导航栏" />
+        </div>
+        <div class="cms-modal-foot">
+            <BitButton Variant="BitVariant.Text" OnClick="() => _addSectionOpen = false">取消</BitButton>
+            <BitButton Variant="BitVariant.Fill" OnClick="CreateSectionAsync" IsEnabled="@(!_busy)">添加</BitButton>
+        </div>
+    </div>
+</BitModal>
+
+<!-- AI 一键生成官网弹窗 -->
+<BitModal IsOpen="@_aiOpen" IsOpenChanged="v => _aiOpen = v">
+    <div class="cms-modal-box">
+        <h3>@L["cms.designer.aiModal.title"]</h3>
+        <p class="muted">@L["cms.designer.aiModal.desc"]</p>
+        <div class="cms-form-stack">
+            <BitTextField @bind-Value="_aiBrand" Label="@L["cms.designer.aiModal.brand"]" />
+            <BitTextField @bind-Value="_aiIndustry" Label="@L["cms.designer.aiModal.industry"]" />
+            <BitTextField @bind-Value="_aiPrompt" Label="@L["cms.designer.aiModal.prompt"]" Multiline="true" Rows="3" />
+            <BitTextField @bind-Value="_aiColor" Label="@L["cms.designer.aiModal.color"]" Placeholder="#0f6cbd" />
+        </div>
+        <div class="cms-modal-foot">
+            <BitButton Variant="BitVariant.Text" OnClick="() => _aiOpen = false">@L["cms.action.cancel"]</BitButton>
+            <BitButton Variant="BitVariant.Fill" OnClick="RunAiGenerateAsync" IsEnabled="@(!_aiBusy)">
+                @(_aiBusy ? L["cms.designer.aiModal.generating"] : L["cms.designer.aiModal.submit"])
+            </BitButton>
+        </div>
+    </div>
+</BitModal>
+
+<!-- 复用 Attachments 的媒体选择器 -->
+<CmsMediaPickerDialog IsOpen="@_mediaOpen" IsOpenChanged="v => _mediaOpen = v" OnSelected="HandleMediaSelected" />

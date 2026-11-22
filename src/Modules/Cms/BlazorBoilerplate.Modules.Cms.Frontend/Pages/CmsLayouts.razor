@@ -1,0 +1,109 @@
+@page "/cms/layouts"
+@attribute [Authorize]
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Pages
+
+<div class="cms-admin-page">
+    <div class="cms-admin-header">
+        <div>
+            <h1>@L["cms.layouts.title"]</h1>
+            <p class="muted">@L["cms.layouts.subtitle"]</p>
+        </div>
+        <div class="cms-admin-actions">
+            <BitButton Variant="BitVariant.Outline" OnClick='() => Navigation.NavigateTo("/cms")'>@L["cms.layouts.backToCms"]</BitButton>
+            <PermissionGate Code="cms.layout.write">
+                <BitButton Variant="BitVariant.Fill" OnClick="NewLayout">@L["cms.layouts.newLayout"]</BitButton>
+            </PermissionGate>
+        </div>
+    </div>
+
+    <div class="cms-layout-workspace">
+        <div class="cms-layout-list">
+            @foreach (var l in _layouts)
+            {
+                <button type="button"
+                        class="cms-layout-item @(_editingId == l.Id ? "is-active" : "")"
+                        @onclick="() => SelectLayout(l)">
+                    <div class="cms-layout-item-title">
+                        <span>@l.Name</span>
+                        @if (l.IsBuiltIn)
+                        {
+                            <BitTag Size="BitSize.Small" Color="BitColor.Info">@L["cms.layouts.builtIn"]</BitTag>
+                        }
+                    </div>
+                    <small class="muted">@L.GetString("cms.layouts.summary", l.Rows.Count, l.Rows.Sum(r => r.Columns.Count))</small>
+                </button>
+            }
+        </div>
+
+        <div class="cms-layout-editor">
+            <div class="cms-layout-meta">
+                <BitTextField @bind-Value="_name" Label="@L["cms.layouts.field.name"]" />
+                <BitTextField @bind-Value="_description" Label="@L["cms.layouts.field.description"]" />
+            </div>
+
+            <div class="cms-layout-presets">
+                <span>@L["cms.layouts.presets"]</span>
+                <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick="() => AddPresetRow(12)">@L["cms.layouts.preset.1"]</BitButton>
+                <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick="() => AddPresetRow(6, 6)">@L["cms.layouts.preset.2"]</BitButton>
+                <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick="() => AddPresetRow(4, 8)">@L["cms.layouts.preset.sidebar"]</BitButton>
+                <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick="() => AddPresetRow(4, 4, 4)">@L["cms.layouts.preset.3"]</BitButton>
+                <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick="() => AddPresetRow(3, 3, 3, 3)">@L["cms.layouts.preset.4"]</BitButton>
+            </div>
+
+            <div class="cms-layout-canvas">
+                @for (var rIdx = 0; rIdx < _rows.Count; rIdx++)
+                {
+                    var rowIndex = rIdx;
+                    var row = _rows[rowIndex];
+                    <div class="cms-layout-row-card">
+                        <div class="cms-layout-row-head">
+                            <span>第 @(rowIndex + 1) 行</span>
+                            <div>
+                                <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick="() => AddColumn(rowIndex)">+ 添加列</BitButton>
+                                <BitButton Size="BitSize.Small" Variant="BitVariant.Text" Color="BitColor.Error" OnClick="() => RemoveRow(rowIndex)">删除行</BitButton>
+                            </div>
+                        </div>
+                        <div class="cms-layout-preview-grid">
+                            @for (var cIdx = 0; cIdx < row.Columns.Count; cIdx++)
+                            {
+                                var colIndex = cIdx;
+                                var col = row.Columns[colIndex];
+                                <div class="cms-layout-col-box span-@col.Span">
+                                    <div class="cms-col-field">
+                                        <label>插槽名 (ZoneId)</label>
+                                        <input value="@col.ZoneId" @onchange="e => UpdateColumn(rowIndex, colIndex, zoneId: e.Value?.ToString())" />
+                                    </div>
+                                    <div class="cms-col-field">
+                                        <label>显示标题</label>
+                                        <input value="@col.Label" @onchange="e => UpdateColumn(rowIndex, colIndex, label: e.Value?.ToString())" />
+                                    </div>
+                                    <div class="cms-col-field">
+                                        <label>栅格宽 (1-12)</label>
+                                        <input type="number" min="1" max="12" value="@col.Span"
+                                               @onchange="e => UpdateColumnSpan(rowIndex, colIndex, e.Value?.ToString())" />
+                                    </div>
+                                    @if (row.Columns.Count > 1)
+                                    {
+                                        <button type="button" class="cms-col-del" @onclick="() => RemoveColumn(rowIndex, colIndex)">移除列</button>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="cms-layout-foot">
+                <PermissionGate Code="cms.layout.write">
+                    <BitButton Variant="BitVariant.Fill" OnClick="SaveLayoutAsync" IsEnabled="@(!_saving)">
+                        @(_editingId.HasValue ? L["cms.layouts.saveChanges"] : L["cms.layouts.createLayout"])
+                    </BitButton>
+                    @if (_editingId.HasValue && !_editingBuiltIn)
+                    {
+                        <BitButton Variant="BitVariant.Outline" Color="BitColor.Error" OnClick="DeleteLayoutAsync">@L["cms.layouts.deleteLayout"]</BitButton>
+                    }
+                </PermissionGate>
+            </div>
+        </div>
+    </div>
+</div>

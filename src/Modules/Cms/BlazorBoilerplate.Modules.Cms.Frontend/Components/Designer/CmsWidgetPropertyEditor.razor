@@ -1,0 +1,417 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Designer
+
+<div class="cms-prop-editor">
+    @if (WidgetType == "cms.hero")
+    {
+        <BitTextField Value="@_heroBadge" ValueChanged="v => { _heroBadge = v ?? string.Empty; EmitHero(); }" Immediate="true" Label="徽章文字" />
+        <BitTextField Value="@_heroHeadline" ValueChanged="v => { _heroHeadline = v ?? string.Empty; EmitHero(); }" Immediate="true" Label="主标题" />
+        <BitTextField Value="@_heroSub" ValueChanged="v => { _heroSub = v ?? string.Empty; EmitHero(); }" Immediate="true" Label="副标题" Multiline="true" Rows="3" />
+        <BitTextField Value="@_heroBtn1Text" ValueChanged="v => { _heroBtn1Text = v ?? string.Empty; EmitHero(); }" Immediate="true" Label="主按钮文字" />
+        <BitTextField Value="@_heroBtn1Href" ValueChanged="v => { _heroBtn1Href = v ?? string.Empty; EmitHero(); }" Immediate="true" Label="主按钮跳转 (如 #contact)" />
+        <BitTextField Value="@_heroBtn2Text" ValueChanged="v => { _heroBtn2Text = v ?? string.Empty; EmitHero(); }" Immediate="true" Label="次按钮文字" />
+        <BitTextField Value="@_heroBtn2Href" ValueChanged="v => { _heroBtn2Href = v ?? string.Empty; EmitHero(); }" Immediate="true" Label="次按钮跳转 (如 #features)" />
+    }
+    else if (WidgetType == "cms.richtext")
+    {
+        <BitTextField Value="@_rtHeading" ValueChanged="v => { _rtHeading = v ?? string.Empty; EmitRichText(); }" Immediate="true" Label="标题" />
+        <BitTextField Value="@_rtBody" ValueChanged="v => { _rtBody = v ?? string.Empty; EmitRichText(); }" Immediate="true" Label="正文内容" Multiline="true" Rows="5" />
+        <div class="cms-prop-media">
+            <BitTextField Value="@_rtImage" ValueChanged="v => { _rtImage = v ?? string.Empty; EmitRichText(); }" Immediate="true" Label="配图地址" />
+            <div class="cms-prop-media-btns">
+                <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick="OnPickImage">从附件库选图</BitButton>
+                @if (!string.IsNullOrWhiteSpace(_rtImage))
+                {
+                    <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick="() => { _rtImage = string.Empty; EmitRichText(); }">清除</BitButton>
+                }
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_rtImage))
+            {
+                <img src="@_rtImage" alt="预览" class="cms-prop-thumb" />
+            }
+        </div>
+    }
+    else if (WidgetType == "cms.features")
+    {
+        <BitTextField Value="@_featHeading" ValueChanged="v => { _featHeading = v ?? string.Empty; EmitFeatures(); }" Immediate="true" Label="区块标题" />
+        <BitTextField Value="@_featSub" ValueChanged="v => { _featSub = v ?? string.Empty; EmitFeatures(); }" Immediate="true" Label="区块副标题" />
+        @for (var i = 0; i < _featItems.Count; i++)
+        {
+            var idx = i;
+            var item = _featItems[idx];
+            <div class="cms-prop-card">
+                <div class="cms-prop-card-head">
+                    <span>卡片 @(idx + 1)</span>
+                    <button type="button" @onclick="() => { _featItems.RemoveAt(idx); EmitFeatures(); }">删除</button>
+                </div>
+                <div class="cms-icon-pick-row">
+                    <span class="cms-icon-preview"><AppIcon Name="@item.Icon" /></span>
+                    <select class="cms-prop-select" value="@item.Icon" @onchange='e => { _featItems[idx] = item with { Icon = e.Value?.ToString() ?? "Check" }; EmitFeatures(); }'>
+                        <option value="Rocket">Rocket（火箭 / 敏捷）</option>
+                        <option value="Shield">Shield（盾牌 / 安全）</option>
+                        <option value="Check">Check（勾选 / 体验）</option>
+                        <option value="Puzzle">Puzzle（拼图 / 模块化）</option>
+                        <option value="Globe">Globe（地球 / 全球化）</option>
+                        <option value="Chart">Chart（图表 / 数据）</option>
+                        <option value="People">People（团队 / 客户）</option>
+                        <option value="Shop">Shop（商店 / 电商）</option>
+                        <option value="Home">Home（主页 / 门户）</option>
+                        <option value="Mail">Mail（邮件 / 联系）</option>
+                        <option value="Lock">Lock（锁 / 权限）</option>
+                        <option value="Settings">Settings（齿轮 / 配置）</option>
+                        <option value="Clock">Clock（时钟 / 效率）</option>
+                        <option value="Star">Star（星标 / 精选）</option>
+                        <option value="Code">Code（代码 / 开发）</option>
+                    </select>
+                </div>
+                <BitTextField Value="@item.Title" ValueChanged="v => { _featItems[idx] = item with { Title = v ?? string.Empty }; EmitFeatures(); }" Immediate="true" Label="标题" />
+                <BitTextField Value="@item.Description" ValueChanged="v => { _featItems[idx] = item with { Description = v ?? string.Empty }; EmitFeatures(); }" Immediate="true" Label="描述" Multiline="true" Rows="2" />
+            </div>
+        }
+        <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick='() => { _featItems.Add(new("Check", "新特性", "请填写特性说明")); EmitFeatures(); }'>+ 添加特性卡片</BitButton>
+    }
+    else if (WidgetType == "cms.stats")
+    {
+        @for (var i = 0; i < _statItems.Count; i++)
+        {
+            var idx = i;
+            var item = _statItems[idx];
+            <div class="cms-prop-card">
+                <div class="cms-prop-card-head">
+                    <span>指标 @(idx + 1)</span>
+                    <button type="button" @onclick="() => { _statItems.RemoveAt(idx); EmitStats(); }">删除</button>
+                </div>
+                <BitTextField Value="@item.Value" ValueChanged="v => { _statItems[idx] = item with { Value = v ?? string.Empty }; EmitStats(); }" Immediate="true" Label="数值 (如 99.9%)" />
+                <BitTextField Value="@item.Label" ValueChanged="v => { _statItems[idx] = item with { Label = v ?? string.Empty }; EmitStats(); }" Immediate="true" Label="说明标签" />
+            </div>
+        }
+        <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick='() => { _statItems.Add(new("100+", "新指标")); EmitStats(); }'>+ 添加指标</BitButton>
+    }
+    else if (WidgetType == "cms.gallery")
+    {
+        <BitTextField Value="@_galHeading" ValueChanged="v => { _galHeading = v ?? string.Empty; EmitGallery(); }" Immediate="true" Label="画廊标题" />
+        @for (var i = 0; i < _galItems.Count; i++)
+        {
+            var idx = i;
+            var item = _galItems[idx];
+            <div class="cms-prop-card">
+                <div class="cms-prop-card-head">
+                    <span>图片 @(idx + 1)</span>
+                    <button type="button" @onclick="() => { _galItems.RemoveAt(idx); EmitGallery(); }">删除</button>
+                </div>
+                <img src="@item.Url" alt="@item.Caption" class="cms-prop-thumb" />
+                <BitTextField Value="@item.Caption" ValueChanged="v => { _galItems[idx] = item with { Caption = v ?? string.Empty }; EmitGallery(); }" Immediate="true" Label="图片说明" />
+            </div>
+        }
+        <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick="OnPickImage">+ 从附件库添加图片</BitButton>
+    }
+    else if (WidgetType == "cms.faq")
+    {
+        <BitTextField Value="@_faqHeading" ValueChanged="v => { _faqHeading = v ?? string.Empty; EmitFaq(); }" Immediate="true" Label="FAQ 标题" />
+        @for (var i = 0; i < _faqItems.Count; i++)
+        {
+            var idx = i;
+            var item = _faqItems[idx];
+            <div class="cms-prop-card">
+                <div class="cms-prop-card-head">
+                    <span>问答 @(idx + 1)</span>
+                    <button type="button" @onclick="() => { _faqItems.RemoveAt(idx); EmitFaq(); }">删除</button>
+                </div>
+                <BitTextField Value="@item.Question" ValueChanged="v => { _faqItems[idx] = item with { Question = v ?? string.Empty }; EmitFaq(); }" Immediate="true" Label="问题" />
+                <BitTextField Value="@item.Answer" ValueChanged="v => { _faqItems[idx] = item with { Answer = v ?? string.Empty }; EmitFaq(); }" Immediate="true" Label="回答" Multiline="true" Rows="2" />
+            </div>
+        }
+        <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick='() => { _faqItems.Add(new("新问题？", "请填写解答内容。")); EmitFaq(); }'>+ 添加问答</BitButton>
+    }
+    else if (WidgetType == "cms.contact")
+    {
+        <BitTextField Value="@_contactHeading" ValueChanged="v => { _contactHeading = v ?? string.Empty; EmitContact(); }" Immediate="true" Label="标题" />
+        <BitTextField Value="@_contactSub" ValueChanged="v => { _contactSub = v ?? string.Empty; EmitContact(); }" Immediate="true" Label="副标题" Multiline="true" Rows="2" />
+        <BitTextField Value="@_contactSubmit" ValueChanged="v => { _contactSubmit = v ?? string.Empty; EmitContact(); }" Immediate="true" Label="提交按钮文字" />
+        <BitTextField Value="@_contactEmail" ValueChanged="v => { _contactEmail = v ?? string.Empty; EmitContact(); }" Immediate="true" Label="联系邮箱" />
+        <BitTextField Value="@_contactPhone" ValueChanged="v => { _contactPhone = v ?? string.Empty; EmitContact(); }" Immediate="true" Label="联系电话" />
+        <BitTextField Value="@_contactAddress" ValueChanged="v => { _contactAddress = v ?? string.Empty; EmitContact(); }" Immediate="true" Label="公司地址" />
+        <BitTextField Value="@_contactHours" ValueChanged="v => { _contactHours = v ?? string.Empty; EmitContact(); }" Immediate="true" Label="服务时间" />
+        <BitTextField Value="@_contactLng" ValueChanged="v => { _contactLng = v ?? string.Empty; EmitContact(); }" Immediate="true" Label="高德经度 (Longitude)" />
+        <BitTextField Value="@_contactLat" ValueChanged="v => { _contactLat = v ?? string.Empty; EmitContact(); }" Immediate="true" Label="高德纬度 (Latitude)" />
+        <BitTextField Value="@_contactAmapKey" ValueChanged="v => { _contactAmapKey = v ?? string.Empty; EmitContact(); }" Immediate="true" Label="高德 JS Key（留空使用内置地图卡片）" />
+        <BitTextField Value="@_contactSecurityCode" ValueChanged="v => { _contactSecurityCode = v ?? string.Empty; EmitContact(); }" Immediate="true" Label="高德安全密钥 (SecurityJsCode，可选)" />
+    }
+    else if (WidgetType == "cms.map")
+    {
+        <BitTextField Value="@_mapHeading" ValueChanged="v => { _mapHeading = v ?? string.Empty; EmitMap(); }" Immediate="true" Label="区块标题" />
+        <BitTextField Value="@_mapSub" ValueChanged="v => { _mapSub = v ?? string.Empty; EmitMap(); }" Immediate="true" Label="副标题" />
+        <BitTextField Value="@_mapTitle" ValueChanged="v => { _mapTitle = v ?? string.Empty; EmitMap(); }" Immediate="true" Label="地图标记名称" />
+        <BitTextField Value="@_mapAddress" ValueChanged="v => { _mapAddress = v ?? string.Empty; EmitMap(); }" Immediate="true" Label="详细地址" />
+        <BitTextField Value="@_mapLng" ValueChanged="v => { _mapLng = v ?? string.Empty; EmitMap(); }" Immediate="true" Label="经度 (Longitude)" />
+        <BitTextField Value="@_mapLat" ValueChanged="v => { _mapLat = v ?? string.Empty; EmitMap(); }" Immediate="true" Label="纬度 (Latitude)" />
+        <BitTextField Value="@_mapZoom" ValueChanged="v => { _mapZoom = v ?? string.Empty; EmitMap(); }" Immediate="true" Label="缩放级别 (3-20)" />
+        <BitTextField Value="@_mapHeight" ValueChanged="v => { _mapHeight = v ?? string.Empty; EmitMap(); }" Immediate="true" Label="地图高度 (px)" />
+        <BitTextField Value="@_mapAmapKey" ValueChanged="v => { _mapAmapKey = v ?? string.Empty; EmitMap(); }" Immediate="true" Label="高德 Web JS Key" />
+        <BitTextField Value="@_mapSecurityCode" ValueChanged="v => { _mapSecurityCode = v ?? string.Empty; EmitMap(); }" Immediate="true" Label="高德安全密钥 (SecurityJsCode，可选)" />
+        <BitTextField Value="@_mapEmbedUrl" ValueChanged="v => { _mapEmbedUrl = v ?? string.Empty; EmitMap(); }" Immediate="true" Label="自定义 iframe 嵌入地址（可选）" />
+    }
+    else if (WidgetType == "cms.footer")
+    {
+        <BitTextField Value="@_footerBrand" ValueChanged="v => { _footerBrand = v ?? string.Empty; EmitFooter(); }" Immediate="true" Label="品牌名称" />
+        <BitTextField Value="@_footerTagline" ValueChanged="v => { _footerTagline = v ?? string.Empty; EmitFooter(); }" Immediate="true" Label="副标语" />
+        <BitTextField Value="@_footerCopy" ValueChanged="v => { _footerCopy = v ?? string.Empty; EmitFooter(); }" Immediate="true" Label="版权声明" />
+    }
+    else if (WidgetType == "cms.heading")
+    {
+        <BitTextField Value="@_headTitle" ValueChanged="v => { _headTitle = v ?? string.Empty; EmitHeading(); }" Immediate="true" Label="标题文字" />
+        <BitTextField Value="@_headSub" ValueChanged="v => { _headSub = v ?? string.Empty; EmitHeading(); }" Immediate="true" Label="副标题（可选）" />
+        <label class="cms-prop-label">
+            <span>标签层级</span>
+            <select class="cms-prop-select" value="@_headLevel" @onchange='e => { _headLevel = e.Value?.ToString() ?? "h2"; EmitHeading(); }'>
+                <option value="h1">主标题 (H1)</option>
+                <option value="h2">区块标题 (H2)</option>
+                <option value="h3">小标题 (H3)</option>
+            </select>
+        </label>
+        <label class="cms-prop-label">
+            <span>对齐方式</span>
+            <select class="cms-prop-select" value="@_headAlign" @onchange='e => { _headAlign = e.Value?.ToString() ?? "left"; EmitHeading(); }'>
+                <option value="left">左对齐</option>
+                <option value="center">居中对齐</option>
+                <option value="right">右对齐</option>
+            </select>
+        </label>
+    }
+    else if (WidgetType == "cms.text")
+    {
+        <BitTextField Value="@_textBody" ValueChanged="v => { _textBody = v ?? string.Empty; EmitText(); }" Immediate="true" Label="正文段落" Multiline="true" Rows="5" />
+        <label class="cms-prop-label">
+            <span>对齐方式</span>
+            <select class="cms-prop-select" value="@_textAlign" @onchange='e => { _textAlign = e.Value?.ToString() ?? "left"; EmitText(); }'>
+                <option value="left">左对齐</option>
+                <option value="center">居中对齐</option>
+                <option value="right">右对齐</option>
+            </select>
+        </label>
+        <BitTextField Value="@_textSize" ValueChanged="v => { _textSize = v ?? string.Empty; EmitText(); }" Immediate="true" Label="字号 (如 1rem / 18px)" />
+    }
+    else if (WidgetType == "cms.button")
+    {
+        <BitTextField Value="@_btnText" ValueChanged="v => { _btnText = v ?? string.Empty; EmitButton(); }" Immediate="true" Label="按钮文字" />
+        <BitTextField Value="@_btnHref" ValueChanged="v => { _btnHref = v ?? string.Empty; EmitButton(); }" Immediate="true" Label="跳转地址 (如 #contact 或 https://...)" />
+        <label class="cms-prop-label">
+            <span>按钮样式</span>
+            <select class="cms-prop-select" value="@_btnVariant" @onchange='e => { _btnVariant = e.Value?.ToString() ?? "fill"; EmitButton(); }'>
+                <option value="fill">实心主按钮 (Fill)</option>
+                <option value="outline">描边按钮 (Outline)</option>
+            </select>
+        </label>
+        <label class="cms-prop-label">
+            <span>对齐方式</span>
+            <select class="cms-prop-select" value="@_btnAlign" @onchange='e => { _btnAlign = e.Value?.ToString() ?? "left"; EmitButton(); }'>
+                <option value="left">左对齐</option>
+                <option value="center">居中对齐</option>
+                <option value="right">右对齐</option>
+            </select>
+        </label>
+        <BitToggle Value="@_btnNewTab" ValueChanged="v => { _btnNewTab = v; EmitButton(); }" Text="新标签页打开外链" />
+    }
+    else if (WidgetType == "cms.divider")
+    {
+        <BitTextField Value="@_divHeight" ValueChanged="v => { _divHeight = v ?? string.Empty; EmitDivider(); }" Immediate="true" Label="留白高度 (px)" />
+        <BitToggle Value="@_divShowLine" ValueChanged="v => { _divShowLine = v; EmitDivider(); }" Text="显示分隔线" />
+        <BitTextField Value="@_divLabel" ValueChanged="v => { _divLabel = v ?? string.Empty; EmitDivider(); }" Immediate="true" Label="分隔文字（可选）" />
+    }
+    else if (WidgetType == "cms.html")
+    {
+        <BitTextField Value="@_htmlCode" ValueChanged="v => { _htmlCode = v ?? string.Empty; EmitHtml(); }" Immediate="true" Label="HTML 代码片段" Multiline="true" Rows="8" />
+    }
+    else if (WidgetType == "cms.image")
+    {
+        <BitTextField Value="@_imgUrl" ValueChanged="v => { _imgUrl = v ?? string.Empty; EmitImage(); }" Immediate="true" Label="图片 URL" />
+        <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick="OnPickImage">从附件库选择图片</BitButton>
+        <BitTextField Value="@_imgAlt" ValueChanged="v => { _imgAlt = v ?? string.Empty; EmitImage(); }" Immediate="true" Label="替代文本 (Alt)" />
+        <BitTextField Value="@_imgCaption" ValueChanged="v => { _imgCaption = v ?? string.Empty; EmitImage(); }" Immediate="true" Label="图片说明（可选）" />
+        <BitTextField Value="@_imgLink" ValueChanged="v => { _imgLink = v ?? string.Empty; EmitImage(); }" Immediate="true" Label="点击跳转链接（可选）" />
+        <BitTextField Value="@_imgMaxH" ValueChanged="v => { _imgMaxH = v ?? string.Empty; EmitImage(); }" Immediate="true" Label="最大高度 (px)" />
+        <BitToggle Value="@_imgRounded" ValueChanged="v => { _imgRounded = v; EmitImage(); }" Text="圆角边框" />
+        <BitToggle Value="@_imgShadow" ValueChanged="v => { _imgShadow = v; EmitImage(); }" Text="投影效果" />
+    }
+    else if (WidgetType == "cms.video")
+    {
+        <BitTextField Value="@_vidUrl" ValueChanged="v => { _vidUrl = v ?? string.Empty; EmitVideo(); }" Immediate="true" Label="视频 URL (MP4 / WebM)" />
+        <BitTextField Value="@_vidPoster" ValueChanged="v => { _vidPoster = v ?? string.Empty; EmitVideo(); }" Immediate="true" Label="封面图 URL（可选）" />
+        <BitTextField Value="@_vidCaption" ValueChanged="v => { _vidCaption = v ?? string.Empty; EmitVideo(); }" Immediate="true" Label="视频说明（可选）" />
+        <BitTextField Value="@_vidMaxH" ValueChanged="v => { _vidMaxH = v ?? string.Empty; EmitVideo(); }" Immediate="true" Label="最大高度 (px)" />
+        <BitToggle Value="@_vidControls" ValueChanged="v => { _vidControls = v; EmitVideo(); }" Text="显示播放控制条" />
+        <BitToggle Value="@_vidAutoPlay" ValueChanged="v => { _vidAutoPlay = v; EmitVideo(); }" Text="自动静音播放" />
+        <BitToggle Value="@_vidLoop" ValueChanged="v => { _vidLoop = v; EmitVideo(); }" Text="循环播放" />
+    }
+    else if (WidgetType == "cms.carousel")
+    {
+        <BitTextField Value="@_carHeight" ValueChanged="v => { _carHeight = v ?? string.Empty; EmitCarousel(); }" Immediate="true" Label="轮播高度 (px)" />
+        <BitToggle Value="@_carAutoPlay" ValueChanged="v => { _carAutoPlay = v; EmitCarousel(); }" Text="自动轮播" />
+        <BitTextField Value="@_carInterval" ValueChanged="v => { _carInterval = v ?? string.Empty; EmitCarousel(); }" Immediate="true" Label="切换间隔 (ms)" />
+        @for (var i = 0; i < _carSlides.Count; i++)
+        {
+            var idx = i;
+            var slide = _carSlides[idx];
+            <div class="cms-prop-card">
+                <div class="cms-prop-card-head">
+                    <span>幻灯片 @(idx + 1)</span>
+                    <button type="button" @onclick="() => { _carSlides.RemoveAt(idx); EmitCarousel(); }">删除</button>
+                </div>
+                <BitTextField Value="@(slide.ImageUrl ?? string.Empty)" ValueChanged="v => { _carSlides[idx] = slide with { ImageUrl = v }; EmitCarousel(); }" Immediate="true" Label="背景图 URL" />
+                <BitTextField Value="@(slide.Title ?? string.Empty)" ValueChanged="v => { _carSlides[idx] = slide with { Title = v }; EmitCarousel(); }" Immediate="true" Label="标题" />
+                <BitTextField Value="@(slide.Subtitle ?? string.Empty)" ValueChanged="v => { _carSlides[idx] = slide with { Subtitle = v }; EmitCarousel(); }" Immediate="true" Label="副标题" />
+                <BitTextField Value="@(slide.ButtonText ?? string.Empty)" ValueChanged="v => { _carSlides[idx] = slide with { ButtonText = v }; EmitCarousel(); }" Immediate="true" Label="按钮文字" />
+                <BitTextField Value="@(slide.ButtonHref ?? string.Empty)" ValueChanged="v => { _carSlides[idx] = slide with { ButtonHref = v }; EmitCarousel(); }" Immediate="true" Label="按钮跳转" />
+            </div>
+        }
+        <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick="OnPickImage">+ 从附件库添加幻灯片</BitButton>
+        <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick='() => { _carSlides.Add(new(null, "新幻灯片", "副标题", "立即了解", "#contact")); EmitCarousel(); }'>+ 添加纯色幻灯片</BitButton>
+    }
+    else if (WidgetType == "cms.tabs")
+    {
+        <BitTextField Value="@_tabsHeading" ValueChanged="v => { _tabsHeading = v ?? string.Empty; EmitTabs(); }" Immediate="true" Label="区块标题" />
+        @for (var i = 0; i < _tabItems.Count; i++)
+        {
+            var idx = i;
+            var item = _tabItems[idx];
+            <div class="cms-prop-card">
+                <div class="cms-prop-card-head">
+                    <span>标签 @(idx + 1)</span>
+                    <button type="button" @onclick="() => { _tabItems.RemoveAt(idx); EmitTabs(); }">删除</button>
+                </div>
+                <BitTextField Value="@item.Title" ValueChanged="v => { _tabItems[idx] = item with { Title = v ?? string.Empty }; EmitTabs(); }" Immediate="true" Label="标签标题" />
+                <BitTextField Value="@item.Content" ValueChanged="v => { _tabItems[idx] = item with { Content = v ?? string.Empty }; EmitTabs(); }" Immediate="true" Label="内容" Multiline="true" Rows="3" />
+                <BitTextField Value="@(item.ImageUrl ?? string.Empty)" ValueChanged="v => { _tabItems[idx] = item with { ImageUrl = v }; EmitTabs(); }" Immediate="true" Label="配图 URL（可选）" />
+            </div>
+        }
+        <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick='() => { _tabItems.Add(new("新标签", "请填写标签内容。", null)); EmitTabs(); }'>+ 添加标签页</BitButton>
+    }
+    else if (WidgetType == "cms.testimonials")
+    {
+        <BitTextField Value="@_testiHeading" ValueChanged="v => { _testiHeading = v ?? string.Empty; EmitTestimonials(); }" Immediate="true" Label="区块标题" />
+        @for (var i = 0; i < _testiItems.Count; i++)
+        {
+            var idx = i;
+            var item = _testiItems[idx];
+            <div class="cms-prop-card">
+                <div class="cms-prop-card-head">
+                    <span>评价 @(idx + 1)</span>
+                    <button type="button" @onclick="() => { _testiItems.RemoveAt(idx); EmitTestimonials(); }">删除</button>
+                </div>
+                <BitTextField Value="@item.Quote" ValueChanged="v => { _testiItems[idx] = item with { Quote = v ?? string.Empty }; EmitTestimonials(); }" Immediate="true" Label="评价内容" Multiline="true" Rows="2" />
+                <BitTextField Value="@item.Author" ValueChanged="v => { _testiItems[idx] = item with { Author = v ?? string.Empty }; EmitTestimonials(); }" Immediate="true" Label="客户姓名" />
+                <BitTextField Value="@(item.Role ?? string.Empty)" ValueChanged="v => { _testiItems[idx] = item with { Role = v }; EmitTestimonials(); }" Immediate="true" Label="职位 / 公司" />
+            </div>
+        }
+        <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick='() => { _testiItems.Add(new("客户评价内容。", "王总", "某企业负责人", null)); EmitTestimonials(); }'>+ 添加评价</BitButton>
+    }
+    else if (WidgetType == "cms.partners")
+    {
+        <BitTextField Value="@_partHeading" ValueChanged="v => { _partHeading = v ?? string.Empty; EmitPartners(); }" Immediate="true" Label="区块标题" />
+        @for (var i = 0; i < _partItems.Count; i++)
+        {
+            var idx = i;
+            var item = _partItems[idx];
+            <div class="cms-prop-card">
+                <div class="cms-prop-card-head">
+                    <span>伙伴 @(idx + 1)</span>
+                    <button type="button" @onclick="() => { _partItems.RemoveAt(idx); EmitPartners(); }">删除</button>
+                </div>
+                <BitTextField Value="@item.Name" ValueChanged="v => { _partItems[idx] = item with { Name = v ?? string.Empty }; EmitPartners(); }" Immediate="true" Label="名称" />
+                <BitTextField Value="@(item.LogoUrl ?? string.Empty)" ValueChanged="v => { _partItems[idx] = item with { LogoUrl = v }; EmitPartners(); }" Immediate="true" Label="Logo URL（可选）" />
+            </div>
+        }
+        <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick='() => { _partItems.Add(new("新合作伙伴", null, null)); EmitPartners(); }'>+ 添加合作伙伴</BitButton>
+    }
+    else if (WidgetType == "cms.pricing")
+    {
+        <BitTextField Value="@_priceHeading" ValueChanged="v => { _priceHeading = v ?? string.Empty; EmitPricing(); }" Immediate="true" Label="区块标题" />
+        <BitTextField Value="@_priceSub" ValueChanged="v => { _priceSub = v ?? string.Empty; EmitPricing(); }" Immediate="true" Label="副标题" />
+        @for (var i = 0; i < _pricePlans.Count; i++)
+        {
+            var idx = i;
+            var plan = _pricePlans[idx];
+            <div class="cms-prop-card">
+                <div class="cms-prop-card-head">
+                    <span>方案 @(idx + 1)</span>
+                    <button type="button" @onclick="() => { _pricePlans.RemoveAt(idx); EmitPricing(); }">删除</button>
+                </div>
+                <BitTextField Value="@plan.Name" ValueChanged="v => { _pricePlans[idx] = plan with { Name = v ?? string.Empty }; EmitPricing(); }" Immediate="true" Label="方案名称" />
+                <BitTextField Value="@plan.Price" ValueChanged="v => { _pricePlans[idx] = plan with { Price = v ?? string.Empty }; EmitPricing(); }" Immediate="true" Label="价格 (如 ¥1,999)" />
+                <BitTextField Value="@(plan.Period ?? string.Empty)" ValueChanged="v => { _pricePlans[idx] = plan with { Period = v }; EmitPricing(); }" Immediate="true" Label="周期 (如 / 年)" />
+                <BitTextField Value="@(plan.Badge ?? string.Empty)" ValueChanged="v => { _pricePlans[idx] = plan with { Badge = v }; EmitPricing(); }" Immediate="true" Label="角标（可选）" />
+                <BitToggle Value="@plan.Highlighted" ValueChanged="v => { _pricePlans[idx] = plan with { Highlighted = v }; EmitPricing(); }" Text="主推高亮" />
+                <BitTextField Value="@(string.Join("\n", plan.Features ?? []))" ValueChanged="v => { _pricePlans[idx] = plan with { Features = (v ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() }; EmitPricing(); }" Immediate="true" Label="权益列表（每行一条）" Multiline="true" Rows="3" />
+                <BitTextField Value="@(plan.ButtonText ?? string.Empty)" ValueChanged="v => { _pricePlans[idx] = plan with { ButtonText = v }; EmitPricing(); }" Immediate="true" Label="按钮文字" />
+                <BitTextField Value="@(plan.ButtonHref ?? string.Empty)" ValueChanged="v => { _pricePlans[idx] = plan with { ButtonHref = v }; EmitPricing(); }" Immediate="true" Label="按钮跳转" />
+            </div>
+        }
+        <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick='() => { _pricePlans.Add(new("新方案", "¥2,999", "/ 年", null, false, ["核心功能支持"], "立即咨询", "#contact")); EmitPricing(); }'>+ 添加定价方案</BitButton>
+    }
+    else if (WidgetType == "cms.articles")
+    {
+        <BitTextField Value="@_artHeading" ValueChanged="v => { _artHeading = v ?? string.Empty; EmitArticles(); }" Immediate="true" Label="区块标题" />
+        <BitTextField Value="@_artSub" ValueChanged="v => { _artSub = v ?? string.Empty; EmitArticles(); }" Immediate="true" Label="副标题" />
+        @for (var i = 0; i < _artItems.Count; i++)
+        {
+            var idx = i;
+            var item = _artItems[idx];
+            <div class="cms-prop-card">
+                <div class="cms-prop-card-head">
+                    <span>文章 @(idx + 1)</span>
+                    <button type="button" @onclick="() => { _artItems.RemoveAt(idx); EmitArticles(); }">删除</button>
+                </div>
+                <BitTextField Value="@item.Title" ValueChanged="v => { _artItems[idx] = item with { Title = v ?? string.Empty }; EmitArticles(); }" Immediate="true" Label="文章标题" />
+                <BitTextField Value="@(item.Category ?? string.Empty)" ValueChanged="v => { _artItems[idx] = item with { Category = v }; EmitArticles(); }" Immediate="true" Label="分类 (如 产品发布)" />
+                <BitTextField Value="@(item.Date ?? string.Empty)" ValueChanged="v => { _artItems[idx] = item with { Date = v }; EmitArticles(); }" Immediate="true" Label="日期 (如 2026-11-22)" />
+                <BitTextField Value="@(item.CoverUrl ?? string.Empty)" ValueChanged="v => { _artItems[idx] = item with { CoverUrl = v }; EmitArticles(); }" Immediate="true" Label="封面图 URL（可选）" />
+                <BitTextField Value="@(item.Summary ?? string.Empty)" ValueChanged="v => { _artItems[idx] = item with { Summary = v }; EmitArticles(); }" Immediate="true" Label="摘要" Multiline="true" Rows="2" />
+                <BitTextField Value="@(item.Content ?? string.Empty)" ValueChanged="v => { _artItems[idx] = item with { Content = v }; EmitArticles(); }" Immediate="true" Label="正文详情" Multiline="true" Rows="4" />
+            </div>
+        }
+        <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick='() => { _artItems.Add(new("新文章标题", "公司动态", DateTime.Now.ToString("yyyy-MM-dd"), "摘要内容。", "正文详细内容。", null)); EmitArticles(); }'>+ 添加文章</BitButton>
+    }
+
+    <details class="cms-prop-advanced">
+        <summary>外观样式、尺寸、入场动画与高级 JSON</summary>
+        <div class="cms-prop-advanced-body">
+            <BitTextField Value="@_styleWidth" ValueChanged="v => { _styleWidth = v ?? string.Empty; EmitStyle(); }" Immediate="true" Label="宽度 Width（可直接在画布拖拽，如 480px）" />
+            <BitTextField Value="@_styleHeight" ValueChanged="v => { _styleHeight = v ?? string.Empty; EmitStyle(); }" Immediate="true" Label="高度 Height（可直接在画布拖拽，如 320px）" />
+            @if (!string.IsNullOrWhiteSpace(_styleWidth) || !string.IsNullOrWhiteSpace(_styleHeight))
+            {
+                <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick="ResetDimensions">重置宽高为自适应</BitButton>
+            }
+            <div class="cms-color-row">
+                <input type="color" class="cms-color-picker" title="选择背景色" value="@NormalizeHex(_styleBg, "#ffffff")" @oninput='e => { _styleBg = e.Value?.ToString() ?? string.Empty; EmitStyle(); }' />
+                <BitTextField Value="@_styleBg" ValueChanged="v => { _styleBg = v ?? string.Empty; EmitStyle(); }" Immediate="true" Label="背景色 (如 #f5f7fa)" />
+            </div>
+            <div class="cms-color-row">
+                <input type="color" class="cms-color-picker" title="选择文字颜色" value="@NormalizeHex(_styleFg, "#1f2328")" @oninput='e => { _styleFg = e.Value?.ToString() ?? string.Empty; EmitStyle(); }' />
+                <BitTextField Value="@_styleFg" ValueChanged="v => { _styleFg = v ?? string.Empty; EmitStyle(); }" Immediate="true" Label="文字颜色" />
+            </div>
+            <BitTextField Value="@_stylePad" ValueChanged="v => { _stylePad = v ?? string.Empty; EmitStyle(); }" Immediate="true" Label="内边距 Padding (如 1.5rem)" />
+            <BitTextField Value="@_styleMargin" ValueChanged="v => { _styleMargin = v ?? string.Empty; EmitStyle(); }" Immediate="true" Label="外边距 Margin (如 0 0 1rem)" />
+            <BitTextField Value="@_styleRadius" ValueChanged="v => { _styleRadius = v ?? string.Empty; EmitStyle(); }" Immediate="true" Label="圆角 (如 12px)" />
+            <label class="cms-prop-label">
+                <span>文本对齐</span>
+                <select class="cms-prop-select" value="@_styleAlign" @onchange="e => { _styleAlign = e.Value?.ToString() ?? string.Empty; EmitStyle(); }">
+                    <option value="">默认</option>
+                    <option value="left">左对齐 (left)</option>
+                    <option value="center">居中 (center)</option>
+                    <option value="right">右对齐 (right)</option>
+                </select>
+            </label>
+            <label class="cms-prop-label">
+                <span>入场动画</span>
+                <select class="cms-prop-select" value="@_styleAnim" @onchange='e => { _styleAnim = e.Value?.ToString() ?? "none"; EmitStyle(); }'>
+                    <option value="none">无动画</option>
+                    <option value="fade-up">上滑渐显 (fade-up)</option>
+                    <option value="fade-in">淡入 (fade-in)</option>
+                    <option value="zoom-in">缩放进入 (zoom-in)</option>
+                    <option value="slide-left">左滑进入 (slide-left)</option>
+                </select>
+            </label>
+            <BitTextField Value="@_styleCss" ValueChanged="v => { _styleCss = v ?? string.Empty; EmitStyle(); }" Immediate="true" Label="自定义 CSS Class" />
+            <BitTextField Value="@PropsJson" ValueChanged="v => PropsJsonChanged.InvokeAsync(v ?? string.Empty)" Immediate="true" Label="原始 JSON" Multiline="true" Rows="6" />
+        </div>
+    </details>
+</div>

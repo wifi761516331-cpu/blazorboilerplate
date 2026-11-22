@@ -1,0 +1,33 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<div class="cms-w-testimonials">
+    @if (!string.IsNullOrWhiteSpace(_props.Heading))
+    {
+        <h2 class="cms-sec-heading">@_props.Heading</h2>
+    }
+    <div class="cms-testimonials-grid">
+        @foreach (var item in _props.Items ?? [])
+        {
+            <blockquote class="cms-testimonial-card">
+                <p class="cms-testimonial-quote">“@item.Quote”</p>
+                <footer class="cms-testimonial-author">
+                    @if (!string.IsNullOrWhiteSpace(item.AvatarUrl))
+                    {
+                        <img src="@item.AvatarUrl" alt="@item.Author" class="cms-testimonial-avatar" />
+                    }
+                    else
+                    {
+                        <span class="cms-testimonial-avatar-fallback">@(string.IsNullOrWhiteSpace(item.Author) ? "A" : item.Author[..1])</span>
+                    }
+                    <div>
+                        <strong>@item.Author</strong>
+                        @if (!string.IsNullOrWhiteSpace(item.Role))
+                        {
+                            <small>@item.Role</small>
+                        }
+                    </div>
+                </footer>
+            </blockquote>
+        }
+    </div>
+</div>

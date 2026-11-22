@@ -1,0 +1,67 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<div class="cms-w-articles">
+    @if (!string.IsNullOrWhiteSpace(_props.Heading))
+    {
+        <h2 class="cms-sec-heading">@_props.Heading</h2>
+    }
+    @if (!string.IsNullOrWhiteSpace(_props.Subheading))
+    {
+        <p class="cms-sec-sub">@_props.Subheading</p>
+    }
+    <div class="cms-articles-grid">
+        @foreach (var item in _props.Items ?? [])
+        {
+            <article class="cms-article-card" @onclick="() => _reading = item">
+                @if (!string.IsNullOrWhiteSpace(item.CoverUrl))
+                {
+                    <img src="@item.CoverUrl" alt="@item.Title" class="cms-article-cover" />
+                }
+                <div class="cms-article-body">
+                    <div class="cms-article-meta">
+                        @if (!string.IsNullOrWhiteSpace(item.Category))
+                        {
+                            <span class="cms-article-cat">@item.Category</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(item.Date))
+                        {
+                            <span class="cms-article-date">@item.Date</span>
+                        }
+                    </div>
+                    <h3>@item.Title</h3>
+                    @if (!string.IsNullOrWhiteSpace(item.Summary))
+                    {
+                        <p>@item.Summary</p>
+                    }
+                </div>
+            </article>
+        }
+    </div>
+</div>
+
+<BitModal IsOpen="@(_reading is not null)" IsOpenChanged="v => { if (!v) _reading = null; }">
+    @if (_reading is not null)
+    {
+        <div class="cms-article-modal">
+            <div class="cms-article-modal-head">
+                <div>
+                    @if (!string.IsNullOrWhiteSpace(_reading.Category))
+                    {
+                        <span class="cms-article-cat">@_reading.Category</span>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(_reading.Date))
+                    {
+                        <span class="cms-article-date">@_reading.Date</span>
+                    }
+                    <h2>@_reading.Title</h2>
+                </div>
+                <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick="() => _reading = null">✕</BitButton>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_reading.CoverUrl))
+            {
+                <img src="@_reading.CoverUrl" alt="@_reading.Title" class="cms-article-modal-cover" />
+            }
+            <div class="cms-article-modal-content">@(!string.IsNullOrWhiteSpace(_reading.Content) ? _reading.Content : _reading.Summary)</div>
+        </div>
+    }
+</BitModal>

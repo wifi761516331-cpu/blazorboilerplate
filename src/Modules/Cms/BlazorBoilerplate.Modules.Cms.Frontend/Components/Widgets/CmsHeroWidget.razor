@@ -1,0 +1,27 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<div class="cms-w-hero">
+    @if (!string.IsNullOrWhiteSpace(_props.Badge))
+    {
+        <span class="cms-hero-badge">@_props.Badge</span>
+    }
+    <h1>@_props.Headline</h1>
+    @if (!string.IsNullOrWhiteSpace(_props.Subheadline))
+    {
+        <p class="cms-hero-sub">@_props.Subheadline</p>
+    }
+    <div class="cms-hero-actions">
+        @if (!string.IsNullOrWhiteSpace(_props.PrimaryButtonText))
+        {
+            <button type="button" class="cms-btn-primary" @onclick="() => NavigateAsync(_props.PrimaryButtonHref)">
+                @_props.PrimaryButtonText
+            </button>
+        }
+        @if (!string.IsNullOrWhiteSpace(_props.SecondaryButtonText))
+        {
+            <button type="button" class="cms-btn-outline" @onclick="() => NavigateAsync(_props.SecondaryButtonHref)">
+                @_props.SecondaryButtonText
+            </button>
+        }
+    </div>
+</div>

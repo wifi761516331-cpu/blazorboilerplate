@@ -1,0 +1,10 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<div class="cms-w-footer">
+    <div class="cms-footer-brand">@_props.Brand</div>
+    @if (!string.IsNullOrWhiteSpace(_props.Tagline))
+    {
+        <div class="cms-footer-tag">@_props.Tagline</div>
+    }
+    <div class="cms-footer-copy">@_props.Copyright</div>
+</div>

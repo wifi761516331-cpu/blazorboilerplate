@@ -1,0 +1,85 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<div class="cms-w-contact">
+    <div class="cms-contact-info">
+        @if (!string.IsNullOrWhiteSpace(_props.Heading))
+        {
+            <h2>@_props.Heading</h2>
+        }
+        @if (!string.IsNullOrWhiteSpace(_props.Subheading))
+        {
+            <p class="cms-contact-sub">@_props.Subheading</p>
+        }
+
+        <div class="cms-contact-meta-list">
+            <div class="cms-contact-meta-item">
+                <span class="cms-contact-meta-icon"><AppIcon Name="Mail" /></span>
+                <div>
+                    <small>@L["cms.contact.email"]</small>
+                    <strong>@(string.IsNullOrWhiteSpace(_props.Email) ? "contact@blazorboilerplate.dev" : _props.Email)</strong>
+                </div>
+            </div>
+            <div class="cms-contact-meta-item">
+                <span class="cms-contact-meta-icon"><AppIcon Name="Contact" /></span>
+                <div>
+                    <small>@L["cms.contact.phone"]</small>
+                    <strong>@(string.IsNullOrWhiteSpace(_props.Phone) ? "400-800-8888" : _props.Phone)</strong>
+                </div>
+            </div>
+            <div class="cms-contact-meta-item">
+                <span class="cms-contact-meta-icon"><AppIcon Name="Globe" /></span>
+                <div>
+                    <small>@L["cms.contact.addressLabel"]</small>
+                    <strong>@(string.IsNullOrWhiteSpace(_props.Address) ? L["cms.contact.defaultAddress"] : _props.Address)</strong>
+                </div>
+            </div>
+            <div class="cms-contact-meta-item">
+                <span class="cms-contact-meta-icon"><AppIcon Name="Clock" /></span>
+                <div>
+                    <small>@L["cms.contact.hoursLabel"]</small>
+                    <strong>@(string.IsNullOrWhiteSpace(_props.Hours) ? L["cms.contact.defaultHours"] : _props.Hours)</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="cms-contact-map-col">
+        <CmsAmapView Title="@(string.IsNullOrWhiteSpace(_props.MapLabel) ? L["cms.contact.mapTitle"] : _props.MapLabel)"
+                     Address="@(string.IsNullOrWhiteSpace(_props.Address) ? L["cms.contact.defaultAddress"] : _props.Address)"
+                     Longitude="@_props.Longitude"
+                     Latitude="@_props.Latitude"
+                     Zoom="@_props.Zoom"
+                     FillHeight="true"
+                     AmapKey="@_props.AmapKey"
+                     SecurityJsCode="@_props.SecurityJsCode"
+                     MapEmbedUrl="@_props.MapEmbedUrl"
+                     Coordinates="@_props.Coordinates" />
+    </div>
+
+    <div class="cms-contact-card">
+        @if (_submitted)
+        {
+            <div class="cms-contact-ok">@L["cms.contact.success"]</div>
+        }
+        else
+        {
+            <h3 class="cms-contact-card-title">@L["cms.contact.formTitle"]</h3>
+            <div class="cms-contact-form">
+                <div class="cms-contact-row">
+                    <BitTextField @bind-Value="_name" Label="@L["cms.contact.name"]" />
+                    <BitTextField @bind-Value="_phone" Label="@L["cms.contact.phone"]" />
+                </div>
+                <div class="cms-contact-row">
+                    <BitTextField @bind-Value="_email" Label="@L["cms.contact.email"]" />
+                    <BitTextField @bind-Value="_company" Label="@L["cms.contact.company"]" />
+                </div>
+                <BitTextField @bind-Value="_message" Label="@L["cms.contact.message"]" Multiline="true" Rows="5" />
+                <div class="cms-contact-actions">
+                    <BitButton Variant="BitVariant.Fill" Size="BitSize.Large" OnClick="SubmitAsync" IsEnabled="@(!_submitting && !IsDesignMode)">
+                        @(_submitting ? L["cms.contact.submitting"] : (_props.SubmitText ?? L["cms.contact.submit"]))
+                    </BitButton>
+                </div>
+            </div>
+        }
+    </div>
+</div>

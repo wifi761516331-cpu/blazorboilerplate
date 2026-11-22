@@ -1,0 +1,44 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<div class="cms-w-carousel" style="@($"height:{Math.Clamp(_props.Height, 220, 680)}px;")">
+    @if (_slides.Count == 0)
+    {
+        <div class="cms-media-placeholder">请添加轮播幻灯片</div>
+    }
+    else
+    {
+        var active = _slides[_activeIndex];
+        <div class="cms-carousel-slide" style="@SlideBgStyle(active)" data-bg-url="@(active.ImageUrl ?? string.Empty)" data-slide-index="@_activeIndex">
+            <div class="cms-carousel-overlay">
+                @if (!string.IsNullOrWhiteSpace(active.Title))
+                {
+                    <h2>@active.Title</h2>
+                }
+                @if (!string.IsNullOrWhiteSpace(active.Subtitle))
+                {
+                    <p>@active.Subtitle</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(active.ButtonText))
+                {
+                    <BitButton Variant="BitVariant.Fill" OnClick="() => NavigateSlideAsync(active.ButtonHref)">@active.ButtonText</BitButton>
+                }
+            </div>
+        </div>
+        @if (_slides.Count > 1)
+        {
+            <button type="button" class="cms-carousel-arrow is-prev" aria-label="上一张" @onclick="Prev">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <button type="button" class="cms-carousel-arrow is-next" aria-label="下一张" @onclick="Next">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+            <div class="cms-carousel-dots">
+                @for (var i = 0; i < _slides.Count; i++)
+                {
+                    var idx = i;
+                    <button type="button" class="cms-carousel-dot @(idx == _activeIndex ? "is-active" : "")" aria-label="@($"第 {idx + 1} 张")" @onclick="() => _activeIndex = idx"></button>
+                }
+            </div>
+        }
+    }
+</div>

@@ -1,0 +1,37 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<div class="cms-w-tabs">
+    @if (!string.IsNullOrWhiteSpace(_props.Heading))
+    {
+        <h2 class="cms-sec-heading">@_props.Heading</h2>
+    }
+    @if (_items.Count > 0)
+    {
+        <div class="cms-tabs-bar" role="tablist">
+            @for (var i = 0; i < _items.Count; i++)
+            {
+                var idx = i;
+                <button type="button"
+                        role="tab"
+                        aria-selected="@(idx == _activeIndex)"
+                        class="cms-tab-btn @(idx == _activeIndex ? "is-active" : "")"
+                        @onclick="() => _activeIndex = idx">
+                    @_items[idx].Title
+                </button>
+            }
+        </div>
+        var active = _items[_activeIndex];
+        <div class="cms-tab-panel @(!string.IsNullOrWhiteSpace(active.ImageUrl) ? "has-image" : "")">
+            <div class="cms-tab-body">
+                <h3>@active.Title</h3>
+                <p>@active.Content</p>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(active.ImageUrl))
+            {
+                <div class="cms-tab-media">
+                    <img src="@active.ImageUrl" alt="@active.Title" />
+                </div>
+            }
+        </div>
+    }
+</div>

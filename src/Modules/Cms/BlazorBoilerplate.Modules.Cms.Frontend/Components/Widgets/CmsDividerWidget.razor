@@ -1,0 +1,13 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<div class="cms-w-divider" style="@($"padding:{Math.Clamp(_props.Height, 8, 120) / 2}px 0;")">
+    @if (_props.ShowLine)
+    {
+        <div class="cms-divider-line">
+            @if (!string.IsNullOrWhiteSpace(_props.Label))
+            {
+                <span>@_props.Label</span>
+            }
+        </div>
+    }
+</div>

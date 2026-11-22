@@ -1,0 +1,20 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<div class="cms-w-partners">
+    @if (!string.IsNullOrWhiteSpace(_props.Heading))
+    {
+        <h2 class="cms-sec-heading">@_props.Heading</h2>
+    }
+    <div class="cms-partners-grid">
+        @foreach (var item in _props.Items ?? [])
+        {
+            <div class="cms-partner-card">
+                @if (!string.IsNullOrWhiteSpace(item.LogoUrl))
+                {
+                    <img src="@item.LogoUrl" alt="@item.Name" />
+                }
+                <span>@item.Name</span>
+            </div>
+        }
+    </div>
+</div>

@@ -1,0 +1,26 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<div class="cms-w-features">
+    @if (!string.IsNullOrWhiteSpace(_props.Heading))
+    {
+        <div class="cms-sec-head">
+            <h2>@_props.Heading</h2>
+            @if (!string.IsNullOrWhiteSpace(_props.Subheading))
+            {
+                <p>@_props.Subheading</p>
+            }
+        </div>
+    }
+    <div class="cms-feature-grid">
+        @foreach (var item in _props.Items)
+        {
+            <div class="cms-feature-card">
+                <div class="cms-feature-icon">
+                    <AppIcon Name="@(string.IsNullOrWhiteSpace(item.Icon) ? "Sparkle" : item.Icon)" />
+                </div>
+                <h3>@item.Title</h3>
+                <p>@item.Description</p>
+            </div>
+        }
+    </div>
+</div>

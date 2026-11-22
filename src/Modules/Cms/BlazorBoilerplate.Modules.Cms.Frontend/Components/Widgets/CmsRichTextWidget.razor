@@ -1,0 +1,13 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<div class="cms-w-richtext">
+    @if (!string.IsNullOrWhiteSpace(_props.Heading))
+    {
+        <h2>@_props.Heading</h2>
+    }
+    <p class="cms-richtext-body">@_props.Body</p>
+    @if (!string.IsNullOrWhiteSpace(_props.ImageUrl))
+    {
+        <img class="cms-richtext-img" src="@_props.ImageUrl" alt="@_props.Heading" loading="lazy" />
+    }
+</div>

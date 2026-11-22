@@ -1,0 +1,50 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<div class="cms-contact-map-card @(FillHeight ? "is-fill" : "")" aria-label="@DisplayTitle">
+    @if (!string.IsNullOrWhiteSpace(AmapKey))
+    {
+        <div id="@_containerId" class="cms-amap-canvas" style="@(FillHeight ? null : $"height:{EffectiveHeight}px")"></div>
+    }
+    else if (!string.IsNullOrWhiteSpace(MapEmbedUrl))
+    {
+        <iframe class="cms-contact-map-frame"
+                style="@(FillHeight ? null : $"height:{EffectiveHeight}px")"
+                src="@MapEmbedUrl"
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+                title="@DisplayTitle"></iframe>
+    }
+    else
+    {
+        <div class="cms-contact-map-visual" style="@(FillHeight ? null : $"height:{EffectiveHeight}px")">
+            <svg class="cms-contact-map-svg" viewBox="0 0 420 190" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <defs>
+                    <pattern id="@($"cms-map-grid-{_containerId}")" width="28" height="28" patternUnits="userSpaceOnUse">
+                        <path d="M 28 0 L 0 0 0 28" fill="none" stroke="currentColor" stroke-opacity="0.08" stroke-width="1" />
+                    </pattern>
+                </defs>
+                <rect width="420" height="190" fill="@($"url(#cms-map-grid-{_containerId})")" />
+                <path d="M -10 145 Q 110 115 215 135 T 430 95" fill="none" stroke="currentColor" stroke-opacity="0.14" stroke-width="14" stroke-linecap="round" />
+                <path d="M 0 65 L 420 42" fill="none" stroke="currentColor" stroke-opacity="0.12" stroke-width="8" />
+                <path d="M 135 0 L 165 190" fill="none" stroke="currentColor" stroke-opacity="0.12" stroke-width="7" />
+                <path d="M 295 0 L 265 190" fill="none" stroke="currentColor" stroke-opacity="0.1" stroke-width="6" />
+                <rect x="172" y="64" width="76" height="44" rx="8" fill="currentColor" fill-opacity="0.06" />
+            </svg>
+            <div class="cms-contact-map-pin-wrap">
+                <span class="cms-contact-map-pulse"></span>
+                <span class="cms-contact-map-pin"></span>
+            </div>
+            <div class="cms-contact-map-badge">
+                <div class="cms-contact-map-badge-row">
+                    <span class="cms-contact-map-badge-title">@DisplayTitle</span>
+                    <a class="cms-contact-map-link" href="@AmapUriUrl" target="_blank" rel="noopener noreferrer">@L["cms.contact.openAmap"]</a>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(Address))
+                {
+                    <span class="cms-contact-map-badge-sub">@Address</span>
+                }
+                <span class="cms-contact-map-coords">@DisplayCoordinates</span>
+            </div>
+        </div>
+    }
+</div>

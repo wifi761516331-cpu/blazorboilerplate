@@ -1,0 +1,175 @@
+@page "/cms"
+@attribute [Authorize]
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Pages
+
+<div class="cms-admin-page">
+    <div class="cms-admin-header">
+        <div>
+            <h1>@L["cms.title"]</h1>
+            <p class="muted">@L["cms.subtitle"]</p>
+        </div>
+        <div class="cms-admin-actions">
+            <BitButton Variant="BitVariant.Outline" OnClick='() => Navigation.NavigateTo("/cms/layouts")'>@L["cms.action.layouts"]</BitButton>
+            <PermissionGate Code="cms.site.write">
+                <BitButton Variant="BitVariant.Fill" OnClick="OpenCreateModal">@L["cms.action.createSite"]</BitButton>
+            </PermissionGate>
+        </div>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="cms-admin-empty">@L["cms.sites.loading"]</div>
+    }
+    else if (_sites.Count == 0)
+    {
+        <div class="cms-admin-empty">@L["cms.sites.empty"]</div>
+    }
+    else
+    {
+        <div class="cms-site-grid">
+            @foreach (var site in _sites)
+            {
+                var isDefaultTemplate = string.Equals(site.SiteKey, "default", StringComparison.OrdinalIgnoreCase);
+                <BitCard Outlined="true" Class="cms-site-card">
+                    <div class="cms-site-card-head">
+                        <div>
+                            <h3>@site.Name</h3>
+                            <span class="cms-site-key">SiteKey: @site.SiteKey</span>
+                        </div>
+                        <div class="cms-site-badges">
+                            @if (isDefaultTemplate)
+                            {
+                                <BitTag Color="BitColor.Info" Size="BitSize.Small">默认模板（只读）</BitTag>
+                            }
+                            <BitTag Color="@(site.IsPublished ? BitColor.Success : BitColor.Warning)" Size="BitSize.Small">
+                                @(site.IsPublished ? L["cms.status.published"] : L["cms.status.draft"])
+                            </BitTag>
+                        </div>
+                    </div>
+                    <p class="cms-site-desc">@(string.IsNullOrWhiteSpace(site.Description) ? site.Title : site.Description)</p>
+                    <div class="cms-site-meta">
+                        <span>@L.GetString("cms.sites.languages", string.Join(" / ", site.SupportedCultures), site.DefaultCulture)</span>
+                        <br />
+                        @if (site.PublishedAtUtc.HasValue)
+                        {
+                            <span>@L.GetString("cms.sites.lastPublished", site.PublishedAtUtc.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm"))</span>
+                        }
+                        else
+                        {
+                            <span>@L["cms.sites.notPublished"]</span>
+                        }
+                    </div>
+                    <div class="cms-site-card-actions">
+                        <PermissionGate Code="cms.site.write">
+                            @if (!isDefaultTemplate)
+                            {
+                                <BitButton Size="BitSize.Small" Variant="BitVariant.Fill" OnClick='() => Navigation.NavigateTo($"/cms/designer/{site.Id}")'>
+                                    @L["cms.action.designer"]
+                                </BitButton>
+                                <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick="() => OpenEditModal(site)">
+                                    @L["cms.action.edit"]
+                                </BitButton>
+                            }
+                            <BitButton Size="BitSize.Small" Variant="@(isDefaultTemplate ? BitVariant.Fill : BitVariant.Outline)" OnClick="() => CloneSiteAsync(site)" IsEnabled="@(!_busy)">
+                                @(isDefaultTemplate ? "复制为新站点" : "复制")
+                            </BitButton>
+                        </PermissionGate>
+                        <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick="() => OpenPreview(site)">
+                            @L["cms.action.preview"]
+                        </BitButton>
+                        <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick="() => OpenLeadsAsync(site)">
+                            @L["cms.action.leads"]
+                        </BitButton>
+                        @if (!isDefaultTemplate)
+                        {
+                            <PermissionGate Code="cms.site.publish">
+                                @if (site.IsPublished)
+                                {
+                                    <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick="() => UnpublishAsync(site)">@L["cms.action.unpublish"]</BitButton>
+                                }
+                                else
+                                {
+                                    <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick="() => PublishAsync(site)">@L["cms.action.publish"]</BitButton>
+                                }
+                            </PermissionGate>
+                            <PermissionGate Code="cms.site.write">
+                                <BitButton Size="BitSize.Small" Variant="BitVariant.Text" Color="BitColor.Error" OnClick="() => DeleteSiteAsync(site)">@L["cms.action.delete"]</BitButton>
+                            </PermissionGate>
+                        }
+                    </div>
+                </BitCard>
+            }
+        </div>
+    }
+</div>
+
+<BitModal IsOpen="@_createOpen" IsOpenChanged="v => _createOpen = v">
+    <div class="cms-modal-box">
+        <h3>@(_editingSiteId.HasValue ? L["cms.sites.modal.editTitle"] : L["cms.sites.modal.createTitle"])</h3>
+        <div class="cms-form-stack">
+            <div class="cms-form-row">
+                <BitTextField @bind-Value="_newName" Label="@L["cms.sites.field.name"]" />
+                <BitTextField @bind-Value="_newKey" Label="@L["cms.sites.field.siteKey"]" />
+            </div>
+            <BitTextField @bind-Value="_newTitle" Label="@L["cms.sites.field.title"]" />
+            <div class="cms-form-row">
+                <div class="cms-pick-col">
+                    <BitTextField @bind-Value="_newLogoUrl" Label="@L["cms.sites.field.logoUrl"]" />
+                    <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick="() => OpenSiteMediaPicker(isFavicon: false)">@L["cms.sites.field.pickLogo"]</BitButton>
+                </div>
+                <div class="cms-pick-col">
+                    <BitTextField @bind-Value="_newFaviconUrl" Label="@L["cms.sites.field.faviconUrl"]" Placeholder="https://.../favicon.ico" />
+                    <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick="() => OpenSiteMediaPicker(isFavicon: true)">@L["cms.sites.field.pickFavicon"]</BitButton>
+                </div>
+            </div>
+            <div class="cms-form-row">
+                <BitTextField @bind-Value="_newDefaultCulture" Label="@L["cms.sites.field.defaultCulture"]" Placeholder="zh-CN" />
+                <BitTextField @bind-Value="_newSupportedCultures" Label="@L["cms.sites.field.supportedCultures"]" Placeholder="zh-CN,en-US" />
+            </div>
+            <BitTextField @bind-Value="_newDesc" Label="@L["cms.sites.field.description"]" Multiline="true" Rows="2" />
+        </div>
+        <div class="cms-modal-foot">
+            <BitButton Variant="BitVariant.Text" OnClick="() => _createOpen = false">@L["cms.action.cancel"]</BitButton>
+            <BitButton Variant="BitVariant.Fill" OnClick="SaveSiteAsync" IsEnabled="@(!_busy)">@(_editingSiteId.HasValue ? L["cms.action.save"] : L["cms.action.create"])</BitButton>
+        </div>
+    </div>
+</BitModal>
+
+<CmsMediaPickerDialog IsOpen="@_logoMediaOpen" IsOpenChanged="v => _logoMediaOpen = v" OnSelected="HandleSiteMediaSelected" />
+
+<BitModal IsOpen="@_leadsOpen" IsOpenChanged="v => _leadsOpen = v">
+    <div class="cms-modal-box cms-modal-wide">
+        <div class="cms-modal-head">
+            <h3>@L.GetString("cms.leads.modalTitle", _leadsSite?.Name ?? "")</h3>
+            <BitButton Variant="BitVariant.Text" OnClick="() => _leadsOpen = false">@L["cms.action.close"]</BitButton>
+        </div>
+        @if (_leads.Count == 0)
+        {
+            <div class="cms-admin-empty">@L["cms.leads.empty"]</div>
+        }
+        else
+        {
+            <div class="cms-leads-list">
+                @foreach (var lead in _leads)
+                {
+                    <div class="cms-lead-item">
+                        <div class="cms-lead-top">
+                            <strong>@lead.Name</strong>
+                            <span>@(lead.Phone ?? "-") · @(lead.Email ?? "-") · @(lead.Company ?? "-")</span>
+                            <BitTag Size="BitSize.Small" Color="@(lead.Status == "New" ? BitColor.Info : BitColor.Success)">@lead.Status</BitTag>
+                            <span class="muted">@lead.CreatedAtUtc.ToLocalTime().ToString("MM-dd HH:mm")</span>
+                        </div>
+                        <p class="cms-lead-msg">@lead.Message</p>
+                        <div class="cms-lead-actions">
+                            @if (lead.Status == "New")
+                            {
+                                <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick='() => MarkLeadAsync(lead, "Read")'>@L["cms.leads.markRead"]</BitButton>
+                            }
+                            <BitButton Size="BitSize.Small" Variant="BitVariant.Text" Color="BitColor.Error" OnClick="() => DeleteLeadAsync(lead)">@L["cms.action.delete"]</BitButton>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</BitModal>

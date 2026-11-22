@@ -1,0 +1,143 @@
+@page "/site"
+@layout CmsPortalLayout
+@attribute [AllowAnonymous]
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Pages
+@using BlazorBoilerplate.Modules.Cms.Frontend.Layout
+
+@if (_loading)
+{
+    <div class="cms-portal-loading">@L["cms.portal.loading"]</div>
+}
+else if (_snapshot is null)
+{
+    <div class="cms-portal-empty">
+        <h2>@L["cms.portal.emptyTitle"]</h2>
+        <p>@L["cms.portal.emptyDesc"]</p>
+    </div>
+}
+else
+{
+    <PageTitle>@_snapshot.Title</PageTitle>
+    @if (!string.IsNullOrWhiteSpace(_snapshot.FaviconUrl))
+    {
+        <HeadContent>
+            <link rel="icon" href="@_snapshot.FaviconUrl" />
+            <link rel="shortcut icon" href="@_snapshot.FaviconUrl" />
+        </HeadContent>
+    }
+    <div class="cms-site-root" style="@ThemeVariablesStyle">
+        <header class="cms-spa-nav">
+            <div class="cms-container cms-spa-nav-inner">
+                <button type="button" class="cms-brand-btn" @onclick='() => NavigateAnchorAsync("home")'>
+                    @if (!string.IsNullOrWhiteSpace(_snapshot.LogoUrl))
+                    {
+                        <img src="@_snapshot.LogoUrl" alt="@_snapshot.Title" class="cms-brand-logo" />
+                    }
+                    <span>@_snapshot.Title</span>
+                </button>
+
+                <nav class="cms-spa-links @(_mobileMenuOpen ? "is-open" : "")" aria-label="单页导航">
+                    @foreach (var sec in _snapshot.Sections.Where(s => s.NavVisible).OrderBy(s => s.SortOrder))
+                    {
+                        <button type="button"
+                                class="cms-spa-link @(_activeSlug == sec.AnchorSlug ? "is-active" : "")"
+                                @onclick="() => NavigateAnchorAsync(sec.AnchorSlug)">
+                            @sec.Title
+                        </button>
+                    }
+                </nav>
+
+                <div class="cms-nav-right">
+                    @if (_snapshot.SupportedCultures.Count > 1)
+                    {
+                        <div class="cms-lang-switch">
+                            @foreach (var lang in _snapshot.SupportedCultures)
+                            {
+                                <button type="button"
+                                        class="cms-lang-btn @(string.Equals(_snapshot.Culture, lang, StringComparison.OrdinalIgnoreCase) ? "is-active" : "")"
+                                        title="@lang"
+                                        aria-label="@lang"
+                                        @onclick="() => SwitchCultureAsync(lang)">
+                                    @if (lang.StartsWith("zh", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <svg class="cms-lang-flag" viewBox="0 0 30 20" aria-hidden="true">
+                                            <rect width="30" height="20" rx="2" fill="#de2910" />
+                                            <polygon points="5,3.5 5.9,6.2 8.7,6.2 6.4,7.8 7.3,10.5 5,8.8 2.7,10.5 3.6,7.8 1.3,6.2 4.1,6.2" fill="#ffde00" />
+                                            <circle cx="10.5" cy="2.5" r="0.85" fill="#ffde00" />
+                                            <circle cx="12.2" cy="4.8" r="0.85" fill="#ffde00" />
+                                            <circle cx="12.2" cy="7.7" r="0.85" fill="#ffde00" />
+                                            <circle cx="10.5" cy="9.8" r="0.85" fill="#ffde00" />
+                                        </svg>
+                                    }
+                                    else if (lang.StartsWith("en", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <svg class="cms-lang-flag" viewBox="0 0 30 20" aria-hidden="true">
+                                            <rect width="30" height="20" rx="2" fill="#fff" />
+                                            <rect y="0" width="30" height="1.54" fill="#b22234" />
+                                            <rect y="3.08" width="30" height="1.54" fill="#b22234" />
+                                            <rect y="6.16" width="30" height="1.54" fill="#b22234" />
+                                            <rect y="9.24" width="30" height="1.54" fill="#b22234" />
+                                            <rect y="12.32" width="30" height="1.54" fill="#b22234" />
+                                            <rect y="15.4" width="30" height="1.54" fill="#b22234" />
+                                            <rect y="18.46" width="30" height="1.54" fill="#b22234" />
+                                            <rect width="12.5" height="10.78" fill="#3c3b6e" />
+                                            <circle cx="3" cy="2.8" r="0.8" fill="#fff" />
+                                            <circle cx="6.2" cy="2.8" r="0.8" fill="#fff" />
+                                            <circle cx="9.4" cy="2.8" r="0.8" fill="#fff" />
+                                            <circle cx="4.6" cy="5.4" r="0.8" fill="#fff" />
+                                            <circle cx="7.8" cy="5.4" r="0.8" fill="#fff" />
+                                            <circle cx="3" cy="8" r="0.8" fill="#fff" />
+                                            <circle cx="6.2" cy="8" r="0.8" fill="#fff" />
+                                            <circle cx="9.4" cy="8" r="0.8" fill="#fff" />
+                                        </svg>
+                                    }
+                                    else
+                                    {
+                                        <span>@lang</span>
+                                    }
+                                </button>
+                            }
+                        </div>
+                    }
+                    <button type="button"
+                            class="cms-nav-toggle"
+                            aria-label="导航菜单"
+                            aria-expanded="@_mobileMenuOpen"
+                            @onclick="ToggleMobileMenu">
+                        @if (_mobileMenuOpen)
+                        {
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        }
+                        else
+                        {
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                        }
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="cms-spa-main">
+            @foreach (var sec in _snapshot.Sections.OrderBy(s => s.SortOrder))
+            {
+                <CmsSectionRenderer Section="@sec"
+                                    SiteKey="@_snapshot.SiteKey"
+                                    IsDesignMode="false"
+                                    OnNavigateAnchor="NavigateAnchorAsync" />
+            }
+        </main>
+
+        <button type="button"
+                class="cms-back-top"
+                title="回到顶部"
+                aria-label="回到顶部"
+                @onclick="ScrollToTopAsync">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
+                <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
+                <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
+                <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
+            </svg>
+        </button>
+    </div>
+}

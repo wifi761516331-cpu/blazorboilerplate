@@ -1,0 +1,26 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<div class="cms-w-faq">
+    @if (!string.IsNullOrWhiteSpace(_props.Heading))
+    {
+        <h2 class="cms-sec-heading">@_props.Heading</h2>
+    }
+    <div class="cms-faq-list">
+        @for (var i = 0; i < _props.Items.Count; i++)
+        {
+            var idx = i;
+            var item = _props.Items[idx];
+            var expanded = _expandedIndex == idx;
+            <div class="cms-faq-item @(expanded ? "is-open" : "")">
+                <button type="button" class="cms-faq-q" @onclick="() => Toggle(idx)">
+                    <span>@item.Question</span>
+                    <span>@(expanded ? "−" : "+")</span>
+                </button>
+                @if (expanded)
+                {
+                    <div class="cms-faq-a">@item.Answer</div>
+                }
+            </div>
+        }
+    </div>
+</div>

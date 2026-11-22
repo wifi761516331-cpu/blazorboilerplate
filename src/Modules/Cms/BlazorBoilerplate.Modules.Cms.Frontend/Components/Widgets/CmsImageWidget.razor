@@ -1,0 +1,25 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<figure class="cms-w-image @(_props.Shadow ? "has-shadow" : "") @(_props.Rounded ? "is-rounded" : "")">
+    @if (!string.IsNullOrWhiteSpace(_props.ImageUrl))
+    {
+        @if (!string.IsNullOrWhiteSpace(_props.LinkUrl))
+        {
+            <a href="@_props.LinkUrl" target="_blank" rel="noopener noreferrer">
+                <img src="@_props.ImageUrl" alt="@(_props.Alt ?? _props.Caption ?? "")" style="@ImgStyle" />
+            </a>
+        }
+        else
+        {
+            <img src="@_props.ImageUrl" alt="@(_props.Alt ?? _props.Caption ?? "")" style="@ImgStyle" />
+        }
+    }
+    else
+    {
+        <div class="cms-media-placeholder">请从附件库选择图片或填写图片 URL</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(_props.Caption))
+    {
+        <figcaption>@_props.Caption</figcaption>
+    }
+</figure>

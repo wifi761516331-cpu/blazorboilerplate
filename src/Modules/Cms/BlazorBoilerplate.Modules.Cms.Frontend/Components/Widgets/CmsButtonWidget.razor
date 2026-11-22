@@ -1,0 +1,9 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<div class="cms-w-button" style="@($"justify-content:{JustifyContent};")">
+    <BitButton Variant="@(string.Equals(_props.Variant, "outline", StringComparison.OrdinalIgnoreCase) ? BitVariant.Outline : BitVariant.Fill)"
+               Size="BitSize.Large"
+               OnClick="HandleClickAsync">
+        @_props.Text
+    </BitButton>
+</div>

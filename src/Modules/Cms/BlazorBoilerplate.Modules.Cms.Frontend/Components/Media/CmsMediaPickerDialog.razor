@@ -1,0 +1,52 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Media
+
+<BitModal IsOpen="@IsOpen" IsOpenChanged="@HandleOpenChanged">
+    <div class="cms-media-modal">
+        <div class="cms-media-head">
+            <h3>@L["cms.media.title"]</h3>
+            <div class="cms-media-actions">
+                <label class="cms-upload-btn">
+                    <AppIcon Name="Upload" />
+                    <span>@(_uploading ? L["cms.media.uploading"] : L["cms.media.upload"])</span>
+                    <InputFile OnChange="HandleUploadAsync" accept="image/*,.ico,.svg,.webp" disabled="@_uploading" />
+                </label>
+                <BitButton Variant="BitVariant.Text" OnClick="CloseAsync">@L["cms.action.close"]</BitButton>
+            </div>
+        </div>
+
+        <div class="cms-media-toolbar">
+            <BitTextField @bind-Value="_search" Placeholder="@L["cms.media.search"]" Immediate="true" />
+            <BitToggle @bind-Value="_imagesOnly" Text="@L["cms.media.imagesOnly"]" />
+            <BitButton Variant="BitVariant.Outline" OnClick="LoadAsync" IsEnabled="@(!_loading)">@L["cms.media.refresh"]</BitButton>
+        </div>
+
+        @if (_loading)
+        {
+            <div class="cms-media-empty">@L["cms.media.loading"]</div>
+        }
+        else if (FilteredItems.Count == 0)
+        {
+            <div class="cms-media-empty">@L["cms.media.empty"]</div>
+        }
+        else
+        {
+            <div class="cms-media-grid">
+                @foreach (var item in FilteredItems)
+                {
+                    var url = GetContentUrl(item);
+                    <button type="button" class="cms-media-item" @onclick="() => SelectAsync(item)">
+                        @if (IsImage(item))
+                        {
+                            <img src="@url" alt="@item.FileName" loading="lazy" />
+                        }
+                        else
+                        {
+                            <div class="cms-media-file-icon"><AppIcon Name="Document" /></div>
+                        }
+                        <span class="cms-media-name" title="@item.FileName">@item.FileName</span>
+                    </button>
+                }
+            </div>
+        }
+    </div>
+</BitModal>

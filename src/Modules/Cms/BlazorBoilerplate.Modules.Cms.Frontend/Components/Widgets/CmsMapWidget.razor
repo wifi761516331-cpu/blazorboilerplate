@@ -1,0 +1,21 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<div class="cms-w-map">
+    @if (!string.IsNullOrWhiteSpace(_props.Heading))
+    {
+        <h2 class="cms-sec-heading">@_props.Heading</h2>
+    }
+    @if (!string.IsNullOrWhiteSpace(_props.Subheading))
+    {
+        <p class="cms-sec-sub">@_props.Subheading</p>
+    }
+    <CmsAmapView Title="@_props.Title"
+                 Address="@_props.Address"
+                 Longitude="@_props.Longitude"
+                 Latitude="@_props.Latitude"
+                 Zoom="@_props.Zoom"
+                 Height="@_props.Height"
+                 AmapKey="@_props.AmapKey"
+                 SecurityJsCode="@_props.SecurityJsCode"
+                 MapEmbedUrl="@_props.MapEmbedUrl" />
+</div>

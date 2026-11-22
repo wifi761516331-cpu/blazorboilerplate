@@ -1,0 +1,11 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<div class="cms-w-stats">
+    @foreach (var item in _props.Items)
+    {
+        <div class="cms-stat-tile">
+            <div class="cms-stat-num">@item.Value</div>
+            <div class="cms-stat-lbl">@item.Label</div>
+        </div>
+    }
+</div>

@@ -1,0 +1,43 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
+
+<div class="cms-w-pricing">
+    @if (!string.IsNullOrWhiteSpace(_props.Heading))
+    {
+        <h2 class="cms-sec-heading">@_props.Heading</h2>
+    }
+    @if (!string.IsNullOrWhiteSpace(_props.Subheading))
+    {
+        <p class="cms-sec-sub">@_props.Subheading</p>
+    }
+    <div class="cms-pricing-grid">
+        @foreach (var plan in _props.Plans ?? [])
+        {
+            <div class="cms-pricing-card @(plan.Highlighted ? "is-highlighted" : "")">
+                @if (!string.IsNullOrWhiteSpace(plan.Badge))
+                {
+                    <span class="cms-pricing-badge">@plan.Badge</span>
+                }
+                <h3>@plan.Name</h3>
+                <div class="cms-pricing-price">
+                    <strong>@plan.Price</strong>
+                    @if (!string.IsNullOrWhiteSpace(plan.Period))
+                    {
+                        <span>@plan.Period</span>
+                    }
+                </div>
+                <ul class="cms-pricing-features">
+                    @foreach (var feat in plan.Features ?? [])
+                    {
+                        <li>✓ @feat</li>
+                    }
+                </ul>
+                @if (!string.IsNullOrWhiteSpace(plan.ButtonText))
+                {
+                    <BitButton Variant="@(plan.Highlighted ? BitVariant.Fill : BitVariant.Outline)" OnClick="() => HandlePlanClickAsync(plan.ButtonHref)">
+                        @plan.ButtonText
+                    </BitButton>
+                }
+            </div>
+        }
+    </div>
+</div>
