@@ -1,0 +1,35 @@
+{
+  "id": "cms",
+  "name": "Cms",
+  "displayName": "官网内容管理",
+  "version": "1.0.0",
+  "publisher": "BlazorBoilerplate",
+  "entryAssembly": "BlazorBoilerplate.Modules.Cms.dll",
+  "entryType": "BlazorBoilerplate.Modules.Cms.CmsModule",
+  "contractVersion": "1.0",
+  "moduleSdkVersion": "1.0",
+  "hostCompatibility": ">=1.0.0 <2.0.0",
+  "displayOrder": 220,
+  "dependencies": [],
+  "permissions": [ "cms.site.read", "cms.site.write", "cms.site.publish", "cms.layout.write", "cms.ai.generate" ],
+  "permissionItems": [
+    { "code": "cms.site.read", "name": "查看官网与留资" },
+    { "code": "cms.site.write", "name": "设计官网与微件" },
+    { "code": "cms.site.publish", "name": "发布或下线官网" },
+    { "code": "cms.layout.write", "name": "管理布局页模板" },
+    { "code": "cms.ai.generate", "name": "使用 AI 生成官网" }
+  ],
+  "frontend": {
+    "assembly": "BlazorBoilerplate.Modules.Cms.Frontend.dll",
+    "domainRoutable": true,
+    "routes": [ "/cms", "/cms/layouts", "/site" ],
+    "menus": [ "Cms" ],
+    "menuItems": [
+      { "text": "官网管理", "route": "/cms", "icon": "Edit", "group": "内容管理", "groupIcon": "EditList", "sort": 220 },
+      { "text": "布局页设计", "route": "/cms/layouts", "icon": "Grid", "group": "内容管理", "groupIcon": "EditList", "sort": 221 }
+    ],
+    "localization": [],
+    "assets": []
+  },
+  "checksumSha256": null
+}

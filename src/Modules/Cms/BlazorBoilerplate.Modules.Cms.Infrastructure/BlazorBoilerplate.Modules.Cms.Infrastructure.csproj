@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>BlazorBoilerplate.Modules.Cms.Infrastructure</RootNamespace>
+    <AssemblyName>BlazorBoilerplate.Modules.Cms.Infrastructure</AssemblyName>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorBoilerplate.Modules.Cms.Domain\BlazorBoilerplate.Modules.Cms.Domain.csproj" />
+    <ProjectReference Include="..\BlazorBoilerplate.Modules.Cms.Application\BlazorBoilerplate.Modules.Cms.Application.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\BlazorBoilerplate.Persistence\BlazorBoilerplate.Persistence.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\BlazorBoilerplate.ModuleAbstractions\BlazorBoilerplate.ModuleAbstractions.csproj" />
+  </ItemGroup>
+
+</Project>
