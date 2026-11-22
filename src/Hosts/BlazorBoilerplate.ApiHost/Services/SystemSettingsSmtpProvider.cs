@@ -1,3 +1,4 @@
+using BlazorBoilerplate.Application.Abstractions;
 using BlazorBoilerplate.Infrastructure.Email;
 
 namespace BlazorBoilerplate.ApiHost.Services;
@@ -8,7 +9,7 @@ namespace BlazorBoilerplate.ApiHost.Services;
 /// </summary>
 public sealed class SystemSettingsSmtpProvider(
     SystemSettingsStore store,
-    IConfiguration configuration) : ISmtpSettingsProvider
+    IConfiguration configuration) : ISmtpSettingsProvider, ISystemEmailProvider
 {
     private readonly ConfigurationSmtpSettingsProvider _fallback = new(configuration);
 
@@ -34,5 +35,18 @@ public sealed class SystemSettingsSmtpProvider(
 
     public void UpdateConnectionString(string? connectionString) =>
         _fallback.UpdateConnectionString(connectionString);
+
+    public string? GetAdminEmail()
+    {
+        var s = store.GetRaw();
+        var candidates = new[]
+        {
+            s.SmtpFromEmail,
+            s.SmtpUserName,
+            configuration["Email:DefaultFromEmail"],
+            configuration["Setup:AdminEmail"]
+        };
+        return candidates.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x) && x.Contains('@'))?.Trim();
+    }
 }
 

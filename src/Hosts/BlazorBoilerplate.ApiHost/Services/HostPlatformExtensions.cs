@@ -1,7 +1,7 @@
-using System.Threading.RateLimiting;
 using BlazorBoilerplate.ApiHost.Auth;
 using BlazorBoilerplate.ApiHost.HealthChecks;
 using BlazorBoilerplate.ApiHost.Setup;
+using BlazorBoilerplate.Application.Abstractions;
 using BlazorBoilerplate.Application.DataExchange;
 using BlazorBoilerplate.Application.Platform;
 using BlazorBoilerplate.Application.Rules;
@@ -17,6 +17,7 @@ using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.ModuleRuntime.Runtime;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using System.Threading.RateLimiting;
 
 namespace BlazorBoilerplate.ApiHost.Services;
 
@@ -75,6 +76,7 @@ public static class HostPlatformExtensions
         services.AddSingleton<EmailVerificationCodeStore>();
         services.AddScoped<AccountRegistrationService>();
         services.AddSingleton<ISmtpSettingsProvider, SystemSettingsSmtpProvider>();
+        services.AddSingleton<ISystemEmailProvider>(sp => (SystemSettingsSmtpProvider)sp.GetRequiredService<ISmtpSettingsProvider>());
         services.AddSingleton<BlazorBoilerplate.Infrastructure.Attachments.IAttachmentStorage, DynamicAttachmentStorage>();
 
         services.AddProblemDetails();

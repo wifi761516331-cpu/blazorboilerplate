@@ -104,30 +104,79 @@ public sealed class ModuleMenuSyncService(
         }
 
         var added = 0;
+        var declaredRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var adminRole = await db.Roles.FirstOrDefaultAsync(r => r.IsSystem && r.Name == "管理员", ct);
+
         foreach (var item in manifest.Frontend.MenuItems.Where(m => !string.IsNullOrWhiteSpace(m.Route)))
         {
+            Guid? groupId = null;
+            if (!string.IsNullOrWhiteSpace(item.Group))
+            {
+                var groupName = item.Group.Trim();
+                var groupMenu = await db.Menus.FirstOrDefaultAsync(m => m.Kind == "group" && m.Name == groupName, ct);
+                if (groupMenu is null)
+                {
+                    groupMenu = Menu.Create(groupName, $"group:{moduleId}:{groupName}", item.GroupIcon, null, item.Sort - 1, moduleId, permissionCode: null, kind: "group");
+                    db.Menus.Add(groupMenu);
+                    if (adminRole is not null)
+                        db.RoleMenus.Add(new RoleMenu(adminRole.Id, groupMenu.Id));
+                    await db.SaveChangesAsync(ct);
+                    added++;
+                }
+                else
+                {
+                    var targetGroupIcon = string.IsNullOrWhiteSpace(item.GroupIcon) ? groupMenu.Icon : item.GroupIcon;
+                    if (!groupMenu.IsVisible || !string.Equals(groupMenu.Icon, targetGroupIcon, StringComparison.Ordinal))
+                    {
+                        groupMenu.Update(groupMenu.Name, groupMenu.Path, targetGroupIcon, groupMenu.ParentId,
+                            groupMenu.Sort, true, groupMenu.ModuleId ?? moduleId, groupMenu.PermissionCode, groupMenu.Kind);
+                        await db.SaveChangesAsync(ct);
+                        added++;
+                    }
+                }
+                groupId = groupMenu.Id;
+            }
+
             var route = item.Route.Trim();
+            declaredRoutes.Add(route);
             var existing = await db.Menus.FirstOrDefaultAsync(m => m.Path == route, ct);
             if (existing is null)
             {
-                db.Menus.Add(Menu.Create(item.Text, route, item.Icon, null, item.Sort, moduleId,
-                    permissionCode: null, kind: "menu"));
+                var createdMenu = Menu.Create(item.Text, route, item.Icon, groupId, item.Sort, moduleId,
+                    permissionCode: null, kind: "menu");
+                db.Menus.Add(createdMenu);
+                if (adminRole is not null)
+                    db.RoleMenus.Add(new RoleMenu(adminRole.Id, createdMenu.Id));
                 added++;
             }
-            else if (string.IsNullOrWhiteSpace(existing.ModuleId))
+            else if (string.IsNullOrWhiteSpace(existing.ModuleId) || string.Equals(existing.ModuleId, moduleId, StringComparison.OrdinalIgnoreCase))
             {
-                // 兼容早期 SetupInitializer 未写入 ModuleId 的模块菜单：补齐归属并确保可见。
-                existing.Update(existing.Name, existing.Path, existing.Icon, existing.ParentId,
-                    existing.Sort, true, moduleId, existing.PermissionCode, existing.Kind);
-                added++;
+                // 模块升级或重新加载时同步名称、图标、分组与可见性
+                var targetParent = groupId ?? existing.ParentId;
+                var targetIcon = string.IsNullOrWhiteSpace(item.Icon) ? existing.Icon : item.Icon;
+                var targetSort = item.Sort != 0 ? item.Sort : existing.Sort;
+                if (!existing.IsVisible
+                    || !string.Equals(existing.ModuleId, moduleId, StringComparison.OrdinalIgnoreCase)
+                    || existing.ParentId != targetParent
+                    || !string.Equals(existing.Name, item.Text, StringComparison.Ordinal)
+                    || !string.Equals(existing.Icon, targetIcon, StringComparison.Ordinal)
+                    || existing.Sort != targetSort)
+                {
+                    existing.Update(item.Text, existing.Path, targetIcon, targetParent,
+                        targetSort, true, moduleId, existing.PermissionCode, existing.Kind);
+                    added++;
+                }
             }
-            else if (string.Equals(existing.ModuleId, moduleId, StringComparison.OrdinalIgnoreCase) && !existing.IsVisible)
-            {
-                // 模块重新加载：恢复被卸载流程禁用的菜单（保留管理员改过的名称/图标/排序）
-                existing.Update(existing.Name, existing.Path, existing.Icon, existing.ParentId,
-                    existing.Sort, true, existing.ModuleId, existing.PermissionCode, existing.Kind);
-                added++;
-            }
+        }
+
+        // 模块升级后若移除了旧菜单路由，将不再声明的旧菜单软隐藏（保留历史角色授权行）
+        var obsoleteMenus = await db.Menus
+            .Where(m => m.ModuleId == moduleId && m.Kind != "group" && m.IsVisible)
+            .ToListAsync(ct);
+        foreach (var oldMenu in obsoleteMenus.Where(m => !declaredRoutes.Contains(m.Path)))
+        {
+            oldMenu.Update(oldMenu.Name, oldMenu.Path, oldMenu.Icon, oldMenu.ParentId,
+                oldMenu.Sort, false, oldMenu.ModuleId, oldMenu.PermissionCode, oldMenu.Kind);
         }
 
         // 优先同步 manifest.PermissionItems（带模块自声明的中文名称）；若库中已有同名且 Name 仍为 Code 的旧行则补全中文名

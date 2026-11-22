@@ -103,7 +103,7 @@ public sealed class ModulePackService(
         {
             Directory.CreateDirectory(Path.Combine(stage, "backend"));
             File.Copy(Path.Combine(sourceDir, "manifest.json"), Path.Combine(stage, "manifest.json"), overwrite: true);
-            File.Copy(entryDll, Path.Combine(stage, "backend", entryName), overwrite: true);
+            CopyBackendAssemblies(entryDll, Path.Combine(stage, "backend"));
             if (File.Exists(depsFile))
                 File.Copy(depsFile, Path.Combine(stage, "backend", Path.GetFileName(depsFile)), overwrite: true);
             foreach (var folder in new[] { ModulePackageLayout.FrontendFolder, ModulePackageLayout.MigrationsFolder, ModulePackageLayout.LocalizationFolder })
@@ -231,8 +231,7 @@ public sealed class ModulePackService(
                 installedFrontendDll = Path.Combine(installedDir, ModulePackageLayout.FrontendFolder, frontendName);
             }
 
-            var needsBackendSync = !File.Exists(installedDll)
-                                   || File.GetLastWriteTimeUtc(sourceDll) > File.GetLastWriteTimeUtc(installedDll)
+            var needsBackendSync = NeedsBackendAssemblySync(sourceDll, installedBackend)
                                    || !File.Exists(installedManifest)
                                    || File.GetLastWriteTimeUtc(manifestPath) > File.GetLastWriteTimeUtc(installedManifest);
             var needsFrontendSync = frontendSourceDll is not null && installedFrontendDll is not null &&
@@ -244,7 +243,7 @@ public sealed class ModulePackService(
             {
                 Directory.CreateDirectory(installedBackend);
                 File.Copy(manifestPath, installedManifest, overwrite: true);
-                File.Copy(sourceDll, installedDll, overwrite: true);
+                CopyBackendAssemblies(sourceDll, installedBackend);
 
                 var depsFile = Path.Combine(Path.GetDirectoryName(sourceDll)!,
                     Path.GetFileNameWithoutExtension(entryName) + ".deps.json");
@@ -276,6 +275,65 @@ public sealed class ModulePackService(
         }
 
         return synced;
+    }
+
+    private static bool NeedsBackendAssemblySync(string entryDll, string targetBackendDir)
+    {
+        var entryName = Path.GetFileName(entryDll);
+        var installedEntry = Path.Combine(targetBackendDir, entryName);
+        if (!File.Exists(installedEntry) || File.GetLastWriteTimeUtc(entryDll) > File.GetLastWriteTimeUtc(installedEntry))
+            return true;
+
+        var entryBase = Path.GetFileNameWithoutExtension(entryName);
+        var sourceDir = Path.GetDirectoryName(entryDll)!;
+        foreach (var dllPath in Directory.EnumerateFiles(sourceDir, "*.dll", SearchOption.TopDirectoryOnly))
+        {
+            var fileName = Path.GetFileName(dllPath);
+            if (!IsExtraBackendAssembly(fileName, entryName, entryBase))
+                continue;
+            var targetFile = Path.Combine(targetBackendDir, fileName);
+            if (!File.Exists(targetFile) || File.GetLastWriteTimeUtc(dllPath) > File.GetLastWriteTimeUtc(targetFile))
+                return true;
+        }
+        return false;
+    }
+
+    private static bool IsExtraBackendAssembly(string fileName, string entryName, string entryBase)
+    {
+        if (string.Equals(fileName, entryName, StringComparison.OrdinalIgnoreCase))
+            return false;
+        var isModuleSubLib = fileName.StartsWith(entryBase + ".", StringComparison.OrdinalIgnoreCase)
+            && !fileName.EndsWith(".Frontend.dll", StringComparison.OrdinalIgnoreCase);
+        var isPrivateThirdParty =
+            !fileName.StartsWith("BlazorBoilerplate.", StringComparison.OrdinalIgnoreCase) &&
+            !fileName.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase) &&
+            !fileName.StartsWith("System.", StringComparison.OrdinalIgnoreCase) &&
+            !fileName.StartsWith("Npgsql", StringComparison.OrdinalIgnoreCase) &&
+            !fileName.StartsWith("MySql", StringComparison.OrdinalIgnoreCase) &&
+            !fileName.StartsWith("SQLitePCLRaw", StringComparison.OrdinalIgnoreCase) &&
+            !fileName.StartsWith("Serilog", StringComparison.OrdinalIgnoreCase) &&
+            !fileName.StartsWith("Bit.", StringComparison.OrdinalIgnoreCase);
+        return isModuleSubLib || isPrivateThirdParty;
+    }
+
+    private static void CopyBackendAssemblies(string entryDll, string targetBackendDir)
+    {
+        Directory.CreateDirectory(targetBackendDir);
+        var entryName = Path.GetFileName(entryDll);
+        var entryBase = Path.GetFileNameWithoutExtension(entryName);
+        var sourceDir = Path.GetDirectoryName(entryDll)!;
+
+        File.Copy(entryDll, Path.Combine(targetBackendDir, entryName), overwrite: true);
+        var depsFile = Path.Combine(sourceDir, entryBase + ".deps.json");
+        if (File.Exists(depsFile))
+            File.Copy(depsFile, Path.Combine(targetBackendDir, Path.GetFileName(depsFile)), overwrite: true);
+
+        foreach (var dllPath in Directory.EnumerateFiles(sourceDir, "*.dll", SearchOption.TopDirectoryOnly))
+        {
+            var fileName = Path.GetFileName(dllPath);
+            if (IsExtraBackendAssembly(fileName, entryName, entryBase))
+                File.Copy(dllPath, Path.Combine(targetBackendDir, fileName), overwrite: true);
+        }
     }
 
     private async Task<string> RunDotnetBuildAsync(string csproj, string version, CancellationToken cancellationToken)

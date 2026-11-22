@@ -229,15 +229,21 @@ public static class AppAuthPipelineExtensions
 
                 if (moduleMeta is not null || permMeta is not null)
                 {
+                    var requiredPermission = !string.IsNullOrWhiteSpace(permMeta?.Permission)
+                        ? permMeta.Permission
+                        : moduleMeta?.Permission;
+
+                    if (string.Equals(requiredPermission, "anonymous", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await next();
+                        return;
+                    }
+
                     if (context.User.Identity?.IsAuthenticated != true)
                     {
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         return;
                     }
-
-                    var requiredPermission = !string.IsNullOrWhiteSpace(permMeta?.Permission)
-                        ? permMeta.Permission
-                        : moduleMeta?.Permission;
 
                     if (!string.IsNullOrWhiteSpace(requiredPermission) &&
                         !context.User.HasPermission(requiredPermission))

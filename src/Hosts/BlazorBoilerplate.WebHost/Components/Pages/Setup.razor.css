@@ -1,3 +1,10 @@
 /* Setup 安装向导表单（从 app.css 迁入，CSS 隔离） */
 .setup-form { display: flex; flex-direction: column; gap: 1rem; }
 .setup-form .bit-txt, .setup-form .bit-drp { width: 100%; }
+.setup-form ::deep .bit-btn {
+    width: 100%;
+    min-height: 2.75rem;
+    margin-top: 0.25rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+}

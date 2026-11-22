@@ -57,7 +57,7 @@ else
     }
 
     <div style="margin-top:1.25rem">
-        <BitButton Color="BitColor.Primary" OnClick="SubmitAsync" Disabled="@_submitting">
+        <BitButton Color="BitColor.Primary" Size="BitSize.Large" Style="width: 100%;" IsLoading="@_submitting" OnClick="SubmitAsync" Disabled="@_submitting">
             @(_submitting ? L["platform.setup.submitting"] : L["platform.setup.submit"])
         </BitButton>
     </div>

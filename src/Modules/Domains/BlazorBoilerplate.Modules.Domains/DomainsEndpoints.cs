@@ -9,7 +9,7 @@ public sealed class DomainsEndpoints(IServiceProvider moduleServices)
 {
     public void Map(IModuleEndpointBuilder builder)
     {
-        builder.Map("/api/domains/resolve", "GET", string.Empty, async ctx => await WithScope(ctx, async s =>
+        builder.Map("/api/domains/resolve", "GET", "anonymous", async ctx => await WithScope(ctx, async s =>
         {
             var host = ctx.Request.Query["host"].FirstOrDefault() ?? ctx.Request.Host.Host;
             var result = await s.ServiceProvider.GetRequiredService<DomainsService>().ResolveAsync(host, ctx.RequestAborted);

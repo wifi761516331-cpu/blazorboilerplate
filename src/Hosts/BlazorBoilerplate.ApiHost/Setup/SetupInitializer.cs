@@ -149,11 +149,18 @@ public sealed class DefaultSetupInitializer(
         // 模块声明的菜单：优先读 manifest 的结构化 MenuItems（安装时发现阶段已载入 catalog），
         // 再并入代码里静态注册的菜单（ModuleFrontendRegistry），按 Route 去重。
         var declared = catalog.Manifests()
-            .SelectMany(m => m.Frontend.MenuItems)
-            .Where(m => !string.IsNullOrWhiteSpace(m.Route))
-            .Select(m => (Name: m.Text, Path: m.Route, Icon: m.Icon, Sort: m.Sort == 0 ? sort += 10 : m.Sort));
+            .SelectMany(m => m.Frontend.MenuItems
+                .Where(mi => !string.IsNullOrWhiteSpace(mi.Route))
+                .Select(mi => (
+                    Name: mi.Text,
+                    Path: mi.Route,
+                    Icon: mi.Icon,
+                    Group: mi.Group,
+                    GroupIcon: mi.GroupIcon,
+                    ModuleId: (string?)m.Id,
+                    Sort: mi.Sort == 0 ? sort += 10 : mi.Sort)));
         var registered = ModuleFrontendRegistry.All
-            .Select(m => (Name: m.Text, Path: m.Route, Icon: m.Icon, Sort: sort += 10));
+            .Select(m => (Name: m.Text, Path: m.Route, Icon: m.Icon, Group: (string?)null, GroupIcon: (string?)null, ModuleId: (string?)null, Sort: sort += 10));
         var moduleMenus = declared.Concat(registered)
             .Where(m => !coreMenus.Any(c => c.Path == m.Path))
             .GroupBy(m => m.Path, StringComparer.OrdinalIgnoreCase)
@@ -161,8 +168,25 @@ public sealed class DefaultSetupInitializer(
             .ToList();
 
         var menus = new List<Menu>();
-        menus.AddRange(coreMenus.Concat(moduleMenus)
-            .Select(c => Menu.Create(c.Name, c.Path, c.Icon, parentId: null, sort: c.Sort)));
+        menus.AddRange(coreMenus.Select(c => Menu.Create(c.Name, c.Path, c.Icon, parentId: null, sort: c.Sort)));
+
+        var groupMenus = new Dictionary<string, Menu>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in moduleMenus)
+        {
+            Guid? parentId = null;
+            if (!string.IsNullOrWhiteSpace(item.Group))
+            {
+                var groupName = item.Group.Trim();
+                if (!groupMenus.TryGetValue(groupName, out var groupMenu))
+                {
+                    groupMenu = Menu.Create(groupName, $"group:{item.ModuleId ?? "platform"}:{groupName}", item.GroupIcon, parentId: null, sort: item.Sort - 1, moduleId: item.ModuleId, kind: "group");
+                    groupMenus[groupName] = groupMenu;
+                    menus.Add(groupMenu);
+                }
+                parentId = groupMenu.Id;
+            }
+            menus.Add(Menu.Create(item.Name, item.Path, item.Icon, parentId, sort: item.Sort, moduleId: item.ModuleId));
+        }
         db.Menus.AddRange(menus);
 
         // ---- 管理员账户 ----
