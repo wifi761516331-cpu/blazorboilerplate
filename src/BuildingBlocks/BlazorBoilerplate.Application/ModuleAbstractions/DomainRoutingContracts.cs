@@ -94,11 +94,10 @@ public static class DomainRouteResolverRegistry
         var suffix = qIdx >= 0 ? raw[qIdx..] : string.Empty;
         var clean = NormalizePath(pathPart);
 
+        // 路径恰好等于入口时不能剥离：否则 /site → / → 再次解析又到 /site，形成重定向循环。
+        // 入口路径本身就是希望最终停留的真实路由，保持原样即可。
         if (clean.Equals(entry, StringComparison.OrdinalIgnoreCase))
-        {
-            strippedPath = "/" + suffix;
-            return true;
-        }
+            return false;
 
         if (clean.StartsWith(entry + "/", StringComparison.OrdinalIgnoreCase))
         {

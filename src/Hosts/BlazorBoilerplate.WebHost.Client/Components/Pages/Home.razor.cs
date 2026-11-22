@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Reflection;
 using BlazorBoilerplate.Application.Localization;
 using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.Web.Shared.Services;
@@ -45,7 +46,10 @@ public partial class Home
     private int _moduleCount;
     private List<ActivityWire> _activities = [];
     private List<QuickMenuWire> _quickLinks = [];
+
+    // 域名入口组件；URL 保持域名根路径，不暴露 /site?siteKey=...
     private Type? _domainComponentType;
+    private Type? _domainLayoutType;
 
     protected override async Task OnInitializedAsync()
     {
@@ -54,9 +58,15 @@ public partial class Home
             var match = await resolver.ResolveAsync(Http, new Uri(Navigation.BaseUri).Host);
             if (match is not null && !string.IsNullOrWhiteSpace(match.EntryPath) && match.EntryPath != "/")
             {
-                _domainComponentType = ModuleCatalogControl.ResolveComponent(match.EntryPath);
-                if (_domainComponentType is not null)
+                var componentType = ModuleCatalogControl.ResolveComponent(match.EntryPath);
+                if (componentType is not null)
+                {
+                    _domainComponentType = componentType;
+                    // RouteView 会读取页面上的 [LayoutAttribute]，DynamicComponent 不会。
+                    // 这里显式取出布局交给 LayoutView，避免域名访问绕过 CmsPortalLayout。
+                    _domainLayoutType = componentType.GetCustomAttribute<LayoutAttribute>()?.LayoutType;
                     return;
+                }
             }
         }
 

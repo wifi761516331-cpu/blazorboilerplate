@@ -10,9 +10,17 @@ namespace BlazorBoilerplate.WebHost.Services;
 /// </summary>
 public sealed class DomainRoutingMiddleware(RequestDelegate next)
 {
-    public async Task InvokeAsync(HttpContext context, IHttpClientFactory httpClientFactory)
+    public async Task InvokeAsync(HttpContext context, IHttpClientFactory httpClientFactory, ModuleAssemblyCatalog catalog)
     {
         var resolver = DomainRouteResolverRegistry.Current;
+        if (resolver is null)
+        {
+            // WebHost 可能先于 ApiHost 启动：启动时模块装载失败，域名解析器尚未注册到静态注册表。
+            // 主动触发一次按需装载（内部 3 秒节流），让 IModuleClientStartup 完成注册后再解析。
+            // 本中间件在 SSR 渲染之前运行，不能依赖页面组件去触发。
+            _ = catalog.Assemblies;
+            resolver = DomainRouteResolverRegistry.Current;
+        }
         if (resolver is not null && HttpMethods.IsGet(context.Request.Method))
         {
             var path = context.Request.Path.Value ?? "/";

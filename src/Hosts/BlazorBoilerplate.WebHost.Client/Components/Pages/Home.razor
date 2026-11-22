@@ -3,7 +3,16 @@
 
 @if (_domainComponentType is not null)
 {
-    <DynamicComponent Type="@_domainComponentType" />
+    @if (_domainLayoutType is not null)
+    {
+        <LayoutView Layout="@_domainLayoutType">
+            <DynamicComponent Type="@_domainComponentType" />
+        </LayoutView>
+    }
+    else
+    {
+        <DynamicComponent Type="@_domainComponentType" />
+    }
 }
 else
 {

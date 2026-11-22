@@ -286,24 +286,26 @@ public sealed class ModuleAssemblyCatalog
             _assemblies = [.. _active.Values.Select(e => e.Assembly)]; // 整体替换引用：Router 下次导航重建路由表
         }
 
-        // 热加载/切换版本时重新执行 IModuleClientStartup，使 WidgetZoneRegistry 等静态注册表同步刷新
-        if (allowDowngrade)
-        {
-            Type[] loadedTypes;
-            try { loadedTypes = loaded.GetTypes(); }
-            catch (ReflectionTypeLoadException ex) { loadedTypes = ex.Types.Where(t => t is not null).ToArray()!; }
+        // 每次装载（启动装载 / 按需装载 / 显式刷新切版本）都必须执行 IModuleClientStartup：
+        // WidgetZoneRegistry、DomainRouteResolverRegistry 等是进程内静态注册表（不进 DI 容器），
+        // 程序集一旦装载就必须同步刷新，否则当 WebHost 先于 ApiHost 启动时，启动装载失败、
+        // 后续按需装载又因 allowDowngrade=false 跳过 startup，静态注册表会一直为空，
+        // 症状是域名路由完全失效（DomainRouteResolverRegistry.Current == null）。
+        // 上方 281-282 行已先 UnregisterModule，故重复执行是幂等的。
+        Type[] loadedTypes;
+        try { loadedTypes = loaded.GetTypes(); }
+        catch (ReflectionTypeLoadException ex) { loadedTypes = ex.Types.Where(t => t is not null).ToArray()!; }
 
-            var dummyServices = new ServiceCollection();
-            foreach (var startup in loadedTypes
-                .Where(t => t.IsClass && !t.IsAbstract
-                    && typeof(BlazorBoilerplate.ModuleAbstractions.IModuleClientStartup).IsAssignableFrom(t)
-                    && t.GetConstructor(Type.EmptyTypes) is not null)
-                .Select(t => (BlazorBoilerplate.ModuleAbstractions.IModuleClientStartup)Activator.CreateInstance(t)!)
-                .OrderBy(s => s.Order)
-                .ThenBy(s => s.GetType().FullName, StringComparer.Ordinal))
-            {
-                startup.ConfigureServices(dummyServices);
-            }
+        var dummyServices = new ServiceCollection();
+        foreach (var startup in loadedTypes
+            .Where(t => t.IsClass && !t.IsAbstract
+                && typeof(BlazorBoilerplate.ModuleAbstractions.IModuleClientStartup).IsAssignableFrom(t)
+                && t.GetConstructor(Type.EmptyTypes) is not null)
+            .Select(t => (BlazorBoilerplate.ModuleAbstractions.IModuleClientStartup)Activator.CreateInstance(t)!)
+            .OrderBy(s => s.Order)
+            .ThenBy(s => s.GetType().FullName, StringComparer.Ordinal))
+        {
+            startup.ConfigureServices(dummyServices);
         }
 
         // 卸载旧的可回收 ALC。旧组件实例仍被活跃线路引用时卸载请求挂起，
