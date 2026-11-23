@@ -94,6 +94,12 @@
                 {
                     <div class="cms-palette-list">
                         <p class="cms-hint">@L["cms.designer.widgetsHint"]</p>
+                        @if (_design.Sections.FirstOrDefault(s => s.Id == _activeSectionId) is { } activeTargetSec)
+                        {
+                            <div style="font-size:0.75rem;padding:0.35rem 0.6rem;border-radius:6px;background:rgba(15,108,189,0.08);color:#0f6cbd;margin-bottom:0.35rem;">
+                                点击插入目标：<strong>@activeTargetSec.Title</strong>
+                            </div>
+                        }
                         <input class="cms-palette-search"
                                type="search"
                                placeholder="搜索组件..."
@@ -133,7 +139,7 @@
                             var idx = i;
                             var sec = orderedSections[idx];
                             <div class="cms-sec-item @(_activeSectionId == sec.Id ? "is-active" : "")"
-                                 @onclick="() => SelectSection(sec)">
+                                 @onclick="() => SelectSectionAndScrollAsync(sec)">
                                 <div>
                                     <strong>@sec.Title</strong>
                                     <small>#@sec.AnchorSlug</small>
@@ -288,10 +294,31 @@
             <aside class="cms-panel-right">
                 @if (_selectedWidget is not null)
                 {
+                    var widgetDef = CmsWidgetCatalog.Find(_selectedWidget.WidgetType);
                     <div class="cms-inspector">
                         <div class="cms-inspector-head">
-                            <h4>@L["cms.designer.inspector.widget"]</h4>
+                            <div style="display:flex;align-items:center;gap:0.45rem;flex-wrap:wrap;">
+                                <h4>@L["cms.designer.inspector.widget"]</h4>
+                                @if (_hasUnsavedWidgetChanges)
+                                {
+                                    <span style="font-size:0.7rem;padding:0.1rem 0.45rem;border-radius:999px;background:#fef3c7;color:#b45309;font-weight:600;">未保存 (Ctrl+S)</span>
+                                }
+                            </div>
                             <BitButton Size="BitSize.Small" Variant="BitVariant.Text" OnClick="ClearWidgetSelection">@L["cms.action.close"]</BitButton>
+                        </div>
+                        <div style="padding:0.55rem 0.75rem;border-radius:8px;background:rgba(15,108,189,0.06);border:1px solid rgba(15,108,189,0.16);font-size:0.8125rem;display:flex;flex-direction:column;gap:0.2rem;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;">
+                                <strong style="color:#0f6cbd;">@(widgetDef?.Name ?? _selectedWidget.WidgetType)</strong>
+                                @if (!string.IsNullOrWhiteSpace(widgetDef?.Category))
+                                {
+                                    <span style="font-size:0.72rem;padding:0.1rem 0.45rem;border-radius:999px;background:rgba(15,108,189,0.12);color:#0f6cbd;">@widgetDef.Category</span>
+                                }
+                            </div>
+                            <code style="font-size:0.75rem;opacity:0.75;">@_selectedWidget.WidgetType</code>
+                            @if (!string.IsNullOrWhiteSpace(widgetDef?.Description))
+                            {
+                                <span style="font-size:0.75rem;opacity:0.78;">@widgetDef.Description</span>
+                            }
                         </div>
                         <BitTextField @bind-Value="_editWidgetTitle" @bind-Value:after="SyncLiveWidgetPreview" Immediate="true" Label="@L["cms.designer.inspector.widgetTitle"]" />
                         <CmsWidgetPropertyEditor WidgetId="@_selectedWidget.Id"

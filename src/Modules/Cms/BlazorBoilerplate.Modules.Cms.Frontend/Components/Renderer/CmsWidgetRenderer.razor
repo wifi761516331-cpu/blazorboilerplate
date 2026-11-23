@@ -15,8 +15,9 @@
      @ondblclick:stopPropagation="@IsDesignMode">
     @if (IsDesignMode)
     {
+        var widgetDef = CmsWidgetCatalog.Find(Widget.WidgetType);
         <div class="cms-widget-design-bar">
-            <span>☰ @Widget.Title</span>
+            <span>☰ @Widget.Title <small style="opacity:0.72;font-weight:400;">[@(widgetDef?.Name ?? Widget.WidgetType)]</small></span>
             <div class="cms-widget-design-actions">
                 <button type="button" title="上移" @onclick="() => HandleMoveOrderAsync(-1)" @onclick:stopPropagation="true">↑</button>
                 <button type="button" title="下移" @onclick="() => HandleMoveOrderAsync(1)" @onclick:stopPropagation="true">↓</button>

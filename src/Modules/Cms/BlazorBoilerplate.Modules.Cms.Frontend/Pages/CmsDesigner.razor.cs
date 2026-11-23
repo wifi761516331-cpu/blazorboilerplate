@@ -11,7 +11,7 @@ using Microsoft.JSInterop;
 
 namespace BlazorBoilerplate.Modules.Cms.Frontend.Pages;
 
-public partial class CmsDesigner
+public partial class CmsDesigner : IAsyncDisposable
 {
     [Parameter]
     public Guid SiteId { get; set; }
@@ -111,6 +111,9 @@ public partial class CmsDesigner
     private string _aiColor = "#0f6cbd";
 
     private bool _mediaOpen;
+    private bool _hasUnsavedWidgetChanges;
+    private IJSObjectReference? _shortcutJs;
+    private DotNetObjectReference<CmsDesigner>? _shortcutRef;
 
     private string ThemeVariablesStyle =>
         $"--cms-pri:{_themePrimary};--cms-acc:{_themeAccent};--cms-bg:{_themeBg};--cms-surf:{_themeSurface};--cms-fg:{_themeText};--cms-radius:{_themeRadius};";
@@ -173,6 +176,19 @@ public partial class CmsDesigner
 
     private void SelectSection(CmsSectionDto sec) => _activeSectionId = sec.Id;
 
+    private async Task SelectSectionAndScrollAsync(CmsSectionDto sec)
+    {
+        _activeSectionId = sec.Id;
+        _selectedWidget = null;
+        _hasUnsavedWidgetChanges = false;
+        try
+        {
+            await JS.InvokeVoidAsync("eval",
+                $"(() => {{ const el = document.getElementById('sec-{sec.AnchorSlug}'); if (el) el.scrollIntoView({{ behavior: 'smooth', block: 'start' }}); }})()");
+        }
+        catch { }
+    }
+
     private void SelectWidget(Guid widgetId)
     {
         var w = _design?.Widgets.FirstOrDefault(x => x.Id == widgetId);
@@ -182,6 +198,7 @@ public partial class CmsDesigner
         _editWidgetTitle = w.Title;
         _editWidgetPropsJson = FormatReadableJson(w.PropsJson);
         _editWidgetStyleJson = string.IsNullOrWhiteSpace(w.StyleJson) ? string.Empty : FormatReadableJson(w.StyleJson);
+        _hasUnsavedWidgetChanges = false;
     }
 
     private static string FormatReadableJson(string raw)
@@ -201,6 +218,7 @@ public partial class CmsDesigner
     {
         _selectedWidget = null;
         _editingNavbar = false;
+        _hasUnsavedWidgetChanges = false;
     }
 
     private void StartDragNewWidget(string widgetType)
@@ -925,6 +943,7 @@ public partial class CmsDesigner
         };
         _design.Widgets[idx] = updated;
         _selectedWidget = updated;
+        _hasUnsavedWidgetChanges = true;
     }
 
     private Task OpenPublishedSite() =>
@@ -1224,5 +1243,87 @@ public partial class CmsDesigner
         {
             Toast.Info($"已复制媒体地址：{url}");
         }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        const string js = """
+            let handler = null;
+            export function attachShortcuts(dotNetRef) {
+                if (handler) return;
+                handler = (e) => {
+                    const tag = (document.activeElement?.tagName || '').toLowerCase();
+                    const isInput = tag === 'input' || tag === 'textarea' || tag === 'select' || document.activeElement?.isContentEditable;
+                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                        e.preventDefault();
+                        dotNetRef.invokeMethodAsync('HandleShortcutSaveAsync');
+                    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey && !isInput) {
+                        e.preventDefault();
+                        dotNetRef.invokeMethodAsync('HandleShortcutUndoAsync');
+                    } else if (e.key === 'Escape' && !isInput) {
+                        dotNetRef.invokeMethodAsync('HandleShortcutEsc');
+                    }
+                };
+                window.addEventListener('keydown', handler);
+            }
+            export function detachShortcuts() {
+                if (!handler) return;
+                window.removeEventListener('keydown', handler);
+                handler = null;
+            }
+            """;
+
+        try
+        {
+            _shortcutJs ??= await JS.InvokeAsync<IJSObjectReference>(
+                "import", $"data:text/javascript;charset=utf-8,{Uri.EscapeDataString(js)}");
+            _shortcutRef ??= DotNetObjectReference.Create(this);
+            await _shortcutJs.InvokeVoidAsync("attachShortcuts", _shortcutRef);
+        }
+        catch { }
+    }
+
+    [JSInvokable]
+    public async Task HandleShortcutSaveAsync()
+    {
+        if (IsDefaultTemplate || _busy) return;
+        if (_selectedWidget is not null)
+            await SaveWidgetAsync();
+        else if (!_editingNavbar)
+            await SaveThemeAsync();
+    }
+
+    [JSInvokable]
+    public async Task HandleShortcutUndoAsync()
+    {
+        if (IsDefaultTemplate || _busy || _undoStack.Count == 0) return;
+        await UndoAsync();
+    }
+
+    [JSInvokable]
+    public void HandleShortcutEsc()
+    {
+        if (_selectedWidget is not null || _editingNavbar)
+        {
+            ClearWidgetSelection();
+            StateHasChanged();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_shortcutJs is not null)
+        {
+            try
+            {
+                await _shortcutJs.InvokeVoidAsync("detachShortcuts");
+                await _shortcutJs.DisposeAsync();
+            }
+            catch { }
+        }
+        _shortcutRef?.Dispose();
     }
 }

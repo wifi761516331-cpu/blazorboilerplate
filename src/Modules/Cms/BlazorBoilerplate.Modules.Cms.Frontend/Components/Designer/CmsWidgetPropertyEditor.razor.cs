@@ -62,6 +62,7 @@ public partial class CmsWidgetPropertyEditor
     private string _divHeight = "28", _divLabel = string.Empty;
     private bool _divShowLine = true;
     private string _htmlCode = string.Empty;
+    private bool _htmlModalOpen;
     private string _imgUrl = string.Empty, _imgAlt = string.Empty, _imgCaption = string.Empty, _imgLink = string.Empty, _imgMaxH = "420";
     private bool _imgRounded = true, _imgShadow = true;
     private string _vidUrl = string.Empty, _vidPoster = string.Empty, _vidCaption = string.Empty, _vidMaxH = "460";
@@ -307,6 +308,33 @@ public partial class CmsWidgetPropertyEditor
     private void EmitButton() => EmitProps(new { text = _btnText, href = _btnHref, variant = _btnVariant, align = _btnAlign, openNewTab = _btnNewTab });
     private void EmitDivider() => EmitProps(new { height = (int)Math.Clamp(ParseDouble(_divHeight, 28), 8, 120), showLine = _divShowLine, label = NullIfBlank(_divLabel) });
     private void EmitHtml() => EmitProps(new { html = _htmlCode });
+
+    private void FormatHtmlCode()
+    {
+        if (string.IsNullOrWhiteSpace(_htmlCode))
+            return;
+
+        // 轻量 HTML 换行缩进整理，方便用户阅读与修改压缩后的模板片段
+        var normalized = System.Text.RegularExpressions.Regex.Replace(_htmlCode.Trim(), @">\s*<", ">\n<");
+        var lines = normalized.Split('\n');
+        var sb = new System.Text.StringBuilder();
+        var indent = 0;
+        foreach (var raw in lines)
+        {
+            var line = raw.Trim();
+            if (line.Length == 0) continue;
+            if (line.StartsWith("</", StringComparison.Ordinal))
+                indent = Math.Max(0, indent - 1);
+            sb.Append(' ', indent * 2).AppendLine(line);
+            if (line.StartsWith('<') && !line.StartsWith("</", StringComparison.Ordinal) && !line.StartsWith("<!", StringComparison.Ordinal)
+                && !line.EndsWith("/>", StringComparison.Ordinal) && !line.Contains("</", StringComparison.Ordinal))
+            {
+                indent++;
+            }
+        }
+        _htmlCode = sb.ToString().TrimEnd();
+        EmitHtml();
+    }
     private void EmitImage() => EmitProps(new { imageUrl = NullIfBlank(_imgUrl), alt = NullIfBlank(_imgAlt), caption = NullIfBlank(_imgCaption), linkUrl = NullIfBlank(_imgLink), maxHeight = (int)Math.Clamp(ParseDouble(_imgMaxH, 420), 60, 1200), rounded = _imgRounded, shadow = _imgShadow });
     private void EmitVideo() => EmitProps(new { videoUrl = NullIfBlank(_vidUrl), posterUrl = NullIfBlank(_vidPoster), caption = NullIfBlank(_vidCaption), controls = _vidControls, autoPlay = _vidAutoPlay, loop = _vidLoop, maxHeight = (int)Math.Clamp(ParseDouble(_vidMaxH, 460), 180, 720) });
     private void EmitCarousel() => EmitProps(new { height = (int)Math.Clamp(ParseDouble(_carHeight, 420), 220, 680), autoPlay = _carAutoPlay, intervalMs = (int)Math.Clamp(ParseDouble(_carInterval, 5000), 2000, 15000), slides = _carSlides });
