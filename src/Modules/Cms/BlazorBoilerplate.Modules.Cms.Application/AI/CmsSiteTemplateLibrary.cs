@@ -18,6 +18,20 @@ public static class CmsSiteTemplateLibrary
         string BrandName, string IndustryZh, string IndustryEn,
         string StylePromptZh, string StylePromptEn, string PrimaryColor);
 
+    /// <summary>所有内置只读模板的 SiteKey（默认官网 + 4 套行业示例模板）。</summary>
+    public static IReadOnlySet<string> ReadOnlyTemplateKeys { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "default",
+        "restaurant-demo",
+        "saas-demo",
+        "education-demo",
+        "portfolio-demo"
+    };
+
+    /// <summary>判断给定 SiteKey 是否为内置只读模板。</summary>
+    public static bool IsBuiltInTemplateKey(string? siteKey) =>
+        !string.IsNullOrWhiteSpace(siteKey) && ReadOnlyTemplateKeys.Contains(siteKey.Trim());
+
     /// <summary>种子阶段要创建的行业示例站点（默认企业官网 default 单独创建）。</summary>
     public static IReadOnlyList<SeedSite> SeedSites { get; } =
     [

@@ -29,7 +29,7 @@
         <div class="cms-site-grid">
             @foreach (var site in _sites)
             {
-                var isDefaultTemplate = string.Equals(site.SiteKey, "default", StringComparison.OrdinalIgnoreCase);
+                var isDefaultTemplate = CmsBuiltInTemplates.IsReadOnly(site.SiteKey);
                 <BitCard Outlined="true" Class="cms-site-card">
                     <div class="cms-site-card-head">
                         <div>

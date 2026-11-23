@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using BlazorBoilerplate.Application.Abstractions;
 using BlazorBoilerplate.Application.Platform;
+using BlazorBoilerplate.Modules.Cms.Application.AI;
 using BlazorBoilerplate.Modules.Cms.Application.Caching;
 using BlazorBoilerplate.Modules.Cms.Application.DTOs;
 using BlazorBoilerplate.Modules.Cms.Domain.Entities;
@@ -91,8 +92,8 @@ public sealed class CmsSectionAppService(
     {
         if (sites is null) return;
         var site = await sites.GetByIdAsync(siteId, ct);
-        if (site is not null && string.Equals(site.SiteKey, "default", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("默认官网模板为只读保护模板，不可直接编辑或删除，请先复制为新站点。");
+        if (site is not null && CmsSiteTemplateLibrary.IsBuiltInTemplateKey(site.SiteKey))
+            throw new InvalidOperationException("内置官网模板为只读保护模板，不可直接编辑或删除，请先复制为新站点。");
     }
 
     public async Task<CmsSectionDto> CreateAsync(Guid siteId, UpsertCmsSectionRequest req, CancellationToken ct = default)
@@ -178,8 +179,8 @@ public sealed class CmsWidgetAppService(
     {
         if (sites is null) return;
         var site = await sites.GetByIdAsync(siteId, ct);
-        if (site is not null && string.Equals(site.SiteKey, "default", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("默认官网模板为只读保护模板，不可直接编辑或删除，请先复制为新站点。");
+        if (site is not null && CmsSiteTemplateLibrary.IsBuiltInTemplateKey(site.SiteKey))
+            throw new InvalidOperationException("内置官网模板为只读保护模板，不可直接编辑或删除，请先复制为新站点。");
     }
 
     public async Task<CmsWidgetDto> CreateAsync(UpsertCmsWidgetRequest req, CancellationToken ct = default)

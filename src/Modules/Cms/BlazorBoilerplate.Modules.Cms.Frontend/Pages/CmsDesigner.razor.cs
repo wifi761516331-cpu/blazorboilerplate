@@ -43,7 +43,7 @@ public partial class CmsDesigner
     private string? _activeCulture;
     private bool _isLivePreview;
 
-    private bool IsDefaultTemplate => _design is not null && string.Equals(_design.Site.SiteKey, "default", StringComparison.OrdinalIgnoreCase);
+    private bool IsDefaultTemplate => _design is not null && CmsBuiltInTemplates.IsReadOnly(_design.Site.SiteKey);
     private bool EffectiveLivePreview => _isLivePreview || IsDefaultTemplate;
 
     private enum UndoKind

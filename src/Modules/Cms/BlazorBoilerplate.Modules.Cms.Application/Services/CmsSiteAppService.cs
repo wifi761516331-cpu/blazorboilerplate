@@ -58,8 +58,8 @@ public sealed class CmsSiteAppService(
 
     private static void EnsureEditableSite(CmsSite site)
     {
-        if (string.Equals(site.SiteKey, "default", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("默认官网模板为只读保护模板，不可直接编辑或删除，请先复制为新站点。");
+        if (CmsSiteTemplateLibrary.IsBuiltInTemplateKey(site.SiteKey))
+            throw new InvalidOperationException("内置官网模板为只读保护模板，不可直接编辑或删除，请先复制为新站点。");
     }
 
     public async Task<CmsSiteDto> UpdateAsync(Guid id, UpsertCmsSiteRequest req, CancellationToken ct = default)
@@ -390,7 +390,7 @@ public sealed class CmsSiteAppService(
     {
         var site = await sites.GetByIdAsync(siteId, ct) ?? throw new KeyNotFoundException("站点不存在。");
         var targetCulture = string.IsNullOrWhiteSpace(culture) ? site.DefaultCulture : culture.Trim();
-        if (string.Equals(site.SiteKey, "default", StringComparison.OrdinalIgnoreCase)
+        if (CmsSiteTemplateLibrary.IsBuiltInTemplateKey(site.SiteKey)
             && (await sections.ListBySiteAsync(siteId, targetCulture, ct)).Count > 0)
         {
             EnsureEditableSite(site);
