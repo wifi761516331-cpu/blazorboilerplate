@@ -60,18 +60,26 @@ public partial class CmsWidgetRenderer : IAsyncDisposable
     private ElementReference _boxRef;
     private IJSObjectReference? _resizeJs;
     private IJSObjectReference? _inlineEditJs;
+    private IJSObjectReference? _animJs;
     private DotNetObjectReference<CmsWidgetRenderer>? _selfRef;
 
     private Type ComponentType => CmsWidgetCatalog.Resolve(Widget.WidgetType);
 
     private CmsWidgetStyle ParsedStyle => CmsJson.DeserializeOrDefault(Widget.StyleJson, new CmsWidgetStyle());
 
+    /// <summary>当前 widget 是否配置了入场动画（用于启用滚动触发观测）。</summary>
+    private bool HasAnimation =>
+        !string.IsNullOrWhiteSpace(ParsedStyle.Animation) &&
+        !string.Equals(ParsedStyle.Animation, "none", StringComparison.OrdinalIgnoreCase);
+
     private string StyleClass
     {
         get
         {
             var s = ParsedStyle;
-            var anim = string.IsNullOrWhiteSpace(s.Animation) || string.Equals(s.Animation, "none", StringComparison.OrdinalIgnoreCase)
+            // 设计器内不应用入场动画，避免 widget 因 opacity:0 不可见而无法编辑。
+            var anim = IsDesignMode || string.IsNullOrWhiteSpace(s.Animation) ||
+                       string.Equals(s.Animation, "none", StringComparison.OrdinalIgnoreCase)
                 ? string.Empty
                 : $"cms-anim-{s.Animation.Trim().ToLowerInvariant()}";
             return $"{s.CustomCssClass ?? string.Empty} {anim}".Trim();
@@ -126,6 +134,53 @@ public partial class CmsWidgetRenderer : IAsyncDisposable
 
     private Task HandleSelectAsync() =>
         IsDesignMode ? OnSelectWidget.InvokeAsync(Widget.Id) : Task.CompletedTask;
+
+    /// <summary>
+    /// 非设计态下，若该 widget 配了入场动画，则用 IntersectionObserver 在它滚动进入视口时
+    /// 加 .is-visible 触发 CSS 动画，并按区块内序号错开，让读者能明显看到逐个浮现的效果。
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || IsDesignMode || !HasAnimation)
+            return;
+
+        const string js = """
+            export function reveal(el, delayMs) {
+                if (!el) return;
+                try {
+                    if (delayMs > 0) el.style.animationDelay = delayMs + 'ms';
+                    const show = () => el.classList.add('is-visible');
+                    if (!('IntersectionObserver' in window)) return;
+                    // 首屏（已在视口内）直接显示，不进入隐藏待触发状态，避免闪烁与内容丢失。
+                    if (el.getBoundingClientRect().top < window.innerHeight * 0.95) { show(); return; }
+                    // 仅在 JS 全程可用时才隐藏待触发；失败时下面 catch 会摘掉 armed，内容保持可见。
+                    el.classList.add('cms-anim-armed');
+                    const io = new IntersectionObserver((entries) => {
+                        for (const e of entries) {
+                            if (e.isIntersecting) { show(); io.disconnect(); break; }
+                        }
+                    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+                    io.observe(el);
+                } catch (err) {
+                    el.classList.remove('cms-anim-armed');
+                    el.style.animationDelay = '';
+                }
+            }
+            """;
+
+        try
+        {
+            _animJs ??= await JS.InvokeAsync<IJSObjectReference>(
+                "import", $"data:text/javascript;charset=utf-8,{Uri.EscapeDataString(js)}");
+            await _animJs.InvokeVoidAsync("reveal", _boxRef, DelayMs);
+        }
+        catch (JSDisconnectedException) { }
+        catch (JSException) { }
+        catch (InvalidOperationException) { }
+    }
+
+    /// <summary>按 widget 在区块中的序号错开动画，形成逐个浮现的节奏。</summary>
+    private int DelayMs => Math.Min(Math.Max(Widget.SortOrder, 0) % 8 * 90, 630);
 
     private Task HandleMoveOrderAsync(int delta) =>
         IsDesignMode ? OnMoveWidgetOrder.InvokeAsync((Widget.Id, delta)) : Task.CompletedTask;
@@ -299,6 +354,12 @@ public partial class CmsWidgetRenderer : IAsyncDisposable
         if (_resizeJs is not null)
         {
             try { await _resizeJs.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+            catch (InvalidOperationException) { }
+        }
+        if (_animJs is not null)
+        {
+            try { await _animJs.DisposeAsync(); }
             catch (JSDisconnectedException) { }
             catch (InvalidOperationException) { }
         }

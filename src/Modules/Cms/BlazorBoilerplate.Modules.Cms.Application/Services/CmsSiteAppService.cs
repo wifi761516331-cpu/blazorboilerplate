@@ -398,6 +398,8 @@ public sealed class CmsSiteAppService(
         var allLayouts = await layouts.ListAsync(ct);
         var singleCol = allLayouts.FirstOrDefault(l => l.Name.Contains("单栏") || l.Name.Contains("通栏")) ?? allLayouts.FirstOrDefault();
         var twoCol = allLayouts.FirstOrDefault(l => l.Name.Contains("两栏")) ?? singleCol;
+        var threeCol = allLayouts.FirstOrDefault(l => l.Name.Contains("三栏")) ?? singleCol;
+        var sidebarCol = allLayouts.FirstOrDefault(l => l.Name.Contains("侧栏")) ?? singleCol;
         if (singleCol is null)
             throw new InvalidOperationException("请先至少创建一个布局页模板。");
 
@@ -409,7 +411,14 @@ public sealed class CmsSiteAppService(
         var secOrder = 0;
         foreach (var secDraft in draft.Sections)
         {
-            var layoutId = secDraft.LayoutPreset == "two-column" && twoCol is not null ? twoCol.Id : singleCol.Id;
+            var layout = secDraft.LayoutPreset switch
+            {
+                "two-column" => twoCol,
+                "three-column" => threeCol,
+                "sidebar" => sidebarCol,
+                _ => singleCol
+            };
+            var layoutId = (layout ?? singleCol).Id;
             var sec = new CmsSection
             {
                 SiteId = siteId,

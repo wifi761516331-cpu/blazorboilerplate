@@ -956,16 +956,49 @@
     object-fit: contain;
 }
 
-/* 入场动画特效（参考 ZKEACMS.Animation） */
-.cms-section ::deep .cms-anim-fade-up { animation: cmsFadeUp 0.6s ease both; }
-.cms-section ::deep .cms-anim-fade-in { animation: cmsFadeIn 0.6s ease both; }
-.cms-section ::deep .cms-anim-zoom-in { animation: cmsZoomIn 0.5s ease both; }
-.cms-section ::deep .cms-anim-slide-left { animation: cmsSlideLeft 0.6s ease both; }
+/* ============ 入场动画特效（参考 ZKEACMS.Animation） ============
+   兜底优先：内容默认可见；只有 JS 成功 arm（加 .cms-anim-armed）后才隐藏，
+   元素滚动进入视口由 JS 加 .is-visible 播放。JS 任何环节失败都不会吞掉内容。
+   首屏元素 JS 直接显示不 arm，避免闪烁。reduced-motion 下强制显示。 */
+.cms-section ::deep .cms-anim-armed.cms-anim-fade-up    { opacity: 0; }
+.cms-section ::deep .cms-anim-armed.cms-anim-fade-in    { opacity: 0; }
+.cms-section ::deep .cms-anim-armed.cms-anim-zoom-in    { opacity: 0; }
+.cms-section ::deep .cms-anim-armed.cms-anim-slide-left { opacity: 0; }
+.cms-section ::deep .cms-anim-armed.cms-anim-slide-right { opacity: 0; }
+.cms-section ::deep .cms-anim-armed.cms-anim-slide-down { opacity: 0; }
+.cms-section ::deep .cms-anim-armed.cms-anim-flip       { opacity: 0; }
+.cms-section ::deep .cms-anim-armed.cms-anim-bounce     { opacity: 0; }
+.cms-section ::deep .cms-anim-armed.cms-anim-blur-in    { opacity: 0; }
+.cms-section ::deep .cms-anim-armed.cms-anim-scale-up   { opacity: 0; }
+.cms-section ::deep .cms-anim-armed.cms-anim-slide-up-big { opacity: 0; }
 
-@keyframes cmsFadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+.cms-section ::deep .cms-anim-fade-up.is-visible     { animation: cmsFadeUp 0.7s cubic-bezier(.22,.8,.3,1) both; }
+.cms-section ::deep .cms-anim-fade-in.is-visible     { animation: cmsFadeIn 0.8s ease both; }
+.cms-section ::deep .cms-anim-zoom-in.is-visible     { animation: cmsZoomIn 0.7s cubic-bezier(.34,1.3,.64,1) both; }
+.cms-section ::deep .cms-anim-slide-left.is-visible  { animation: cmsSlideLeft 0.75s cubic-bezier(.22,.8,.3,1) both; }
+.cms-section ::deep .cms-anim-slide-right.is-visible { animation: cmsSlideRight 0.75s cubic-bezier(.22,.8,.3,1) both; }
+.cms-section ::deep .cms-anim-slide-down.is-visible  { animation: cmsSlideDown 0.75s cubic-bezier(.22,.8,.3,1) both; }
+.cms-section ::deep .cms-anim-flip.is-visible        { animation: cmsFlip 0.8s cubic-bezier(.22,.8,.3,1) both; }
+.cms-section ::deep .cms-anim-bounce.is-visible      { animation: cmsBounce 0.9s cubic-bezier(.34,1.56,.64,1) both; }
+.cms-section ::deep .cms-anim-blur-in.is-visible     { animation: cmsBlurIn 0.8s ease both; }
+.cms-section ::deep .cms-anim-scale-up.is-visible    { animation: cmsScaleUp 0.8s cubic-bezier(.22,.8,.3,1) both; }
+.cms-section ::deep .cms-anim-slide-up-big.is-visible { animation: cmsSlideUpBig 0.85s cubic-bezier(.22,.8,.3,1) both; }
+
+@keyframes cmsFadeUp { from { opacity: 0; transform: translateY(36px); } to { opacity: 1; transform: none; } }
 @keyframes cmsFadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes cmsZoomIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: none; } }
-@keyframes cmsSlideLeft { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+@keyframes cmsZoomIn { from { opacity: 0; transform: scale(.82); } to { opacity: 1; transform: none; } }
+@keyframes cmsSlideLeft { from { opacity: 0; transform: translateX(56px); } to { opacity: 1; transform: none; } }
+@keyframes cmsSlideRight { from { opacity: 0; transform: translateX(-56px); } to { opacity: 1; transform: none; } }
+@keyframes cmsSlideDown { from { opacity: 0; transform: translateY(-40px); } to { opacity: 1; transform: none; } }
+@keyframes cmsFlip { from { opacity: 0; transform: perspective(800px) rotateY(-70deg); } to { opacity: 1; transform: none; } }
+@keyframes cmsBounce { 0% { opacity: 0; transform: scale(.6) translateY(30px); } 60% { opacity: 1; transform: scale(1.06) translateY(-6px); } 100% { opacity: 1; transform: none; } }
+@keyframes cmsBlurIn { from { opacity: 0; filter: blur(10px); } to { opacity: 1; filter: none; } }
+@keyframes cmsScaleUp { from { opacity: 0; transform: scale(.5); } to { opacity: 1; transform: none; } }
+@keyframes cmsSlideUpBig { from { opacity: 0; transform: translateY(80px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .cms-section ::deep [class*="cms-anim-"] { opacity: 1 !important; animation: none !important; transform: none !important; }
+}
 
 /* 新闻动态 / 案例列表 */
 .cms-section ::deep .cms-articles-grid {

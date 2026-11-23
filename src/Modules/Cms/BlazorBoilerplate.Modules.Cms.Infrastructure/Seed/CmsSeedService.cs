@@ -110,5 +110,28 @@ public sealed class CmsSeedService(
             await siteAppService.ApplyAiDraftAsync(site.Id, enDraft, "en-US", ct);
             await siteAppService.PublishAsync(site.Id, ct);
         }
+
+        // 行业示例站点：全部来自内置手写模板库（不经 AI/LLM），每个站点中英双语并发布。
+        foreach (var demo in CmsSiteTemplateLibrary.SeedSites)
+        {
+            if (await db.Sites.AnyAsync(s => s.SiteKey == demo.SiteKey, ct))
+                continue;
+
+            var demoSite = await siteAppService.CreateAsync(new(
+                Name: demo.Name,
+                SiteKey: demo.SiteKey,
+                Title: demo.Title,
+                Description: demo.Description), ct);
+
+            var zh = CmsSiteTemplateLibrary.BuildSiteDraft(
+                demo.TemplateKey, demo.BrandName, demo.IndustryZh, demo.StylePromptZh, demo.PrimaryColor, isEn: false);
+            await siteAppService.ApplyAiDraftAsync(demoSite.Id, zh, "zh-CN", ct);
+
+            var en = CmsSiteTemplateLibrary.BuildSiteDraft(
+                demo.TemplateKey, demo.BrandName, demo.IndustryEn, demo.StylePromptEn, demo.PrimaryColor, isEn: true);
+            await siteAppService.ApplyAiDraftAsync(demoSite.Id, en, "en-US", ct);
+
+            await siteAppService.PublishAsync(demoSite.Id, ct);
+        }
     }
 }

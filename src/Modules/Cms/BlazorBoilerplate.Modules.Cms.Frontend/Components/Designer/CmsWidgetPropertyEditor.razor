@@ -407,7 +407,14 @@
                     <option value="fade-up">上滑渐显 (fade-up)</option>
                     <option value="fade-in">淡入 (fade-in)</option>
                     <option value="zoom-in">缩放进入 (zoom-in)</option>
-                    <option value="slide-left">左滑进入 (slide-left)</option>
+                    <option value="slide-left">右侧滑入 (slide-left)</option>
+                    <option value="slide-right">左侧滑入 (slide-right)</option>
+                    <option value="slide-down">上方滑入 (slide-down)</option>
+                    <option value="slide-up-big">大幅上滑 (slide-up-big)</option>
+                    <option value="flip">翻转进入 (flip)</option>
+                    <option value="bounce">弹跳进入 (bounce)</option>
+                    <option value="blur-in">模糊渐显 (blur-in)</option>
+                    <option value="scale-up">放大进入 (scale-up)</option>
                 </select>
             </label>
             <BitTextField Value="@_styleCss" ValueChanged="v => { _styleCss = v ?? string.Empty; EmitStyle(); }" Immediate="true" Label="自定义 CSS Class" />
