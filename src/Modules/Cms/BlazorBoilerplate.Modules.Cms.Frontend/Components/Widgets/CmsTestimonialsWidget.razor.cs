@@ -13,11 +13,33 @@ public partial class CmsTestimonialsWidget
 
     public sealed record TestimonialsProps(
         string? Heading = "客户声音",
-        List<TestimonialItem>? Items = null);
+        List<TestimonialItem>? Items = null,
+        string? Variant = null,
+        string? Eyebrow = null);
 
     [Parameter] public string PropsJson { get; set; } = "{}";
     private TestimonialsProps _props = new();
+    private int _activeIndex;
 
-    protected override void OnParametersSet() =>
+    protected override void OnParametersSet()
+    {
         _props = CmsJson.DeserializeOrDefault(PropsJson, new TestimonialsProps());
+        var count = _props.Items?.Count ?? 0;
+        if (_activeIndex >= count)
+            _activeIndex = 0;
+    }
+
+    private void Prev()
+    {
+        var count = _props.Items?.Count ?? 0;
+        if (count == 0) return;
+        _activeIndex = (_activeIndex - 1 + count) % count;
+    }
+
+    private void Next()
+    {
+        var count = _props.Items?.Count ?? 0;
+        if (count == 0) return;
+        _activeIndex = (_activeIndex + 1) % count;
+    }
 }

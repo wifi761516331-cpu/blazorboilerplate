@@ -155,7 +155,7 @@
 
             <!-- 中间：所见即所得实时画布 -->
             <main class="cms-canvas-wrap" @onclick="ClearWidgetSelection">
-                <div class="cms-canvas-frame viewport-@_viewport" style="@ThemeVariablesStyle">
+                <div class="cms-canvas-frame viewport-@_viewport" data-cms-style="@_themeStylePreset" style="@ThemeVariablesStyle">
                     <header class="cms-spa-nav" @onclick:stopPropagation="true">
                         <div class="cms-container cms-spa-nav-inner">
                             <span class="cms-brand-btn">
@@ -364,6 +364,13 @@
                 {
                     <div class="cms-inspector">
                         <h4>@L["cms.designer.inspector.theme"]</h4>
+                        <label class="cms-prop-select" style="display:flex;flex-direction:column;gap:0.35rem;margin-bottom:0.75rem;font-size:0.8125rem;font-weight:600;">
+                            <span>页面风格预设</span>
+                            <select value="@_themeStylePreset" @onchange="OnStylePresetChanged" style="padding:0.45rem 0.6rem;border-radius:6px;border:1px solid rgba(15,23,42,0.16);background:#fff;">
+                                <option value="classic">经典企业风 (classic)</option>
+                                <option value="umbraco-editorial">Umbraco 暖调编辑风 (umbraco-editorial)</option>
+                            </select>
+                        </label>
                         <div class="cms-color-row">
                             <input type="color" class="cms-color-picker" title="选择 Primary 颜色" value="@NormalizeHex(_themePrimary, "#0f6cbd")" @oninput='e => _themePrimary = e.Value?.ToString() ?? _themePrimary' />
                             <BitTextField @bind-Value="_themePrimary" Immediate="true" Label="Primary" />

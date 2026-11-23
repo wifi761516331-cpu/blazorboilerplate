@@ -83,55 +83,78 @@ public sealed class CmsSeedService(
             await db.SaveChangesAsync(ct);
         }
 
-        if (!await db.Sites.AnyAsync(ct))
+        // 默认企业官网与内置行业示例站均为只读模板：每次启动同步最新内置结构并重新发布（保留 SiteId，不影响用户复制或自建站点）。
+        var defaultSite = await db.Sites.FirstOrDefaultAsync(s => s.SiteKey == "default", ct);
+        Guid defaultSiteId;
+        if (defaultSite is null)
         {
-            var site = await siteAppService.CreateAsync(new(
+            var created = await siteAppService.CreateAsync(new(
                 Name: "默认企业官网",
                 SiteKey: "default",
                 Title: "企业官方网站",
                 Description: "由 BlazorBoilerplate CMS 构建的单页企业官网"), ct);
-
-            var zhDraft = await aiDesigner.GenerateSiteAsync(new(
-                BrandName: "BlazorBoilerplate",
-                Industry: "企业级数字化平台",
-                StylePrompt: "现代、极简、高可信度的模块化数字底座官网",
-                PrimaryColor: "#0f6cbd",
-                Language: "zh-CN"), ct);
-
-            await siteAppService.ApplyAiDraftAsync(site.Id, zhDraft, "zh-CN", ct);
-
-            var enDraft = await aiDesigner.GenerateSiteAsync(new(
-                BrandName: "BlazorBoilerplate",
-                Industry: "Enterprise Digital Platform",
-                StylePrompt: "Modern, minimal, and trustworthy modular monolith platform",
-                PrimaryColor: "#0f6cbd",
-                Language: "en-US"), ct);
-
-            await siteAppService.ApplyAiDraftAsync(site.Id, enDraft, "en-US", ct);
-            await siteAppService.PublishAsync(site.Id, ct);
+            defaultSiteId = created.Id;
         }
+        else
+        {
+            defaultSiteId = defaultSite.Id;
+            await ResetSiteContentAsync(defaultSiteId, ct);
+        }
+
+        var zhDraft = await aiDesigner.GenerateSiteAsync(new(
+            BrandName: "BlazorBoilerplate",
+            Industry: "企业级数字化平台",
+            StylePrompt: "现代、极简、高可信度的模块化数字底座官网",
+            PrimaryColor: "#0f6cbd",
+            Language: "zh-CN"), ct);
+        await siteAppService.ApplyAiDraftAsync(defaultSiteId, zhDraft, "zh-CN", ct);
+
+        var enDraft = await aiDesigner.GenerateSiteAsync(new(
+            BrandName: "BlazorBoilerplate",
+            Industry: "Enterprise Digital Platform",
+            StylePrompt: "Modern, minimal, and trustworthy modular monolith platform",
+            PrimaryColor: "#0f6cbd",
+            Language: "en-US"), ct);
+        await siteAppService.ApplyAiDraftAsync(defaultSiteId, enDraft, "en-US", ct);
+        await siteAppService.PublishAsync(defaultSiteId, ct);
 
         // 行业示例站点：全部来自内置手写模板库（不经 AI/LLM），每个站点中英双语并发布。
         foreach (var demo in CmsSiteTemplateLibrary.SeedSites)
         {
-            if (await db.Sites.AnyAsync(s => s.SiteKey == demo.SiteKey, ct))
-                continue;
-
-            var demoSite = await siteAppService.CreateAsync(new(
-                Name: demo.Name,
-                SiteKey: demo.SiteKey,
-                Title: demo.Title,
-                Description: demo.Description), ct);
+            var existingDemo = await db.Sites.FirstOrDefaultAsync(s => s.SiteKey == demo.SiteKey, ct);
+            Guid demoSiteId;
+            if (existingDemo is null)
+            {
+                var created = await siteAppService.CreateAsync(new(
+                    Name: demo.Name,
+                    SiteKey: demo.SiteKey,
+                    Title: demo.Title,
+                    Description: demo.Description), ct);
+                demoSiteId = created.Id;
+            }
+            else
+            {
+                existingDemo.UpdateInfo(demo.Name, demo.SiteKey, demo.Title, demo.Description, existingDemo.LogoUrl, existingDemo.FaviconUrl);
+                await db.SaveChangesAsync(ct);
+                demoSiteId = existingDemo.Id;
+                await ResetSiteContentAsync(demoSiteId, ct);
+            }
 
             var zh = CmsSiteTemplateLibrary.BuildSiteDraft(
                 demo.TemplateKey, demo.BrandName, demo.IndustryZh, demo.StylePromptZh, demo.PrimaryColor, isEn: false);
-            await siteAppService.ApplyAiDraftAsync(demoSite.Id, zh, "zh-CN", ct);
+            await siteAppService.ApplyAiDraftAsync(demoSiteId, zh, "zh-CN", ct);
 
             var en = CmsSiteTemplateLibrary.BuildSiteDraft(
                 demo.TemplateKey, demo.BrandName, demo.IndustryEn, demo.StylePromptEn, demo.PrimaryColor, isEn: true);
-            await siteAppService.ApplyAiDraftAsync(demoSite.Id, en, "en-US", ct);
+            await siteAppService.ApplyAiDraftAsync(demoSiteId, en, "en-US", ct);
 
-            await siteAppService.PublishAsync(demoSite.Id, ct);
+            await siteAppService.PublishAsync(demoSiteId, ct);
         }
+    }
+
+    private async Task ResetSiteContentAsync(Guid siteId, CancellationToken ct)
+    {
+        await db.Widgets.Where(w => w.SiteId == siteId && !w.IsTemplate).ExecuteDeleteAsync(ct);
+        await db.Sections.Where(s => s.SiteId == siteId).ExecuteDeleteAsync(ct);
     }
 }

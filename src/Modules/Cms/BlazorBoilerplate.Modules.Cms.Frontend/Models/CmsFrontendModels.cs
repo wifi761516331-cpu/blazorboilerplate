@@ -11,7 +11,8 @@ public static class CmsBuiltInTemplates
         "restaurant-demo",
         "saas-demo",
         "education-demo",
-        "portfolio-demo"
+        "portfolio-demo",
+        "umbraco-demo"
     };
 
     public static bool IsReadOnly(string? siteKey) =>
@@ -26,7 +27,8 @@ public sealed record CmsThemeConfig(
     string TextColor = "#1f2328",
     string FontFamily = "system-ui, -apple-system, 'Segoe UI', sans-serif",
     string BorderRadius = "8px",
-    string? CustomCss = null);
+    string? CustomCss = null,
+    string StylePreset = "classic");
 
 public sealed record CmsLayoutRow(string Id, string? CssClass, List<CmsLayoutColumn> Columns);
 

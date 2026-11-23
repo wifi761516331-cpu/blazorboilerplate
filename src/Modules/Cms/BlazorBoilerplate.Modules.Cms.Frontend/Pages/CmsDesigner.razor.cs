@@ -94,6 +94,7 @@ public partial class CmsDesigner
     private string _themeSurface = "#f5f7fa";
     private string _themeText = "#1f2328";
     private string _themeRadius = "8px";
+    private string _themeStylePreset = "classic";
 
     private bool _addSectionOpen;
     private string _newSecTitle = string.Empty;
@@ -136,6 +137,7 @@ public partial class CmsDesigner
                 _themeSurface = t.SurfaceColor;
                 _themeText = t.TextColor;
                 _themeRadius = t.BorderRadius;
+                _themeStylePreset = string.IsNullOrWhiteSpace(t.StylePreset) ? "classic" : t.StylePreset;
 
                 _layoutDropdownItems = _design.Layouts
                     .Select(l => new BitDropdownItem<string> { Text = l.Name, Value = l.Id.ToString("D") })
@@ -688,6 +690,30 @@ public partial class CmsDesigner
         return false;
     }
 
+    private void OnStylePresetChanged(ChangeEventArgs e)
+    {
+        var preset = e.Value?.ToString() ?? "classic";
+        _themeStylePreset = preset;
+        if (string.Equals(preset, "umbraco-editorial", StringComparison.OrdinalIgnoreCase))
+        {
+            _themePrimary = "#283a97";
+            _themeAccent = "#f5c1bc";
+            _themeBg = "#f1f0ee";
+            _themeSurface = "#f9f7f4";
+            _themeText = "#162335";
+            _themeRadius = "20px";
+        }
+        else
+        {
+            _themePrimary = "#0f6cbd";
+            _themeAccent = "#115ea3";
+            _themeBg = "#ffffff";
+            _themeSurface = "#f5f7fa";
+            _themeText = "#1f2328";
+            _themeRadius = "8px";
+        }
+    }
+
     private async Task SaveThemeAsync()
     {
         if (_design is null) return;
@@ -695,7 +721,8 @@ public partial class CmsDesigner
         try
         {
             await CmsApi.UpdateThemeAsync(_design.Site.Id, new CmsThemeConfig(
-                _themePrimary, _themeAccent, _themeBg, _themeSurface, _themeText, BorderRadius: _themeRadius));
+                _themePrimary, _themeAccent, _themeBg, _themeSurface, _themeText,
+                BorderRadius: _themeRadius, StylePreset: _themeStylePreset));
             Toast.Success("主题配色已保存");
         }
         finally

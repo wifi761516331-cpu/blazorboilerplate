@@ -1110,3 +1110,344 @@
     line-height: 1.8;
     opacity: 0.88;
 }
+
+/* ============ 增强微件：Editorial 大图 Hero / 无限跑马灯 / 证言轮播 ============ */
+.cms-section ::deep .cms-w-hero.is-editorial {
+    max-width: 100%;
+    min-height: clamp(460px, 64vh, 640px);
+    display: flex;
+    align-items: center;
+    text-align: left;
+    padding: clamp(3rem, 6vw, 5.5rem) clamp(1.75rem, 5vw, 4.5rem);
+    border-radius: var(--cms-radius, 22px);
+    background-size: cover;
+    background-position: center;
+    background-color: #162335;
+    color: #f9f7f4;
+    box-shadow: 0 20px 50px rgba(22, 35, 53, 0.16);
+}
+
+.cms-section ::deep .cms-w-hero.is-editorial .cms-hero-inner {
+    max-width: 760px;
+}
+
+.cms-section ::deep .cms-w-hero.is-editorial .cms-hero-badge {
+    background: rgba(245, 193, 188, 0.22);
+    color: #f5c1bc;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+}
+
+.cms-section ::deep .cms-w-hero.is-editorial h1 {
+    font-size: clamp(2.25rem, 4.6vw, 4.4rem);
+    line-height: 1.08;
+    font-weight: 400;
+    color: #f9f7f4;
+    margin: 0 0 1.25rem;
+}
+
+.cms-section ::deep .cms-w-hero.is-editorial .cms-hero-sub {
+    color: rgba(249, 247, 244, 0.88);
+    font-size: 1.125rem;
+    line-height: 1.6;
+    max-width: 580px;
+}
+
+.cms-section ::deep .cms-w-hero.is-editorial .cms-hero-actions {
+    justify-content: flex-start;
+}
+
+.cms-section ::deep .cms-btn-pill-arrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.35rem 0.35rem 0.35rem 1.35rem;
+    border-radius: 999px;
+    background: #f9f7f4;
+    color: #283a97;
+    border: none;
+    font-weight: 600;
+}
+
+.cms-section ::deep .cms-btn-pill-arrow:hover {
+    background: #ffffff;
+    transform: translateY(-2px);
+}
+
+.cms-section ::deep .cms-btn-arrow-circle {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: #283a97;
+    color: #f9f7f4;
+    display: inline-grid;
+    place-items: center;
+    font-size: 0.9rem;
+    transition: transform 0.2s ease;
+}
+
+.cms-section ::deep .cms-btn-pill-arrow:hover .cms-btn-arrow-circle {
+    transform: translate(2px, -2px);
+}
+
+/* 无限滚动 Logo 跑马灯 */
+.cms-section ::deep .cms-partners-marquee {
+    overflow: hidden;
+    width: 100%;
+    mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+}
+
+.cms-section ::deep .cms-partners-track {
+    display: flex;
+    gap: 1.5rem;
+    width: max-content;
+    animation: cmsMarquee 28s linear infinite;
+}
+
+.cms-section ::deep .cms-partners-marquee:hover .cms-partners-track {
+    animation-play-state: paused;
+}
+
+.cms-section ::deep .cms-partner-marquee-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.85rem 1.5rem;
+    border-radius: 999px;
+    background: #ffffff;
+    border: 1px solid rgba(40, 58, 151, 0.1);
+    font-weight: 600;
+    color: #162335;
+    white-space: nowrap;
+}
+
+@keyframes cmsMarquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}
+
+/* 带页码进度条的证言横向轮播 */
+.cms-section ::deep .cms-testi-carousel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.75rem;
+}
+
+.cms-section ::deep .cms-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--cms-pri, #283a97);
+    margin-bottom: 0.5rem;
+}
+
+.cms-section ::deep .cms-testi-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.cms-section ::deep .cms-testi-counter {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--cms-pri, #283a97);
+    margin-right: 0.4rem;
+}
+
+.cms-section ::deep .cms-circle-nav-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    border: 1px solid rgba(40, 58, 151, 0.22);
+    background: #f9f7f4;
+    color: #283a97;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.cms-section ::deep .cms-circle-nav-btn:hover {
+    background: #283a97;
+    color: #f9f7f4;
+}
+
+.cms-section ::deep .cms-testi-carousel-track {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
+}
+
+@media (max-width: 900px) {
+    .cms-section ::deep .cms-testi-carousel-track {
+        grid-template-columns: 1fr;
+    }
+}
+
+.cms-section ::deep .cms-testimonial-card.is-editorial-card {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 1.75rem;
+    border: 1px solid rgba(40, 58, 151, 0.08);
+    box-shadow: 0 6px 20px rgba(22, 35, 53, 0.04);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 1.25rem;
+    margin: 0;
+}
+
+.cms-section ::deep .cms-testimonial-card.is-editorial-card.is-lead {
+    border-color: rgba(40, 58, 151, 0.28);
+    box-shadow: 0 12px 32px rgba(40, 58, 151, 0.1);
+}
+
+.cms-section ::deep .cms-quote-badge {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    background: #f5c1bc;
+    color: #283a97;
+    display: inline-grid;
+    place-items: center;
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.cms-section ::deep .cms-testimonial-card.is-editorial-card .cms-testimonial-quote {
+    color: #283a97;
+    font-size: 1.125rem;
+    line-height: 1.55;
+    margin: 0;
+}
+
+/* ============ Umbraco 暖调编辑企业风 (umbraco-editorial) 全局微件适配 ============ */
+::deep [data-cms-style="umbraco-editorial"] .cms-section,
+[data-cms-style="umbraco-editorial"] .cms-section {
+    padding: 3.75rem 0;
+    background: transparent;
+}
+
+[data-cms-style="umbraco-editorial"] .cms-container {
+    max-width: 1440px;
+    margin: 0 auto;
+}
+
+[data-cms-style="umbraco-editorial"] .cms-section:nth-child(even) {
+    background: transparent;
+}
+
+[data-cms-style="umbraco-editorial"] .cms-section h2,
+[data-cms-style="umbraco-editorial"] .cms-section ::deep .cms-sec-head h2,
+[data-cms-style="umbraco-editorial"] .cms-section ::deep .cms-sec-heading {
+    color: var(--cms-pri, #283a97);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+}
+
+[data-cms-style="umbraco-editorial"] .cms-section ::deep .cms-feature-card,
+[data-cms-style="umbraco-editorial"] .cms-section ::deep .cms-stat-tile,
+[data-cms-style="umbraco-editorial"] .cms-section ::deep .cms-pricing-card,
+[data-cms-style="umbraco-editorial"] .cms-section ::deep .cms-article-card,
+[data-cms-style="umbraco-editorial"] .cms-section ::deep .cms-faq-item {
+    background: #ffffff;
+    border-radius: var(--cms-radius, 20px);
+    border: 1px solid rgba(40, 58, 151, 0.08);
+    box-shadow: 0 6px 20px rgba(22, 35, 53, 0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-cms-style="umbraco-editorial"] .cms-section ::deep .cms-feature-card:hover,
+[data-cms-style="umbraco-editorial"] .cms-section ::deep .cms-article-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 32px rgba(40, 58, 151, 0.1);
+}
+
+[data-cms-style="umbraco-editorial"] .cms-section:has(.cms-w-footer) {
+    background: var(--cms-pri, #283a97);
+    color: #f9f7f4;
+    border-radius: 22px 22px 0 0;
+    padding: 3.25rem 0;
+}
+
+[data-cms-style="umbraco-editorial"] .cms-section ::deep .cms-w-footer {
+    color: #babcd5;
+}
+
+[data-cms-style="umbraco-editorial"] .cms-section ::deep .cms-w-footer strong {
+    color: #f9f7f4;
+}
+
+/* Umbraco 1:1 白色特性方卡 & 摄影遮罩方卡 */
+.cms-section ::deep .cms-umb-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5rem;
+}
+
+.cms-section ::deep .cms-umb-square-card {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 2rem;
+    min-height: 320px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border: 1px solid rgba(40, 58, 151, 0.08);
+    box-shadow: 0 6px 20px rgba(22, 35, 53, 0.04);
+    text-decoration: none;
+    color: #162335;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cms-section ::deep .cms-umb-square-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 32px rgba(40, 58, 151, 0.12);
+}
+
+.cms-section ::deep .cms-umb-photo-card {
+    position: relative;
+    border-radius: 20px;
+    min-height: 360px;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    background-size: cover;
+    background-position: center;
+    color: #f9f7f4;
+    overflow: hidden;
+    text-decoration: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cms-section ::deep .cms-umb-photo-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 38px rgba(22, 35, 53, 0.22);
+}
+
+.cms-section ::deep .cms-umb-circle-arrow {
+    align-self: flex-end;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    border: 1px solid rgba(40, 58, 151, 0.22);
+    color: #283a97;
+    display: grid;
+    place-items: center;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.cms-section ::deep .cms-umb-square-card:hover .cms-umb-circle-arrow {
+    background: #283a97;
+    color: #f9f7f4;
+}

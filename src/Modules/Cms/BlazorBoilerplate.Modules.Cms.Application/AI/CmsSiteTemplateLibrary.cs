@@ -25,7 +25,8 @@ public static class CmsSiteTemplateLibrary
         "restaurant-demo",
         "saas-demo",
         "education-demo",
-        "portfolio-demo"
+        "portfolio-demo",
+        "umbraco-demo"
     };
 
     /// <summary>判断给定 SiteKey 是否为内置只读模板。</summary>
@@ -46,19 +47,22 @@ public static class CmsSiteTemplateLibrary
             "专业、可信、突出课程与学员成果", "Trustworthy, professional, course and outcome focused", "#7c3aed"),
         new("portfolio", "portfolio-demo", "个人作品集示例站", "创意作品集 · 官方网站",
             "个人作品集单页官网示例（画廊侧栏风 · 含三栏作品、设计复盘、服务报价与合作地图）", "林设计", "视觉设计", "Visual Design",
-            "极简、有设计感、突出作品与联系", "Minimal, artistic, work and contact focused", "#0f766e")
+            "极简、有设计感、突出作品与联系", "Minimal, artistic, work and contact focused", "#0f766e"),
+        new("umbraco", "umbraco-demo", "Umbraco 暖调编辑企业风", "OpenCMS · 企业级 DXP 平台",
+            "复刻 Umbraco.com 暖调编辑风（#f1f0ee 暖灰画布 + #283a97 皇家蓝 + 滚动变形导航 + Logo 跑马灯 + 证言轮播）", "OpenCMS", "开源企业级 CMS", "Open-Source .NET CMS",
+            "面向 AI 时代的开源企业级内容底座", "The open-source .NET CMS, ready for AI", "#283a97")
     ];
 
     /// <summary>
-    /// 各模板的默认入场动画序列（按区块序号轮转）。四套风格各异，进一步拉开视觉差异：
-    /// 餐饮温暖上浮、SaaS 科技缩放/滑入、教育翻转渐显、作品集大幅浮现。
+    /// 各模板的默认入场动画序列（按区块序号轮转）。
     /// </summary>
     private static readonly Dictionary<string, string[]> Animations = new(StringComparer.OrdinalIgnoreCase)
     {
         ["restaurant"] = ["fade-up", "zoom-in", "slide-right", "bounce", "blur-in", "slide-left", "flip", "scale-up", "slide-down", "slide-up-big", "fade-in"],
         ["saas"]       = ["zoom-in", "slide-left", "scale-up", "flip", "fade-up", "slide-right", "blur-in", "bounce", "slide-down", "slide-up-big", "fade-in"],
         ["education"]  = ["fade-up", "zoom-in", "flip", "slide-down", "bounce", "slide-right", "scale-up", "blur-in", "slide-up-big", "slide-left", "fade-in"],
-        ["portfolio"]  = ["slide-up-big", "zoom-in", "blur-in", "scale-up", "flip", "slide-left", "bounce", "slide-down", "fade-up", "slide-right", "fade-in"]
+        ["portfolio"]  = ["slide-up-big", "zoom-in", "blur-in", "scale-up", "flip", "slide-left", "bounce", "slide-down", "fade-up", "slide-right", "fade-in"],
+        ["umbraco"]    = ["fade-up", "fade-in", "zoom-in", "slide-left", "scale-up", "blur-in", "slide-right", "flip", "bounce", "fade-up", "fade-in"]
     };
 
     /// <summary>按模板标识与语言构建完整整站草稿（标题/主题/区块），供种子服务写入站点。</summary>
@@ -68,10 +72,22 @@ public static class CmsSiteTemplateLibrary
             ?? throw new InvalidOperationException($"未知官网模板标识: {templateKey}");
         sections = ApplyAnimations(templateKey, sections);
         var primary = string.IsNullOrWhiteSpace(primaryColor) ? "#0f6cbd" : primaryColor.Trim();
+        var theme = string.Equals(templateKey, "umbraco", StringComparison.OrdinalIgnoreCase)
+            ? new CmsThemeConfig(
+                PrimaryColor: "#283a97",
+                AccentColor: "#f5c1bc",
+                BackgroundColor: "#f1f0ee",
+                SurfaceColor: "#f9f7f4",
+                TextColor: "#162335",
+                FontFamily: "'Lato', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif",
+                BorderRadius: "20px",
+                StylePreset: "umbraco-editorial")
+            : new CmsThemeConfig(PrimaryColor: primary, AccentColor: primary);
+
         return new CmsAiSiteDraft(
             Title: isEn ? $"{brand} Official Website" : $"{brand} 官方网站",
             Description: $"{brand} - {industry}",
-            Theme: new CmsThemeConfig(PrimaryColor: primary, AccentColor: primary),
+            Theme: theme,
             Sections: sections,
             ProviderNote: "由内置手写行业模板生成（种子示例站点）。");
     }
@@ -132,6 +148,7 @@ public static class CmsSiteTemplateLibrary
             "saas"       => isEn ? SaasEn(brand, industry, stylePrompt)       : SaasZh(brand, industry, stylePrompt),
             "education"  => isEn ? EducationEn(brand, industry, stylePrompt)  : EducationZh(brand, industry, stylePrompt),
             "portfolio"  => isEn ? PortfolioEn(brand, industry, stylePrompt)  : PortfolioZh(brand, industry, stylePrompt),
+            "umbraco"    => isEn ? UmbracoEn(brand, industry, stylePrompt)    : UmbracoZh(brand, industry, stylePrompt),
             _ => null
         };
 
@@ -2080,6 +2097,374 @@ public static class CmsSiteTemplateLibrary
             {
                 brand,
                 tagline = $"{industry} · Let the work speak",
+                copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved."
+            }))
+        ])
+    ];
+
+    // ============================================================
+    // 5. Umbraco 暖调编辑企业风 (umbraco-editorial)
+    //    暖灰底 #f1f0ee + 皇家蓝 #283a97 + 大图 Hero + Logo 跑马灯 + 证言轮播 + 深蓝转化横幅
+    // ============================================================
+    private static List<CmsAiSectionDraft> UmbracoZh(string brand, string industry, string? stylePrompt) =>
+    [
+        new("首页", "home", true, "single-column",
+        [
+            new("main", "cms.html", "顶部公告胶囊条", Serialize(new
+            {
+                html = "<div style=\"display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.75rem;background:#283a97;color:#ffffff;padding:0.65rem 1.35rem;border-radius:999px;font-size:0.8125rem;margin-bottom:1.25rem;\"><span><strong>2026 冬季发布会</strong> · 探索 AI 原生与可组合企业级内容架构</span><a href=\"#contact\" style=\"color:#f5c1bc;text-decoration:none;font-weight:600;\">立即预约席位 →</a></div>"
+            })),
+            new("main", "cms.hero", $"{brand} 摄影首屏", Serialize(new
+            {
+                badge = "2026 WINTER RELEASE · READY FOR AI",
+                headline = $"{brand}：面向 AI 时代的开源 .NET CMS",
+                subheadline = string.IsNullOrWhiteSpace(stylePrompt)
+                    ? "兼具开发者的极致自由度与运营团队的友好编辑体验，构建可扩展的企业级数字体验底座。"
+                    : stylePrompt.Trim(),
+                primaryButtonText = "预约架构演示",
+                primaryButtonHref = "#contact",
+                backgroundImageUrl = "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=1200",
+                variant = "editorial"
+            }))
+        ]),
+        new("信任背书", "logos", true, "single-column",
+        [
+            new("main", "cms.partners", "全球客户跑马灯", Serialize(new
+            {
+                heading = "",
+                variant = "marquee",
+                items = new[]
+                {
+                    new { name = "Mercedes-Benz" },
+                    new { name = "Carlsberg" },
+                    new { name = "Fujitsu" },
+                    new { name = "Renault" },
+                    new { name = "Volvo" },
+                    new { name = "Heineken" },
+                    new { name = "Suzuki" },
+                    new { name = "Domino's" }
+                }
+            }))
+        ]),
+        new("AI 能力", "ai-platform", true, "single-column",
+        [
+            new("main", "cms.html", "AI 非对称标题", Serialize(new
+            {
+                html = "<div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem;align-items:end;margin-bottom:1.75rem;\"><div style=\"font-size:0.75rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#283a97;\">OPEN DXP &amp; AI</div><h2 style=\"margin:0;font-size:clamp(2rem,3.8vw,3.5rem);font-weight:400;line-height:1.12;color:#283a97;\">AI 能力融入每一次内容创作</h2></div>"
+            })),
+            new("main", "cms.html", "AI 三栏 1:1 白色方卡", Serialize(new
+            {
+                html = "<div class=\"cms-umb-grid-3\"><a href=\"#contact\" class=\"cms-umb-square-card\"><div style=\"font-size:0.75rem;font-weight:700;letter-spacing:0.08em;color:#283a97;opacity:0.7;\">01 / MCP NATIVE</div><div><h3 style=\"margin:0 0 0.75rem;font-size:1.5rem;font-weight:400;color:#283a97;\">MCP 原生协议接入</h3><p style=\"margin:0;opacity:0.78;line-height:1.6;\">让大模型直接理解您的内容模型与区块规范，安全执行可视化编排与校验。</p></div><span class=\"cms-umb-circle-arrow\">↗</span></a><a href=\"#contact\" class=\"cms-umb-square-card\"><div style=\"font-size:0.75rem;font-weight:700;letter-spacing:0.08em;color:#283a97;opacity:0.7;\">02 / COPILOT</div><div><h3 style=\"margin:0 0 0.75rem;font-size:1.5rem;font-weight:400;color:#283a97;\">智能文案与多语生成</h3><p style=\"margin:0;opacity:0.78;line-height:1.6;\">一键完成行业官网初稿搭建、摘要提炼与跨语种本地化同步翻译。</p></div><span class=\"cms-umb-circle-arrow\">↗</span></a><a href=\"#contact\" class=\"cms-umb-square-card\"><div style=\"font-size:0.75rem;font-weight:700;letter-spacing:0.08em;color:#283a97;opacity:0.7;\">03 / COMPOSABLE</div><div><h3 style=\"margin:0 0 0.75rem;font-size:1.5rem;font-weight:400;color:#283a97;\">可组合开放集成</h3><p style=\"margin:0;opacity:0.78;line-height:1.6;\">无缝对接 OpenAI、DeepSeek、Gemini 与企业私有知识库 RAG 检索。</p></div><span class=\"cms-umb-circle-arrow\">↗</span></a></div>"
+            })),
+            new("main", "cms.html", "全宽案例横幅卡", Serialize(new
+            {
+                html = "<div style=\"border-radius:22px;padding:3rem 2.5rem;background:linear-gradient(100deg,rgba(22,35,53,0.92),rgba(40,58,151,0.75)),url('https://images.pexels.com/photos/3183150/pexels-photo-3183150.jpeg?auto=compress&cs=tinysrgb&w=1200') center/cover;color:#f9f7f4;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:1.5rem;\"><div style=\"max-width:620px;\"><div style=\"font-size:0.75rem;letter-spacing:0.1em;opacity:0.75;margin-bottom:0.5rem;\">ARCHITECTURE CASE STUDY</div><h3 style=\"margin:0 0 0.75rem;font-size:clamp(1.5rem,2.8vw,2.25rem);font-weight:400;\">企业级可组合 AI 架构实战配方</h3><p style=\"margin:0;opacity:0.86;\">了解头部数字团队如何在 2 周内将智能内容工作流接入现有业务系统。</p></div><a href=\"#contact\" style=\"padding:0.75rem 1.5rem;border-radius:999px;background:#f9f7f4;color:#283a97;text-decoration:none;font-weight:600;\">查看架构案例 ↗</a></div>"
+            }))
+        ]),
+        new("企业痛点", "challenges", true, "single-column",
+        [
+            new("main", "cms.heading", "破解企业内容管理难题", Serialize(new
+            {
+                title = "为企业破解复杂内容协同难题",
+                subtitle = "兼具编辑自主权、全球多站点治理与全链路合规保障",
+                level = "h2",
+                align = "center"
+            })),
+            new("main", "cms.html", "三栏摄影遮罩方卡", Serialize(new
+            {
+                html = "<div class=\"cms-umb-grid-3\"><a href=\"#contact\" class=\"cms-umb-photo-card\" style=\"background-image:linear-gradient(180deg,rgba(22,35,53,0.12) 0%,rgba(22,35,53,0.88) 100%),url('https://images.pexels.com/photos/1181359/pexels-photo-1181359.jpeg?auto=compress&cs=tinysrgb&w=900');\"><h3 style=\"margin:0 0 0.5rem;font-size:1.5rem;font-weight:400;\">告别僵化模板，运营自主发版</h3><p style=\"margin:0;opacity:0.86;font-size:0.95rem;\">所见即所得块级编排与多语言快照，市场团队独立上线活动页。</p></a><a href=\"#contact\" class=\"cms-umb-photo-card\" style=\"background-image:linear-gradient(180deg,rgba(22,35,53,0.12) 0%,rgba(22,35,53,0.88) 100%),url('https://images.pexels.com/photos/3184328/pexels-photo-3184328.jpeg?auto=compress&cs=tinysrgb&w=900');\"><h3 style=\"margin:0 0 0.5rem;font-size:1.5rem;font-weight:400;\">一套底座管控全球品牌矩阵</h3><p style=\"margin:0;opacity:0.86;font-size:0.95rem;\">独立域名路由、多租户隔离与细粒度权限，统一集团区域门户。</p></a><a href=\"#contact\" class=\"cms-umb-photo-card\" style=\"background-image:linear-gradient(180deg,rgba(22,35,53,0.12) 0%,rgba(22,35,53,0.88) 100%),url('https://images.pexels.com/photos/590022/pexels-photo-590022.jpeg?auto=compress&cs=tinysrgb&w=900');\"><h3 style=\"margin:0 0 0.5rem;font-size:1.5rem;font-weight:400;\">企业级性能与合规审计保障</h3><p style=\"margin:0;opacity:0.86;font-size:0.95rem;\">不可变发布快照 + 混合缓存 + OpenTelemetry 追踪，稳定如一。</p></a></div>"
+            }))
+        ]),
+        new("视频案例", "video-case", true, "single-column",
+        [
+            new("main", "cms.heading", "全球品牌信赖之选", Serialize(new
+            {
+                title = "与全球领先品牌共同打造数字体验",
+                subtitle = "观看客户数字化平台负责人分享架构选型与上线成效",
+                level = "h2",
+                align = "center"
+            })),
+            new("main", "cms.video", "客户案例视频", Serialize(new
+            {
+                videoUrl = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+                posterUrl = "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=1200",
+                caption = "Case Study · 某跨国制造集团多语门户重构纪实",
+                controls = true,
+                autoPlay = false,
+                loop = false,
+                maxHeight = 420
+            }))
+        ]),
+        new("极速实施", "speed", true, "single-column",
+        [
+            new("main", "cms.heading", "行业领先的实施交付速度", Serialize(new
+            {
+                title = "业内最快的企业级实施交付速度",
+                subtitle = "告别长达半年的单体平台改造，通过热插拔模块与标准契约，数周即可完成首个站点上线",
+                level = "h2",
+                align = "center"
+            })),
+            new("main", "cms.button", "1分钟了解按钮", Serialize(new
+            {
+                text = "1 分钟了解实施路径",
+                href = "#contact",
+                variant = "fill",
+                align = "center",
+                openNewTab = false
+            }))
+        ]),
+        new("客户证言", "testimonials", true, "single-column",
+        [
+            new("main", "cms.testimonials", "决策者证言轮播", Serialize(new
+            {
+                eyebrow = "FROM CTOS TO CMOS",
+                heading = "为什么技术与市场决策者都选择我们",
+                variant = "carousel",
+                items = new[]
+                {
+                    new { quote = "模块化架构让我们的研发与运营彻底解耦，市场团队现在能在几小时内推出全新活动页。", author = "陈志远", role = "某智造集团 CTO", avatarUrl = "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=300" },
+                    new { quote = "多语言无刷新切换和不可变发布快照非常稳健，大促期间零故障支撑全球流量。", author = "林舒雅", role = "某跨境品牌 CMO", avatarUrl = "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=300" },
+                    new { quote = "源码清晰、契约规范，我们的团队只用两天就完成了自定义业务微件与内部 ERP 打通。", author = "周明轩", role = "某金融科技平台架构师", avatarUrl = "https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300" },
+                    new { quote = "在私有化合规和安全审计方面表现出色，完全满足集团等保三级要求。", author = "王总监", role = "某能源企业信息中心主任", avatarUrl = "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=300" },
+                    new { quote = "这是我们用过最友好的内容管理工作台，新同事上手不到半小时就能独立排版。", author = "赵经理", role = "某零售集团数字运营负责人", avatarUrl = "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=300" },
+                    new { quote = "从传统静态站迁移过来后，官网留资转化率在一个季度内提升了 38%。", author = "刘先生", role = "某 SaaS 创业公司创始人", avatarUrl = "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=300" }
+                }
+            }))
+        ]),
+        new("深蓝转化", "cta-banner", true, "single-column",
+        [
+            new("main", "cms.html", "深蓝波浪转化横幅", Serialize(new
+            {
+                html = "<div style=\"position:relative;overflow:hidden;border-radius:22px;padding:clamp(3rem,6vw,5rem) 2rem;background:#283a97;color:#f9f7f4;text-align:center;\"><svg viewBox=\"0 0 1200 320\" preserveAspectRatio=\"none\" aria-hidden=\"true\" style=\"position:absolute;inset:0;width:100%;height:100%;opacity:0.22;pointer-events:none;\"><path d=\"M0,192 C320,90 520,290 880,170 C1040,115 1140,145 1200,180 L1200,320 L0,320 Z\" fill=\"#1b264f\"/><path d=\"M0,250 C280,180 620,320 1200,210 L1200,320 L0,320 Z\" fill=\"#f5c1bc\" fill-opacity=\"0.35\"/></svg><div style=\"position:relative;z-index:1;\"><h2 style=\"margin:0 0 1rem;font-size:clamp(2rem,4vw,3.5rem);font-weight:400;line-height:1.12;color:#f9f7f4;\">想了解它如何赋能您的企业业务？</h2><p style=\"margin:0 auto 2rem;max-width:580px;font-size:1.1rem;opacity:0.86;\">与我们的解决方案架构师进行 30 分钟探索沟通，获取定制化演示与架构评估。</p><a href=\"#paths\" style=\"display:inline-flex;align-items:center;gap:0.75rem;padding:0.45rem 0.45rem 0.45rem 1.4rem;border-radius:999px;background:#f9f7f4;color:#283a97;text-decoration:none;font-weight:600;\"><span>预约探索沟通</span><span style=\"width:2rem;height:2rem;border-radius:50%;background:#f5c1bc;color:#283a97;display:inline-grid;place-items:center;\">↗</span></a></div></div>"
+            }))
+        ]),
+        new("G2 口碑", "g2-proof", true, "two-column",
+        [
+            new("left", "cms.html", "G2 认证徽章墙", Serialize(new
+            {
+                html = "<div style=\"display:grid;grid-template-columns:repeat(2,minmax(130px,1fr));gap:1rem;\"><div style=\"background:#ffffff;border-radius:16px;padding:1.25rem;border:1px solid rgba(40,58,151,0.12);text-align:center;\"><div style=\"font-size:0.7rem;font-weight:700;color:#283a97;letter-spacing:0.08em;\">G2 FALL 2026</div><strong style=\"display:block;margin-top:0.35rem;color:#162335;\">Leader 领导者</strong></div><div style=\"background:#ffffff;border-radius:16px;padding:1.25rem;border:1px solid rgba(40,58,151,0.12);text-align:center;\"><div style=\"font-size:0.7rem;font-weight:700;color:#283a97;letter-spacing:0.08em;\">G2 FALL 2026</div><strong style=\"display:block;margin-top:0.35rem;color:#162335;\">最佳易用性</strong></div><div style=\"background:#ffffff;border-radius:16px;padding:1.25rem;border:1px solid rgba(40,58,151,0.12);text-align:center;\"><div style=\"font-size:0.7rem;font-weight:700;color:#283a97;letter-spacing:0.08em;\">G2 FALL 2026</div><strong style=\"display:block;margin-top:0.35rem;color:#162335;\">最佳实施成效</strong></div><div style=\"background:#ffffff;border-radius:16px;padding:1.25rem;border:1px solid rgba(40,58,151,0.12);text-align:center;\"><div style=\"font-size:0.7rem;font-weight:700;color:#283a97;letter-spacing:0.08em;\">G2 FALL 2026</div><strong style=\"display:block;margin-top:0.35rem;color:#162335;\">最易合作平台</strong></div></div>"
+            })),
+            new("right", "cms.richtext", "G2 用户口碑说明", Serialize(new
+            {
+                heading = "真实用户评价胜过千言万语",
+                body = "连续多年入选企业级 CMS 领导者象限，在易用性、交付速度与开放扩展维度获得一线工程师与运营团队的一致高分。"
+            })),
+            new("right", "cms.button", "查看对比报告", Serialize(new { text = "查看产品对比详情", href = "#contact", variant = "outline", align = "left", openNewTab = false }))
+        ]),
+        new("角色路径", "paths", true, "single-column",
+        [
+            new("main", "cms.heading", "选择您的下一步路径", Serialize(new
+            {
+                title = "选择您的下一步探索路径",
+                subtitle = "无论您是开发者、市场运营还是合作伙伴，都能找到专属入口",
+                level = "h2",
+                align = "center"
+            })),
+            new("main", "cms.html", "三栏深蓝路径卡片", Serialize(new
+            {
+                html = "<div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.25rem;\"><a href=\"#contact\" style=\"text-decoration:none;background:#283a97;color:#f9f7f4;border-radius:20px;padding:2rem;display:flex;flex-direction:column;justify-content:space-between;min-height:220px;\"><span style=\"width:2.5rem;height:2.5rem;border-radius:50%;background:#f9f7f4;color:#283a97;display:grid;place-items:center;font-weight:700;\">&lt;/&gt;</span><div><h3 style=\"margin:1.5rem 0 0.5rem;font-weight:400;font-size:1.5rem;\">开发者 Developer</h3><p style=\"margin:0;opacity:0.82;font-size:0.95rem;\">探索开源 SDK、热插拔模块契约与多数据库迁移能力。</p></div><span style=\"align-self:flex-end;width:2rem;height:2rem;border-radius:50%;border:1px solid rgba(249,247,244,0.35);display:grid;place-items:center;\">↗</span></a><a href=\"#contact\" style=\"text-decoration:none;background:#283a97;color:#f9f7f4;border-radius:20px;padding:2rem;display:flex;flex-direction:column;justify-content:space-between;min-height:220px;\"><span style=\"width:2.5rem;height:2.5rem;border-radius:50%;background:#f9f7f4;color:#283a97;display:grid;place-items:center;font-weight:700;\">✦</span><div><h3 style=\"margin:1.5rem 0 0.5rem;font-weight:400;font-size:1.5rem;\">市场运营 Marketer</h3><p style=\"margin:0;opacity:0.82;font-size:0.95rem;\">体验可视化拖拽建站、多语种即时切换与留资转化追踪。</p></div><span style=\"align-self:flex-end;width:2rem;height:2rem;border-radius:50%;border:1px solid rgba(249,247,244,0.35);display:grid;place-items:center;\">↗</span></a><a href=\"#contact\" style=\"text-decoration:none;background:#283a97;color:#f9f7f4;border-radius:20px;padding:2rem;display:flex;flex-direction:column;justify-content:space-between;min-height:220px;\"><span style=\"width:2.5rem;height:2.5rem;border-radius:50%;background:#f9f7f4;color:#283a97;display:grid;place-items:center;font-weight:700;\">◈</span><div><h3 style=\"margin:1.5rem 0 0.5rem;font-weight:400;font-size:1.5rem;\">生态伙伴 Agency</h3><p style=\"margin:0;opacity:0.82;font-size:0.95rem;\">基于标准化多站点平台，为客户更快交付定制化数字门户。</p></div><span style=\"align-self:flex-end;width:2rem;height:2rem;border-radius:50%;border:1px solid rgba(249,247,244,0.35);display:grid;place-items:center;\">↗</span></a></div>"
+            })),
+            new("main", "cms.contact", "预约留资表单", Serialize(new
+            {
+                heading = "开启您的企业级数字体验之旅",
+                subheading = "填写以下信息，立即获取演示环境与架构白皮书",
+                submitText = "预约探索沟通",
+                email = "enterprise@example.com",
+                phone = "400-900-2026"
+            }))
+        ]),
+        new("页脚", "footer", false, "single-column",
+        [
+            new("main", "cms.html", "四栏 Sitemap 页脚", Serialize(new
+            {
+                html = "<div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:2rem;color:#f9f7f4;padding-bottom:1.5rem;border-bottom:1px solid rgba(186,188,213,0.2);\"><div><div style=\"font-size:0.75rem;font-weight:700;letter-spacing:0.1em;color:#babcd5;margin-bottom:0.75rem;\">PLATFORM &amp; HOSTING</div><div style=\"display:flex;flex-direction:column;gap:0.45rem;font-size:0.9rem;\"><a href=\"#ai-platform\" style=\"color:#f9f7f4;text-decoration:none;\">OpenCMS 核心</a><a href=\"#challenges\" style=\"color:#f9f7f4;text-decoration:none;\">多站点云托管</a><a href=\"#speed\" style=\"color:#f9f7f4;text-decoration:none;\">极速实施服务</a></div></div><div><div style=\"font-size:0.75rem;font-weight:700;letter-spacing:0.1em;color:#babcd5;margin-bottom:0.75rem;\">ENTERPRISE</div><div style=\"display:flex;flex-direction:column;gap:0.45rem;font-size:0.9rem;\"><a href=\"#g2-proof\" style=\"color:#f9f7f4;text-decoration:none;\">G2 客户评价</a><a href=\"#testimonials\" style=\"color:#f9f7f4;text-decoration:none;\">决策者证言</a><a href=\"#paths\" style=\"color:#f9f7f4;text-decoration:none;\">安全合规保障</a></div></div><div><div style=\"font-size:0.75rem;font-weight:700;letter-spacing:0.1em;color:#babcd5;margin-bottom:0.75rem;\">DEVELOP</div><div style=\"display:flex;flex-direction:column;gap:0.45rem;font-size:0.9rem;\"><a href=\"#ai-platform\" style=\"color:#f9f7f4;text-decoration:none;\">MCP &amp; AI 文档</a><a href=\"#paths\" style=\"color:#f9f7f4;text-decoration:none;\">模块开发指南</a><a href=\"#video-case\" style=\"color:#f9f7f4;text-decoration:none;\">架构案例库</a></div></div><div><div style=\"font-size:0.75rem;font-weight:700;letter-spacing:0.1em;color:#babcd5;margin-bottom:0.75rem;\">CONNECT</div><div style=\"display:flex;flex-direction:column;gap:0.45rem;font-size:0.9rem;\"><a href=\"#paths\" style=\"color:#f9f7f4;text-decoration:none;\">预约探索沟通</a><a href=\"#paths\" style=\"color:#f9f7f4;text-decoration:none;\">合作伙伴计划</a><a href=\"#home\" style=\"color:#f9f7f4;text-decoration:none;\">返回顶部 ↑</a></div></div></div>"
+            })),
+            new("main", "cms.footer", "Umbraco 风格页脚", Serialize(new
+            {
+                brand,
+                tagline = $"{industry} · Friendly, Composable & Ready for AI",
+                copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved."
+            }))
+        ])
+    ];
+
+    private static List<CmsAiSectionDraft> UmbracoEn(string brand, string industry, string? stylePrompt) =>
+    [
+        new("Home", "home", true, "single-column",
+        [
+            new("main", "cms.html", "Top Announcement Pill", Serialize(new
+            {
+                html = "<div style=\"display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.75rem;background:#283a97;color:#ffffff;padding:0.65rem 1.35rem;border-radius:999px;font-size:0.8125rem;margin-bottom:1.25rem;\"><span><strong>Sign up for Winter Keynote</strong> · Feb 2, 16:30 CET · AI-Native Composable CMS</span><a href=\"#paths\" style=\"color:#f5c1bc;text-decoration:none;font-weight:600;\">Save the date →</a></div>"
+            })),
+            new("main", "cms.hero", $"{brand} Editorial Hero", Serialize(new
+            {
+                badge = "2026 WINTER RELEASE · READY FOR AI",
+                headline = $"{brand}: the open-source .NET CMS, ready for AI",
+                subheadline = string.IsNullOrWhiteSpace(stylePrompt)
+                    ? "Combine developer freedom with an intuitive editorial workspace to deliver composable digital experiences at scale."
+                    : stylePrompt.Trim(),
+                primaryButtonText = "Book a Discovery Call",
+                primaryButtonHref = "#paths",
+                backgroundImageUrl = "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=1200",
+                variant = "editorial"
+            }))
+        ]),
+        new("Customers", "logos", true, "single-column",
+        [
+            new("main", "cms.partners", "Customer Logo Marquee", Serialize(new
+            {
+                heading = "",
+                variant = "marquee",
+                items = new[]
+                {
+                    new { name = "Mercedes-Benz" },
+                    new { name = "Carlsberg" },
+                    new { name = "Fujitsu" },
+                    new { name = "Renault" },
+                    new { name = "Volvo" },
+                    new { name = "Heineken" },
+                    new { name = "Suzuki" },
+                    new { name = "Domino's" }
+                }
+            }))
+        ]),
+        new("AI Platform", "ai-platform", true, "single-column",
+        [
+            new("main", "cms.html", "AI Split Heading", Serialize(new
+            {
+                html = "<div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem;align-items:end;margin-bottom:1.75rem;\"><div style=\"font-size:0.75rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#283a97;\">OPEN DXP &amp; AI</div><h2 style=\"margin:0;font-size:clamp(2rem,3.8vw,3.5rem);font-weight:400;line-height:1.12;color:#283a97;\">AI Everywhere Your Content Lives</h2></div>"
+            })),
+            new("main", "cms.html", "AI 1:1 Square Cards", Serialize(new
+            {
+                html = "<div class=\"cms-umb-grid-3\"><a href=\"#paths\" class=\"cms-umb-square-card\"><div style=\"font-size:0.75rem;font-weight:700;letter-spacing:0.08em;color:#283a97;opacity:0.7;\">01 / MCP NATIVE</div><div><h3 style=\"margin:0 0 0.75rem;font-size:1.5rem;font-weight:400;color:#283a97;\">MCP Native Readiness</h3><p style=\"margin:0;opacity:0.78;line-height:1.6;\">Let AI agents understand your schemas and compose sections safely with strict contracts.</p></div><span class=\"cms-umb-circle-arrow\">↗</span></a><a href=\"#paths\" class=\"cms-umb-square-card\"><div style=\"font-size:0.75rem;font-weight:700;letter-spacing:0.08em;color:#283a97;opacity:0.7;\">02 / COPILOT</div><div><h3 style=\"margin:0 0 0.75rem;font-size:1.5rem;font-weight:400;color:#283a97;\">Smart Copy &amp; Localization</h3><p style=\"margin:0;opacity:0.78;line-height:1.6;\">Draft full landing pages, summarize articles, and translate seamlessly across locales.</p></div><span class=\"cms-umb-circle-arrow\">↗</span></a><a href=\"#paths\" class=\"cms-umb-square-card\"><div style=\"font-size:0.75rem;font-weight:700;letter-spacing:0.08em;color:#283a97;opacity:0.7;\">03 / COMPOSABLE</div><div><h3 style=\"margin:0 0 0.75rem;font-size:1.5rem;font-weight:400;color:#283a97;\">Composable Integrations</h3><p style=\"margin:0;opacity:0.78;line-height:1.6;\">Connect OpenAI, Gemini, Azure, and private enterprise RAG knowledge bases.</p></div><span class=\"cms-umb-circle-arrow\">↗</span></a></div>"
+            })),
+            new("main", "cms.html", "AI Case Study Banner", Serialize(new
+            {
+                html = "<div style=\"border-radius:22px;padding:3rem 2.5rem;background:linear-gradient(100deg,rgba(22,35,53,0.92),rgba(40,58,151,0.75)),url('https://images.pexels.com/photos/3183150/pexels-photo-3183150.jpeg?auto=compress&cs=tinysrgb&w=1200') center/cover;color:#f9f7f4;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:1.5rem;\"><div style=\"max-width:620px;\"><div style=\"font-size:0.75rem;letter-spacing:0.1em;opacity:0.75;margin-bottom:0.5rem;\">ARCHITECTURE CASE STUDY</div><h3 style=\"margin:0 0 0.75rem;font-size:clamp(1.5rem,2.8vw,2.25rem);font-weight:400;\">The Architectural 'Recipe' for AI on Your CMS</h3><p style=\"margin:0;opacity:0.86;\">See how modern digital teams ship AI-assisted publishing workflows in under two weeks.</p></div><a href=\"#paths\" style=\"padding:0.75rem 1.5rem;border-radius:999px;background:#f9f7f4;color:#283a97;text-decoration:none;font-weight:600;\">See case study ↗</a></div>"
+            }))
+        ]),
+        new("Challenges", "challenges", true, "single-column",
+        [
+            new("main", "cms.heading", "Solving Content Challenges", Serialize(new
+            {
+                title = "Solving Content Challenges for Enterprises",
+                subtitle = "Editorial autonomy, global multi-site governance, and built-in observability",
+                level = "h2",
+                align = "center"
+            })),
+            new("main", "cms.html", "3-Col Photographic Overlay Cards", Serialize(new
+            {
+                html = "<div class=\"cms-umb-grid-3\"><a href=\"#paths\" class=\"cms-umb-photo-card\" style=\"background-image:linear-gradient(180deg,rgba(22,35,53,0.12) 0%,rgba(22,35,53,0.88) 100%),url('https://images.pexels.com/photos/1181359/pexels-photo-1181359.jpeg?auto=compress&cs=tinysrgb&w=900');\"><h3 style=\"margin:0 0 0.5rem;font-size:1.5rem;font-weight:400;\">Empower Editors Without Bottlenecks</h3><p style=\"margin:0;opacity:0.86;font-size:0.95rem;\">Visual block composition and multi-language snapshots let marketers launch independently.</p></a><a href=\"#paths\" class=\"cms-umb-photo-card\" style=\"background-image:linear-gradient(180deg,rgba(22,35,53,0.12) 0%,rgba(22,35,53,0.88) 100%),url('https://images.pexels.com/photos/3184328/pexels-photo-3184328.jpeg?auto=compress&cs=tinysrgb&w=900');\"><h3 style=\"margin:0 0 0.5rem;font-size:1.5rem;font-weight:400;\">Manage Global Brands from One Core</h3><p style=\"margin:0;opacity:0.86;font-size:0.95rem;\">Custom domain routing, tenant isolation, and granular RBAC keep portals unified.</p></a><a href=\"#paths\" class=\"cms-umb-photo-card\" style=\"background-image:linear-gradient(180deg,rgba(22,35,53,0.12) 0%,rgba(22,35,53,0.88) 100%),url('https://images.pexels.com/photos/590022/pexels-photo-590022.jpeg?auto=compress&cs=tinysrgb&w=900');\"><h3 style=\"margin:0 0 0.5rem;font-size:1.5rem;font-weight:400;\">Built-In Performance &amp; Observability</h3><p style=\"margin:0;opacity:0.86;font-size:0.95rem;\">Immutable snapshots, hybrid caching, and OpenTelemetry tracing ensure reliability.</p></a></div>"
+            }))
+        ]),
+        new("Video Story", "video-case", true, "single-column",
+        [
+            new("main", "cms.heading", "Global Brands Trust Us", Serialize(new
+            {
+                title = "Join the Global Brands Who Trust Our Platform",
+                subtitle = "Hear how digital platform leads modernize multi-brand delivery",
+                level = "h2",
+                align = "center"
+            })),
+            new("main", "cms.video", "Customer Case Video", Serialize(new
+            {
+                videoUrl = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+                posterUrl = "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=1200",
+                caption = "Case Study · Global Manufacturer Multi-Region Portal",
+                controls = true,
+                autoPlay = false,
+                loop = false,
+                maxHeight = 420
+            }))
+        ]),
+        new("Fast Delivery", "speed", true, "single-column",
+        [
+            new("main", "cms.heading", "Market's Fastest Implementation", Serialize(new
+            {
+                title = "Market's Fastest Implementation",
+                subtitle = "Skip 6-month monolith rollouts — ship your first composable portal in weeks with hot-pluggable modules",
+                level = "h2",
+                align = "center"
+            })),
+            new("main", "cms.button", "1-Minute Overview", Serialize(new
+            {
+                text = "Understand how in just 1 minute",
+                href = "#paths",
+                variant = "fill",
+                align = "center",
+                openNewTab = false
+            }))
+        ]),
+        new("Testimonials", "testimonials", true, "single-column",
+        [
+            new("main", "cms.testimonials", "Decision Makers Carousel", Serialize(new
+            {
+                eyebrow = "FROM CTOS TO CMOS",
+                heading = "Why Decision Makers Like You Choose Our CMS",
+                variant = "carousel",
+                items = new[]
+                {
+                    new { quote = "Modular architecture decoupled engineering from marketing — our editors now launch campaign pages in hours.", author = "David Chen", role = "CTO, SmartTech Group", avatarUrl = "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=300" },
+                    new { quote = "Instant culture switching and immutable snapshots kept our global storefronts rock-solid during peak traffic.", author = "Elena Lin", role = "CMO, Global Retail", avatarUrl = "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=300" },
+                    new { quote = "Clean contracts and SDKs let our engineers wire custom widgets into our ERP in just two days.", author = "Marcus Zhou", role = "Principal Architect, FinTech", avatarUrl = "https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300" },
+                    new { quote = "Self-hosted deployment and full audit trails met every enterprise compliance requirement out of the box.", author = "Director Wang", role = "Head of IT Governance", avatarUrl = "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=300" },
+                    new { quote = "The most intuitive editing workspace our content team has ever used — onboarding takes under 30 minutes.", author = "Sarah Zhao", role = "Digital Operations Lead", avatarUrl = "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=300" },
+                    new { quote = "Lead conversion jumped 38% in one quarter after moving our flagship site to this composable setup.", author = "Alex Liu", role = "Founder, CloudSaaS", avatarUrl = "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=300" }
+                }
+            }))
+        ]),
+        new("Discovery CTA", "cta-banner", true, "single-column",
+        [
+            new("main", "cms.html", "Royal Blue CTA Banner", Serialize(new
+            {
+                html = "<div style=\"position:relative;overflow:hidden;border-radius:22px;padding:clamp(3rem,6vw,5rem) 2rem;background:#283a97;color:#f9f7f4;text-align:center;\"><svg viewBox=\"0 0 1200 320\" preserveAspectRatio=\"none\" aria-hidden=\"true\" style=\"position:absolute;inset:0;width:100%;height:100%;opacity:0.22;pointer-events:none;\"><path d=\"M0,192 C320,90 520,290 880,170 C1040,115 1140,145 1200,180 L1200,320 L0,320 Z\" fill=\"#1b264f\"/><path d=\"M0,250 C280,180 620,320 1200,210 L1200,320 L0,320 Z\" fill=\"#f5c1bc\" fill-opacity=\"0.35\"/></svg><div style=\"position:relative;z-index:1;\"><h2 style=\"margin:0 0 1rem;font-size:clamp(2rem,4vw,3.5rem);font-weight:400;line-height:1.12;color:#f9f7f4;\">Curious How It Could Work for Your Business?</h2><p style=\"margin:0 auto 2rem;max-width:580px;font-size:1.1rem;opacity:0.86;\">Book a 30-minute discovery call with our solutions architects for a tailored walkthrough.</p><a href=\"#paths\" style=\"display:inline-flex;align-items:center;gap:0.75rem;padding:0.45rem 0.45rem 0.45rem 1.4rem;border-radius:999px;background:#f9f7f4;color:#283a97;text-decoration:none;font-weight:600;\"><span>Start with a Discovery Call</span><span style=\"width:2rem;height:2rem;border-radius:50%;background:#f5c1bc;color:#283a97;display:inline-grid;place-items:center;\">↗</span></a></div></div>"
+            }))
+        ]),
+        new("G2 Proof", "g2-proof", true, "two-column",
+        [
+            new("left", "cms.html", "G2 Award Badges", Serialize(new
+            {
+                html = "<div style=\"display:grid;grid-template-columns:repeat(2,minmax(130px,1fr));gap:1rem;\"><div style=\"background:#ffffff;border-radius:16px;padding:1.25rem;border:1px solid rgba(40,58,151,0.12);text-align:center;\"><div style=\"font-size:0.7rem;font-weight:700;color:#283a97;letter-spacing:0.08em;\">G2 FALL 2026</div><strong style=\"display:block;margin-top:0.35rem;color:#162335;\">Leader</strong></div><div style=\"background:#ffffff;border-radius:16px;padding:1.25rem;border:1px solid rgba(40,58,151,0.12);text-align:center;\"><div style=\"font-size:0.7rem;font-weight:700;color:#283a97;letter-spacing:0.08em;\">G2 FALL 2026</div><strong style=\"display:block;margin-top:0.35rem;color:#162335;\">Best Usability</strong></div><div style=\"background:#ffffff;border-radius:16px;padding:1.25rem;border:1px solid rgba(40,58,151,0.12);text-align:center;\"><div style=\"font-size:0.7rem;font-weight:700;color:#283a97;letter-spacing:0.08em;\">G2 FALL 2026</div><strong style=\"display:block;margin-top:0.35rem;color:#162335;\">Best Results</strong></div><div style=\"background:#ffffff;border-radius:16px;padding:1.25rem;border:1px solid rgba(40,58,151,0.12);text-align:center;\"><div style=\"font-size:0.7rem;font-weight:700;color:#283a97;letter-spacing:0.08em;\">G2 FALL 2026</div><strong style=\"display:block;margin-top:0.35rem;color:#162335;\">Easiest To Do Business With</strong></div></div>"
+            })),
+            new("right", "cms.richtext", "Our Users Say It Best", Serialize(new
+            {
+                heading = "Our Users Say It Best",
+                body = "Recognized by real enterprise teams on G2 across usability, implementation speed, and composable extensibility."
+            })),
+            new("right", "cms.button", "Compare CTA", Serialize(new { text = "See how we compare", href = "#paths", variant = "outline", align = "left", openNewTab = false }))
+        ]),
+        new("Choose Path", "paths", true, "single-column",
+        [
+            new("main", "cms.heading", "Choose Your Path Forward", Serialize(new
+            {
+                title = "Choose Your Path Forward",
+                subtitle = "Whether you're building, marketing, or delivering for clients, start here",
+                level = "h2",
+                align = "center"
+            })),
+            new("main", "cms.html", "Royal Blue Path Cards", Serialize(new
+            {
+                html = "<div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.25rem;\"><a href=\"#paths\" style=\"text-decoration:none;background:#283a97;color:#f9f7f4;border-radius:20px;padding:2rem;display:flex;flex-direction:column;justify-content:space-between;min-height:220px;\"><span style=\"width:2.5rem;height:2.5rem;border-radius:50%;background:#f9f7f4;color:#283a97;display:grid;place-items:center;font-weight:700;\">&lt;/&gt;</span><div><h3 style=\"margin:1.5rem 0 0.5rem;font-weight:400;font-size:1.5rem;\">Developer</h3><p style=\"margin:0;opacity:0.82;font-size:0.95rem;\">Explore open SDKs, hot-pluggable module contracts, and multi-DB support.</p></div><span style=\"align-self:flex-end;width:2rem;height:2rem;border-radius:50%;border:1px solid rgba(249,247,244,0.35);display:grid;place-items:center;\">↗</span></a><a href=\"#paths\" style=\"text-decoration:none;background:#283a97;color:#f9f7f4;border-radius:20px;padding:2rem;display:flex;flex-direction:column;justify-content:space-between;min-height:220px;\"><span style=\"width:2.5rem;height:2.5rem;border-radius:50%;background:#f9f7f4;color:#283a97;display:grid;place-items:center;font-weight:700;\">✦</span><div><h3 style=\"margin:1.5rem 0 0.5rem;font-weight:400;font-size:1.5rem;\">Marketer</h3><p style=\"margin:0;opacity:0.82;font-size:0.95rem;\">Try visual drag-and-drop editing, multi-language sites, and lead capture.</p></div><span style=\"align-self:flex-end;width:2rem;height:2rem;border-radius:50%;border:1px solid rgba(249,247,244,0.35);display:grid;place-items:center;\">↗</span></a><a href=\"#paths\" style=\"text-decoration:none;background:#283a97;color:#f9f7f4;border-radius:20px;padding:2rem;display:flex;flex-direction:column;justify-content:space-between;min-height:220px;\"><span style=\"width:2.5rem;height:2.5rem;border-radius:50%;background:#f9f7f4;color:#283a97;display:grid;place-items:center;font-weight:700;\">◈</span><div><h3 style=\"margin:1.5rem 0 0.5rem;font-weight:400;font-size:1.5rem;\">Agency</h3><p style=\"margin:0;opacity:0.82;font-size:0.95rem;\">Deliver client portals faster on a standardized, extensible foundation.</p></div><span style=\"align-self:flex-end;width:2rem;height:2rem;border-radius:50%;border:1px solid rgba(249,247,244,0.35);display:grid;place-items:center;\">↗</span></a></div>"
+            })),
+            new("main", "cms.contact", "Discovery Form", Serialize(new
+            {
+                heading = "Start Your Composable Digital Journey",
+                subheading = "Leave your details to access a live sandbox and architecture guide",
+                submitText = "Book a Discovery Call",
+                email = "enterprise@example.com",
+                phone = "+1-800-555-2026"
+            }))
+        ]),
+        new("Footer", "footer", false, "single-column",
+        [
+            new("main", "cms.html", "4-Column Sitemap Footer", Serialize(new
+            {
+                html = "<div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:2rem;color:#f9f7f4;padding-bottom:1.5rem;border-bottom:1px solid rgba(186,188,213,0.2);\"><div><div style=\"font-size:0.75rem;font-weight:700;letter-spacing:0.1em;color:#babcd5;margin-bottom:0.75rem;\">PLATFORM &amp; HOSTING</div><div style=\"display:flex;flex-direction:column;gap:0.45rem;font-size:0.9rem;\"><a href=\"#ai-platform\" style=\"color:#f9f7f4;text-decoration:none;\">OpenCMS Core</a><a href=\"#challenges\" style=\"color:#f9f7f4;text-decoration:none;\">Cloud Hosting</a><a href=\"#speed\" style=\"color:#f9f7f4;text-decoration:none;\">Fast Delivery</a></div></div><div><div style=\"font-size:0.75rem;font-weight:700;letter-spacing:0.1em;color:#babcd5;margin-bottom:0.75rem;\">ENTERPRISE</div><div style=\"display:flex;flex-direction:column;gap:0.45rem;font-size:0.9rem;\"><a href=\"#g2-proof\" style=\"color:#f9f7f4;text-decoration:none;\">G2 Reviews</a><a href=\"#testimonials\" style=\"color:#f9f7f4;text-decoration:none;\">Decision Makers</a><a href=\"#paths\" style=\"color:#f9f7f4;text-decoration:none;\">Security &amp; Audit</a></div></div><div><div style=\"font-size:0.75rem;font-weight:700;letter-spacing:0.1em;color:#babcd5;margin-bottom:0.75rem;\">DEVELOP</div><div style=\"display:flex;flex-direction:column;gap:0.45rem;font-size:0.9rem;\"><a href=\"#ai-platform\" style=\"color:#f9f7f4;text-decoration:none;\">MCP &amp; AI Docs</a><a href=\"#paths\" style=\"color:#f9f7f4;text-decoration:none;\">Module SDK</a><a href=\"#video-case\" style=\"color:#f9f7f4;text-decoration:none;\">Case Studies</a></div></div><div><div style=\"font-size:0.75rem;font-weight:700;letter-spacing:0.1em;color:#babcd5;margin-bottom:0.75rem;\">CONNECT</div><div style=\"display:flex;flex-direction:column;gap:0.45rem;font-size:0.9rem;\"><a href=\"#paths\" style=\"color:#f9f7f4;text-decoration:none;\">Book a Call</a><a href=\"#paths\" style=\"color:#f9f7f4;text-decoration:none;\">Partners</a><a href=\"#home\" style=\"color:#f9f7f4;text-decoration:none;\">Back to Top ↑</a></div></div></div>"
+            })),
+            new("main", "cms.footer", "Editorial Footer", Serialize(new
+            {
+                brand,
+                tagline = $"{industry} · Friendly, Composable & Ready for AI",
                 copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved."
             }))
         ])

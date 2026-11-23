@@ -1,20 +1,48 @@
 @namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
 
-<div class="cms-w-partners">
+@{
+    var items = _props.Items ?? [];
+    var isMarquee = string.Equals(_props.Variant, "marquee", StringComparison.OrdinalIgnoreCase);
+}
+
+<div class="cms-w-partners @(isMarquee ? "is-marquee" : "")">
     @if (!string.IsNullOrWhiteSpace(_props.Heading))
     {
         <h2 class="cms-sec-heading">@_props.Heading</h2>
     }
-    <div class="cms-partners-grid">
-        @foreach (var item in _props.Items ?? [])
-        {
-            <div class="cms-partner-card">
-                @if (!string.IsNullOrWhiteSpace(item.LogoUrl))
+    @if (isMarquee && items.Count > 0)
+    {
+        <div class="cms-partners-marquee" aria-label="合作伙伴">
+            <div class="cms-partners-track">
+                @for (var copy = 0; copy < 2; copy++)
                 {
-                    <img src="@item.LogoUrl" alt="@item.Name" />
+                    foreach (var item in items)
+                    {
+                        <div class="cms-partner-marquee-item">
+                            @if (!string.IsNullOrWhiteSpace(item.LogoUrl))
+                            {
+                                <img src="@item.LogoUrl" alt="@item.Name" />
+                            }
+                            <span>@item.Name</span>
+                        </div>
+                    }
                 }
-                <span>@item.Name</span>
             </div>
-        }
-    </div>
+        </div>
+    }
+    else
+    {
+        <div class="cms-partners-grid">
+            @foreach (var item in items)
+            {
+                <div class="cms-partner-card">
+                    @if (!string.IsNullOrWhiteSpace(item.LogoUrl))
+                    {
+                        <img src="@item.LogoUrl" alt="@item.Name" />
+                    }
+                    <span>@item.Name</span>
+                </div>
+            }
+        </div>
+    }
 </div>

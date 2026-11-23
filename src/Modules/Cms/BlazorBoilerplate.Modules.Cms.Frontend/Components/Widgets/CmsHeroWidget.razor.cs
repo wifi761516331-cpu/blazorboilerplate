@@ -12,7 +12,9 @@ public partial class CmsHeroWidget
         string? PrimaryButtonText = null,
         string? PrimaryButtonHref = null,
         string? SecondaryButtonText = null,
-        string? SecondaryButtonHref = null);
+        string? SecondaryButtonHref = null,
+        string? BackgroundImageUrl = null,
+        string? Variant = null);
 
     [Parameter]
     public string PropsJson { get; set; } = "{}";

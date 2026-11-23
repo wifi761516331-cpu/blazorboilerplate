@@ -39,6 +39,9 @@ public partial class SitePortal
     private string _activeSlug = "home";
     private string? _activeCulture;
 
+    private string StylePreset =>
+        string.IsNullOrWhiteSpace(_snapshot?.Theme.StylePreset) ? "classic" : _snapshot!.Theme.StylePreset;
+
     private string ThemeVariablesStyle
     {
         get
@@ -48,6 +51,8 @@ public partial class SitePortal
             return $"--cms-pri:{t.PrimaryColor};--cms-acc:{t.AccentColor};--cms-bg:{t.BackgroundColor};--cms-surf:{t.SurfaceColor};--cms-fg:{t.TextColor};--cms-font:{t.FontFamily};--cms-radius:{t.BorderRadius};";
         }
     }
+
+    private IJSObjectReference? _scrollJs;
 
     private string? _resolvedSiteKey;
     private bool _mobileMenuOpen;
@@ -163,6 +168,62 @@ public partial class SitePortal
         catch
         {
             // 预渲染阶段忽略 JS 调用
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        const string js = """
+            let handler = null;
+            export function attachScrollState() {
+                if (handler) return;
+                handler = () => {
+                    const root = document.querySelector('.cms-site-root');
+                    if (!root) return;
+                    const shell = document.querySelector('.cms-portal-shell');
+                    const y = window.scrollY || (shell ? shell.scrollTop : 0) || 0;
+                    root.classList.toggle('is-scrolled', y > 40);
+                };
+                window.addEventListener('scroll', handler, { passive: true });
+                const shell = document.querySelector('.cms-portal-shell');
+                if (shell) shell.addEventListener('scroll', handler, { passive: true });
+                handler();
+            }
+            export function detachScrollState() {
+                if (!handler) return;
+                window.removeEventListener('scroll', handler);
+                const shell = document.querySelector('.cms-portal-shell');
+                if (shell) shell.removeEventListener('scroll', handler);
+                handler = null;
+            }
+            """;
+
+        try
+        {
+            _scrollJs ??= await JS.InvokeAsync<IJSObjectReference>(
+                "import", $"data:text/javascript;charset=utf-8,{Uri.EscapeDataString(js)}");
+            await _scrollJs.InvokeVoidAsync("attachScrollState");
+        }
+        catch (JSDisconnectedException) { }
+        catch (JSException) { }
+        catch (InvalidOperationException) { }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_scrollJs is not null)
+        {
+            try
+            {
+                await _scrollJs.InvokeVoidAsync("detachScrollState");
+                await _scrollJs.DisposeAsync();
+            }
+            catch (JSDisconnectedException) { }
+            catch (JSException) { }
+            catch (InvalidOperationException) { }
         }
     }
 }

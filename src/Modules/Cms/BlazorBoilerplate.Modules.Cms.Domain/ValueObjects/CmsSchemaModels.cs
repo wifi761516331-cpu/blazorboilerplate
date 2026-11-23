@@ -9,7 +9,8 @@ public sealed record CmsThemeConfig(
     string TextColor = "#1f2328",
     string FontFamily = "system-ui, -apple-system, 'Segoe UI', sans-serif",
     string BorderRadius = "8px",
-    string? CustomCss = null);
+    string? CustomCss = null,
+    string StylePreset = "classic");
 
 /// <summary>布局页中的单行网格定义（12 栅格）。</summary>
 public sealed record CmsLayoutRow(

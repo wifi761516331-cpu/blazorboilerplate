@@ -1,27 +1,41 @@
 @namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
 
-<div class="cms-w-hero">
-    @if (!string.IsNullOrWhiteSpace(_props.Badge))
-    {
-        <span class="cms-hero-badge">@_props.Badge</span>
-    }
-    <h1>@_props.Headline</h1>
-    @if (!string.IsNullOrWhiteSpace(_props.Subheadline))
-    {
-        <p class="cms-hero-sub">@_props.Subheadline</p>
-    }
-    <div class="cms-hero-actions">
-        @if (!string.IsNullOrWhiteSpace(_props.PrimaryButtonText))
+@{
+    var isEditorial = string.Equals(_props.Variant, "editorial", StringComparison.OrdinalIgnoreCase)
+        || !string.IsNullOrWhiteSpace(_props.BackgroundImageUrl);
+    var bgStyle = !string.IsNullOrWhiteSpace(_props.BackgroundImageUrl)
+        ? $"background-image: linear-gradient(95deg, rgba(16, 24, 48, 0.84) 0%, rgba(16, 24, 48, 0.56) 52%, rgba(16, 24, 48, 0.18) 100%), url('{_props.BackgroundImageUrl}');"
+        : string.Empty;
+}
+
+<div class="cms-w-hero @(isEditorial ? "is-editorial" : "")" style="@bgStyle">
+    <div class="cms-hero-inner">
+        @if (!string.IsNullOrWhiteSpace(_props.Badge))
         {
-            <button type="button" class="cms-btn-primary" @onclick="() => NavigateAsync(_props.PrimaryButtonHref)">
-                @_props.PrimaryButtonText
-            </button>
+            <span class="cms-hero-badge">@_props.Badge</span>
         }
-        @if (!string.IsNullOrWhiteSpace(_props.SecondaryButtonText))
+        <h1>@_props.Headline</h1>
+        @if (!string.IsNullOrWhiteSpace(_props.Subheadline))
         {
-            <button type="button" class="cms-btn-outline" @onclick="() => NavigateAsync(_props.SecondaryButtonHref)">
-                @_props.SecondaryButtonText
-            </button>
+            <p class="cms-hero-sub">@_props.Subheadline</p>
         }
+        <div class="cms-hero-actions">
+            @if (!string.IsNullOrWhiteSpace(_props.PrimaryButtonText))
+            {
+                <button type="button" class="cms-btn-primary @(isEditorial ? "cms-btn-pill-arrow" : "")" @onclick="() => NavigateAsync(_props.PrimaryButtonHref)">
+                    <span>@_props.PrimaryButtonText</span>
+                    @if (isEditorial)
+                    {
+                        <span class="cms-btn-arrow-circle" aria-hidden="true">↗</span>
+                    }
+                </button>
+            }
+            @if (!string.IsNullOrWhiteSpace(_props.SecondaryButtonText))
+            {
+                <button type="button" class="cms-btn-outline" @onclick="() => NavigateAsync(_props.SecondaryButtonHref)">
+                    @_props.SecondaryButtonText
+                </button>
+            }
+        </div>
     </div>
 </div>

@@ -1,33 +1,95 @@
 @namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Widgets
 
-<div class="cms-w-testimonials">
-    @if (!string.IsNullOrWhiteSpace(_props.Heading))
+@{
+    var items = _props.Items ?? [];
+    var isCarousel = string.Equals(_props.Variant, "carousel", StringComparison.OrdinalIgnoreCase);
+}
+
+<div class="cms-w-testimonials @(isCarousel ? "is-carousel" : "")">
+    @if (isCarousel)
     {
-        <h2 class="cms-sec-heading">@_props.Heading</h2>
-    }
-    <div class="cms-testimonials-grid">
-        @foreach (var item in _props.Items ?? [])
+        <div class="cms-testi-carousel-head">
+            <div>
+                @if (!string.IsNullOrWhiteSpace(_props.Eyebrow))
+                {
+                    <div class="cms-eyebrow">@_props.Eyebrow</div>
+                }
+                @if (!string.IsNullOrWhiteSpace(_props.Heading))
+                {
+                    <h2 class="cms-sec-heading">@_props.Heading</h2>
+                }
+            </div>
+            @if (items.Count > 1)
+            {
+                <div class="cms-testi-controls">
+                    <span class="cms-testi-counter">@($"{_activeIndex + 1:D2}") — @($"{items.Count:D2}")</span>
+                    <button type="button" class="cms-circle-nav-btn" aria-label="上一条" @onclick="Prev">←</button>
+                    <button type="button" class="cms-circle-nav-btn" aria-label="下一条" @onclick="Next">→</button>
+                </div>
+            }
+        </div>
+        @if (items.Count > 0)
         {
-            <blockquote class="cms-testimonial-card">
-                <p class="cms-testimonial-quote">“@item.Quote”</p>
-                <footer class="cms-testimonial-author">
-                    @if (!string.IsNullOrWhiteSpace(item.AvatarUrl))
-                    {
-                        <img src="@item.AvatarUrl" alt="@item.Author" class="cms-testimonial-avatar" />
-                    }
-                    else
-                    {
-                        <span class="cms-testimonial-avatar-fallback">@(string.IsNullOrWhiteSpace(item.Author) ? "A" : item.Author[..1])</span>
-                    }
-                    <div>
-                        <strong>@item.Author</strong>
-                        @if (!string.IsNullOrWhiteSpace(item.Role))
-                        {
-                            <small>@item.Role</small>
-                        }
-                    </div>
-                </footer>
-            </blockquote>
+            var visibleCount = Math.Min(3, items.Count);
+            <div class="cms-testi-carousel-track">
+                @for (var i = 0; i < visibleCount; i++)
+                {
+                    var item = items[(_activeIndex + i) % items.Count];
+                    <blockquote class="cms-testimonial-card is-editorial-card @(i == 0 ? "is-lead" : "")">
+                        <span class="cms-quote-badge" aria-hidden="true">“</span>
+                        <p class="cms-testimonial-quote">@item.Quote</p>
+                        <footer class="cms-testimonial-author">
+                            @if (!string.IsNullOrWhiteSpace(item.AvatarUrl))
+                            {
+                                <img src="@item.AvatarUrl" alt="@item.Author" class="cms-testimonial-avatar" />
+                            }
+                            else
+                            {
+                                <span class="cms-testimonial-avatar-fallback">@(string.IsNullOrWhiteSpace(item.Author) ? "A" : item.Author[..1])</span>
+                            }
+                            <div>
+                                <strong>@item.Author</strong>
+                                @if (!string.IsNullOrWhiteSpace(item.Role))
+                                {
+                                    <small>@item.Role</small>
+                                }
+                            </div>
+                        </footer>
+                    </blockquote>
+                }
+            </div>
         }
-    </div>
+    }
+    else
+    {
+        @if (!string.IsNullOrWhiteSpace(_props.Heading))
+        {
+            <h2 class="cms-sec-heading">@_props.Heading</h2>
+        }
+        <div class="cms-testimonials-grid">
+            @foreach (var item in items)
+            {
+                <blockquote class="cms-testimonial-card">
+                    <p class="cms-testimonial-quote">“@item.Quote”</p>
+                    <footer class="cms-testimonial-author">
+                        @if (!string.IsNullOrWhiteSpace(item.AvatarUrl))
+                        {
+                            <img src="@item.AvatarUrl" alt="@item.Author" class="cms-testimonial-avatar" />
+                        }
+                        else
+                        {
+                            <span class="cms-testimonial-avatar-fallback">@(string.IsNullOrWhiteSpace(item.Author) ? "A" : item.Author[..1])</span>
+                        }
+                        <div>
+                            <strong>@item.Author</strong>
+                            @if (!string.IsNullOrWhiteSpace(item.Role))
+                            {
+                                <small>@item.Role</small>
+                            }
+                        </div>
+                    </footer>
+                </blockquote>
+            }
+        </div>
+    }
 </div>
