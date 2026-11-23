@@ -26,7 +26,8 @@
                         }
                         @foreach (var w in zoneWidgets)
                         {
-                            <CmsWidgetRenderer Widget="@w"
+                            <CmsWidgetRenderer @key="w.Id"
+                                               Widget="@w"
                                                SiteKey="@SiteKey"
                                                SectionId="@Section.Id"
                                                IsDesignMode="@IsDesignMode"

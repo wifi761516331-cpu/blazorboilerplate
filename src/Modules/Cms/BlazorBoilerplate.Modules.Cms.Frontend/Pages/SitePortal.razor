@@ -120,7 +120,8 @@ else
         <main class="cms-spa-main">
             @foreach (var sec in _snapshot.Sections.OrderBy(s => s.SortOrder))
             {
-                <CmsSectionRenderer Section="@sec"
+                <CmsSectionRenderer @key="sec.Id"
+                                    Section="@sec"
                                     SiteKey="@_snapshot.SiteKey"
                                     IsDesignMode="false"
                                     OnNavigateAnchor="NavigateAnchorAsync" />

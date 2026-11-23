@@ -396,10 +396,25 @@ public sealed class CmsSiteAppService(
             EnsureEditableSite(site);
         }
         var allLayouts = await layouts.ListAsync(ct);
-        var singleCol = allLayouts.FirstOrDefault(l => l.Name.Contains("单栏") || l.Name.Contains("通栏")) ?? allLayouts.FirstOrDefault();
-        var twoCol = allLayouts.FirstOrDefault(l => l.Name.Contains("两栏")) ?? singleCol;
-        var threeCol = allLayouts.FirstOrDefault(l => l.Name.Contains("三栏")) ?? singleCol;
-        var sidebarCol = allLayouts.FirstOrDefault(l => l.Name.Contains("侧栏")) ?? singleCol;
+        var layoutZones = allLayouts.ToDictionary(
+            l => l.Id,
+            l => CmsDtoMapper.DeserializeRows(l.RowsJson)
+                .SelectMany(r => r.Columns)
+                .Select(c => c.ZoneId.Trim().ToLowerInvariant())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase));
+
+        var singleCol = allLayouts.FirstOrDefault(l => layoutZones[l.Id].SetEquals(["main"]))
+            ?? allLayouts.FirstOrDefault(l => l.Name.Contains("单栏") || l.Name.Contains("通栏"))
+            ?? allLayouts.FirstOrDefault();
+        var twoCol = allLayouts.FirstOrDefault(l => layoutZones[l.Id].Contains("left") && layoutZones[l.Id].Contains("right"))
+            ?? allLayouts.FirstOrDefault(l => l.Name.Contains("两栏"))
+            ?? singleCol;
+        var threeCol = allLayouts.FirstOrDefault(l => layoutZones[l.Id].Contains("col-1") && layoutZones[l.Id].Contains("col-2") && layoutZones[l.Id].Contains("col-3"))
+            ?? allLayouts.FirstOrDefault(l => l.Name.Contains("三栏"))
+            ?? singleCol;
+        var sidebarCol = allLayouts.FirstOrDefault(l => layoutZones[l.Id].Contains("sidebar") && layoutZones[l.Id].Contains("main"))
+            ?? allLayouts.FirstOrDefault(l => l.Name.Contains("侧栏"))
+            ?? singleCol;
         if (singleCol is null)
             throw new InvalidOperationException("请先至少创建一个布局页模板。");
 

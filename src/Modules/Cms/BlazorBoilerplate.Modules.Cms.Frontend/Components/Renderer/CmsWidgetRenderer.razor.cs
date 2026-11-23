@@ -62,6 +62,7 @@ public partial class CmsWidgetRenderer : IAsyncDisposable
     private IJSObjectReference? _inlineEditJs;
     private IJSObjectReference? _animJs;
     private DotNetObjectReference<CmsWidgetRenderer>? _selfRef;
+    private (Guid WidgetId, bool IsDesignMode, string? Animation)? _lastAnimState;
 
     private Type ComponentType => CmsWidgetCatalog.Resolve(Widget.WidgetType);
 
@@ -138,35 +139,69 @@ public partial class CmsWidgetRenderer : IAsyncDisposable
     /// <summary>
     /// 非设计态下，若该 widget 配了入场动画，则用 IntersectionObserver 在它滚动进入视口时
     /// 加 .is-visible 触发 CSS 动画，并按区块内序号错开，让读者能明显看到逐个浮现的效果。
+    /// 支持设计态与实时预览切换、以及无刷新切换语言时的状态同步。
     /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender || IsDesignMode || !HasAnimation)
+        var animKey = HasAnimation ? ParsedStyle.Animation?.Trim().ToLowerInvariant() : null;
+        var currentState = (Widget.Id, IsDesignMode, animKey);
+        if (_lastAnimState == currentState)
             return;
 
+        _lastAnimState = currentState;
+
         const string js = """
-            export function reveal(el, delayMs) {
+            export function disarm(el) {
                 if (!el) return;
                 try {
-                    if (delayMs > 0) el.style.animationDelay = delayMs + 'ms';
-                    const show = () => el.classList.add('is-visible');
-                    if (!('IntersectionObserver' in window)) return;
-                    // 首屏（已在视口内）直接显示，不进入隐藏待触发状态，避免闪烁与内容丢失。
-                    if (el.getBoundingClientRect().top < window.innerHeight * 0.95) { show(); return; }
-                    // 仅在 JS 全程可用时才隐藏待触发；失败时下面 catch 会摘掉 armed，内容保持可见。
-                    el.classList.add('cms-anim-armed');
-                    const io = new IntersectionObserver((entries) => {
-                        for (const e of entries) {
-                            if (e.isIntersecting) { show(); io.disconnect(); break; }
-                        }
-                    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
-                    io.observe(el);
-                } catch (err) {
-                    el.classList.remove('cms-anim-armed');
+                    if (el._cmsAnimRaf) { cancelAnimationFrame(el._cmsAnimRaf); el._cmsAnimRaf = 0; }
+                    if (el._cmsAnimIo) { el._cmsAnimIo.disconnect(); el._cmsAnimIo = null; }
+                    el.classList.remove('cms-anim-armed', 'is-visible');
                     el.style.animationDelay = '';
+                } catch {}
+            }
+            export function reveal(el, delayMs) {
+                if (!el) return;
+                disarm(el);
+                try {
+                    const show = () => {
+                        if (delayMs > 0) el.style.animationDelay = delayMs + 'ms';
+                        el.classList.add('is-visible');
+                        if (el._cmsAnimIo) { el._cmsAnimIo.disconnect(); el._cmsAnimIo = null; }
+                    };
+                    if (!('IntersectionObserver' in window)) { show(); return; }
+                    // 先 armed 隐藏，等下一帧布局稳定后再由 IntersectionObserver 监听：
+                    // 只有当用户真正浏览/滚动到该模块进入视口时才触发入场动画，
+                    // 使用 rootMargin: '0px' 避免页面最底部较矮的页脚/按钮被负边距裁掉而无法触发。
+                    el.classList.add('cms-anim-armed');
+                    el._cmsAnimRaf = requestAnimationFrame(() => {
+                        el._cmsAnimRaf = 0;
+                        if (!el.isConnected) return;
+                        const io = new IntersectionObserver((entries) => {
+                            for (const e of entries) {
+                                if (e.isIntersecting) { show(); break; }
+                            }
+                        }, { threshold: 0.01, rootMargin: '0px' });
+                        el._cmsAnimIo = io;
+                        io.observe(el);
+                    });
+                } catch (err) {
+                    disarm(el);
                 }
             }
             """;
+
+        if (IsDesignMode || !HasAnimation)
+        {
+            if (_animJs is not null)
+            {
+                try { await _animJs.InvokeVoidAsync("disarm", _boxRef); }
+                catch (JSDisconnectedException) { }
+                catch (JSException) { }
+                catch (InvalidOperationException) { }
+            }
+            return;
+        }
 
         try
         {
@@ -359,8 +394,13 @@ public partial class CmsWidgetRenderer : IAsyncDisposable
         }
         if (_animJs is not null)
         {
-            try { await _animJs.DisposeAsync(); }
+            try
+            {
+                await _animJs.InvokeVoidAsync("disarm", _boxRef);
+                await _animJs.DisposeAsync();
+            }
             catch (JSDisconnectedException) { }
+            catch (JSException) { }
             catch (InvalidOperationException) { }
         }
     }
