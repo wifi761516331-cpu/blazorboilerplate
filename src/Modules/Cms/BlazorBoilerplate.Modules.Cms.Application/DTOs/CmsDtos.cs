@@ -1,3 +1,4 @@
+using BlazorBoilerplate.Modules.Cms.Application.AI;
 using BlazorBoilerplate.Modules.Cms.Domain.Entities;
 using BlazorBoilerplate.Modules.Cms.Domain.ValueObjects;
 
@@ -17,7 +18,8 @@ public sealed record CmsSiteDto(
     bool IsPublished,
     DateTimeOffset? PublishedAtUtc,
     DateTimeOffset CreatedAtUtc,
-    DateTimeOffset? UpdatedAtUtc);
+    DateTimeOffset? UpdatedAtUtc,
+    bool IsReadOnly = false);
 
 public sealed record UpsertCmsSiteRequest(
     string Name,
@@ -176,7 +178,8 @@ internal static class CmsDtoMapper
     public static CmsSiteDto ToDto(this CmsSite s) => new(
         s.Id, s.Name, s.SiteKey, s.Title, s.Description, s.LogoUrl, s.FaviconUrl,
         s.DefaultCulture, DeserializeCultures(s.SupportedCulturesJson, s.DefaultCulture),
-        DeserializeTheme(s.ThemeJson), s.IsPublished, s.PublishedAtUtc, s.CreatedAtUtc, s.ModifiedAtUtc);
+        DeserializeTheme(s.ThemeJson), s.IsPublished, s.PublishedAtUtc, s.CreatedAtUtc, s.ModifiedAtUtc,
+        CmsSiteTemplateLibrary.IsBuiltInTemplateKey(s.SiteKey));
 
     public static CmsLayoutDto ToDto(this CmsLayout l) => new(
         l.Id, l.Name, l.Description, l.ThumbnailUrl, DeserializeRows(l.RowsJson), l.CustomCss, l.IsBuiltIn, l.SortOrder);

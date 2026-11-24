@@ -958,6 +958,126 @@ public static class CmsSiteTemplateLibrary
                 html = "<blockquote class=\"cms-mz-quote\">「 好的布局不告诉你该看哪里，而是让你愿意多看一眼。 」</blockquote>"
             }))
         ]),
+        new("服务领域", "services", true, "three-column",
+        [
+            new("col-1", "cms.heading", "服务总览标题", Serialize(new { title = "我们做什么", subtitle = "从空间策略到最终落地，提供一体化设计服务", level = "h2", align = "center" })),
+            new("col-1", "cms.features", "空间设计", Serialize(new
+            {
+                heading = "空间设计",
+                items = new[]
+                {
+                    new { icon = "Home", title = "建筑更新", description = "让旧厂房与历史建筑重新承载当代生活。" },
+                    new { icon = "Grid", title = "展陈设计", description = "用一条动线串起完整的品牌叙事。" }
+                }
+            })),
+            new("col-2", "cms.features", "品牌空间", Serialize(new
+            {
+                heading = "品牌空间",
+                items = new[]
+                {
+                    new { icon = "Star", title = "零售空间", description = "把品牌气质转译成可步入的真实场景。" },
+                    new { icon = "Heart", title = "办公体验", description = "以人的动线为核心重组协作与专注空间。" }
+                }
+            })),
+            new("col-3", "cms.features", "策略顾问", Serialize(new
+            {
+                heading = "策略顾问",
+                items = new[]
+                {
+                    new { icon = "Rocket", title = "场所定位", description = "先读懂场地，再决定它应该成为什么。" },
+                    new { icon = "Shield", title = "全流程落地", description = "从概念、施工图到现场驻场全程把控。" }
+                }
+            }))
+        ]),
+        new("团队", "team", true, "two-column",
+        [
+            new("left", "cms.image", "团队合影", Serialize(new
+            {
+                imageUrl = "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=1200",
+                alt = $"{brand} 设计团队", caption = "在工作坊讨论方案的日常", maxHeight = 420, rounded = true, shadow = true
+            })),
+            new("right", "cms.richtext", "团队理念", Serialize(new
+            {
+                heading = "一群相信「结构即叙事」的人",
+                body = "建筑师、展陈设计师与材料研究者组成的小团队。我们规模不大，但每个项目都由主创全程参与——因为好的空间，容不得层层转述。",
+                imageUrl = ""
+            })),
+            new("right", "cms.stats", "团队数据", Serialize(new
+            {
+                items = new[]
+                {
+                    new { value = "12", label = "年实践" }, new { value = "42", label = "建成项目" }, new { value = "09", label = "常驻城市" }
+                }
+            }))
+        ]),
+        new("项目画廊", "gallery", true, "single-column",
+        [
+            new("main", "cms.gallery", "精选项目", Serialize(new
+            {
+                heading = "从图纸到现场",
+                items = new[]
+                {
+                    new { url = "https://images.pexels.com/photos/323780/pexels-photo-323780.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "旧厂房更新 · 公共客厅" },
+                    new { url = "https://images.pexels.com/photos/1181406/pexels-photo-1181406.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "城市展厅 · 叙事动线" },
+                    new { url = "https://images.pexels.com/photos/2102587/pexels-photo-2102587.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "滨水住宅 · 立面与水" },
+                    new { url = "https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "精品酒店 · 材料实验" },
+                    new { url = "https://images.pexels.com/photos/276724/pexels-photo-276724.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "社区图书馆 · 光与静" },
+                    new { url = "https://images.pexels.com/photos/1454806/pexels-photo-1454806.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "创意园区 · 开放边界" }
+                }
+            }))
+        ]),
+        new("客户评价", "reviews", true, "two-column",
+        [
+            new("left", "cms.testimonials", "合作方评价", Serialize(new
+            {
+                heading = "他们怎么说",
+                items = new[]
+                {
+                    new { quote = "他们没有先给效果图，而是先问我们「希望人们在这里怎么停留」。最终的空间远超我们的想象。", author = "陈砚", role = "某文化集团 项目负责人", avatarUrl = "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=300" },
+                    new { quote = "从概念到落地只用了十周，施工阶段的每一次现场沟通都极其专业。", author = "李维", role = "商业地产 设计总监", avatarUrl = "https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300" }
+                }
+            })),
+            new("right", "cms.articles", "工作室动态", Serialize(new
+            {
+                heading = "手记与动态",
+                subheading = "关于空间、材料与城市的持续观察",
+                items = new[]
+                {
+                    new { title = "旧厂房更新项目入选城市设计年鉴", category = "项目", date = "2026-11-18", summary = "一次关于工业遗存与公共生活的重新编排。", content = "我们把 1960 年代的铸造车间改造为向街道完全开放的公共客厅，保留桁架与斑驳墙面，让时间的痕迹成为空间的一部分。" },
+                    new { title = "材料笔记：混凝土的温度", category = "观察", date = "2026-10-30", summary = "为什么粗糙的表面反而更接近人的尺度。", content = "在一次次触摸不同配比的水泥试块之后，我们逐渐相信：材料不该被过度修饰，它的质地本身就是叙事。" }
+                }
+            }))
+        ]),
+        new("常见问题", "faq", true, "single-column",
+        [
+            new("main", "cms.faq", "FAQ", Serialize(new
+            {
+                heading = "常见问题",
+                items = new[]
+                {
+                    new { question = "一个完整项目通常需要多久？", answer = "视规模而定，概念到方案约 4-6 周，含施工图与现场配合的完整周期一般为 3-5 个月。" },
+                    new { question = "可以按我们的预算分阶段推进吗？", answer = "可以。我们习惯把项目拆成可独立成立的阶段，先完成最核心的空间体验，再逐步延展。" },
+                    new { question = "是否接受异地的委托？", answer = "接受。我们目前服务 9 座城市，异地项目采用阶段性驻场加远程协作的方式推进。" },
+                    new { question = "初期沟通需要提供什么资料？", answer = "一份场地的基本信息（面积、现状照片、使用愿景）就足够开始第一次对话。" }
+                }
+            }))
+        ]),
+        new("合作咨询", "contact", true, "single-column",
+        [
+            new("main", "cms.contact", "项目咨询", Serialize(new
+            {
+                heading = $"和 {brand} 聊聊你的空间",
+                subheading = "留下场地信息与合作设想，我们会在 1 个工作日内回复。",
+                submitText = "发送咨询",
+                email = "hello@atelier07.studio",
+                phone = "021-6600 8187",
+                address = "上海市杨浦区安浦路 215 号 工作坊",
+                hours = "周一至周五 10:00 - 19:00",
+                longitude = 121.5188,
+                latitude = 31.2589,
+                zoom = 15
+            }))
+        ]),
         new("页脚", "footer", false, "single-column",
         [
             new("main", "cms.footer", "页脚", Serialize(new { brand, tagline = $"{industry} · Form follows rhythm.", copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved." }))
@@ -1038,6 +1158,126 @@ public static class CmsSiteTemplateLibrary
                 html = "<blockquote class=\"cms-mz-quote\">“ A good layout does not tell you where to look. It makes you want to look again. ”</blockquote>"
             }))
         ]),
+        new("Services", "services", true, "three-column",
+        [
+            new("col-1", "cms.heading", "Services Heading", Serialize(new { title = "What we do", subtitle = "From spatial strategy to final delivery, we design end to end", level = "h2", align = "center" })),
+            new("col-1", "cms.features", "Space Design", Serialize(new
+            {
+                heading = "Space Design",
+                items = new[]
+                {
+                    new { icon = "Home", title = "Adaptive Reuse", description = "Giving old factories a new public life." },
+                    new { icon = "Grid", title = "Exhibition", description = "Stitching an entire brand story into one route." }
+                }
+            })),
+            new("col-2", "cms.features", "Brand Space", Serialize(new
+            {
+                heading = "Brand Space",
+                items = new[]
+                {
+                    new { icon = "Star", title = "Retail", description = "Turning brand character into a walkable scene." },
+                    new { icon = "Heart", title = "Workplace", description = "Reorganising collaboration around human movement." }
+                }
+            })),
+            new("col-3", "cms.features", "Strategy", Serialize(new
+            {
+                heading = "Strategy",
+                items = new[]
+                {
+                    new { icon = "Rocket", title = "Place Identity", description = "Understand the site before deciding what it becomes." },
+                    new { icon = "Shield", title = "Full Delivery", description = "From concept to site supervision, always hands-on." }
+                }
+            }))
+        ]),
+        new("Team", "team", true, "two-column",
+        [
+            new("left", "cms.image", "Team Photo", Serialize(new
+            {
+                imageUrl = "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=1200",
+                alt = $"{brand} team", caption = "Discussing a scheme in the workshop", maxHeight = 420, rounded = true, shadow = true
+            })),
+            new("right", "cms.richtext", "Team Philosophy", Serialize(new
+            {
+                heading = "A small team that believes structure is narrative",
+                body = "Architects, exhibition designers and material researchers. We stay small on purpose: every project is carried through by its principal, because good space cannot survive layers of retelling.",
+                imageUrl = ""
+            })),
+            new("right", "cms.stats", "Team Numbers", Serialize(new
+            {
+                items = new[]
+                {
+                    new { value = "12", label = "years" }, new { value = "42", label = "built works" }, new { value = "09", label = "cities" }
+                }
+            }))
+        ]),
+        new("Gallery", "gallery", true, "single-column",
+        [
+            new("main", "cms.gallery", "Selected Projects", Serialize(new
+            {
+                heading = "From drawing to site",
+                items = new[]
+                {
+                    new { url = "https://images.pexels.com/photos/323780/pexels-photo-323780.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "Factory renewal · public living room" },
+                    new { url = "https://images.pexels.com/photos/1181406/pexels-photo-1181406.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "City gallery · narrative route" },
+                    new { url = "https://images.pexels.com/photos/2102587/pexels-photo-2102587.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "Waterfront house · facade and water" },
+                    new { url = "https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "Boutique hotel · material study" },
+                    new { url = "https://images.pexels.com/photos/276724/pexels-photo-276724.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "Community library · light and quiet" },
+                    new { url = "https://images.pexels.com/photos/1454806/pexels-photo-1454806.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "Creative campus · open edges" }
+                }
+            }))
+        ]),
+        new("Reviews", "reviews", true, "two-column",
+        [
+            new("left", "cms.testimonials", "Client Voices", Serialize(new
+            {
+                heading = "What they say",
+                items = new[]
+                {
+                    new { quote = "They did not start with renderings, but asked how we wanted people to stay. The result exceeded anything we imagined.", author = "Chen Yan", role = "Cultural Group, Project Lead", avatarUrl = "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=300" },
+                    new { quote = "Concept to delivery in ten weeks, with remarkably professional site communication throughout.", author = "Li Wei", role = "Commercial Design Director", avatarUrl = "https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300" }
+                }
+            })),
+            new("right", "cms.articles", "Studio Journal", Serialize(new
+            {
+                heading = "Notes & updates",
+                subheading = "Ongoing observations on space, material and city",
+                items = new[]
+                {
+                    new { title = "Factory renewal selected for the city design yearbook", category = "Project", date = "2026-11-18", summary = "Re-encoding industrial heritage and public life.", content = "We turned a 1960s foundry into a public living room fully open to the street, keeping the trusses and weathered walls so time itself becomes part of the space." },
+                    new { title = "Material note: the warmth of concrete", category = "Observation", date = "2026-10-30", summary = "Why rough surfaces feel closer to human scale.", content = "After handling countless cement samples, we came to believe materials should not be over-finished. Their texture is already a narrative." }
+                }
+            }))
+        ]),
+        new("FAQ", "faq", true, "single-column",
+        [
+            new("main", "cms.faq", "FAQ", Serialize(new
+            {
+                heading = "Frequently asked questions",
+                items = new[]
+                {
+                    new { question = "How long does a full project take?", answer = "Concept to scheme is about 4-6 weeks; a full cycle including construction documents and site work is usually 3-5 months." },
+                    new { question = "Can we phase the work by budget?", answer = "Yes. We usually break a project into independently viable stages, completing the core experience first and extending from there." },
+                    new { question = "Do you take projects in other cities?", answer = "Yes. We currently serve 9 cities, using periodic on-site work combined with remote collaboration." },
+                    new { question = "What should we prepare for the first call?", answer = "Basic site information (area, current photos, your vision) is enough to begin a meaningful conversation." }
+                }
+            }))
+        ]),
+        new("Contact", "contact", true, "single-column",
+        [
+            new("main", "cms.contact", "Project Enquiry", Serialize(new
+            {
+                heading = $"Talk with {brand} about your space",
+                subheading = "Share your site and ideas, and we will reply within one business day.",
+                submitText = "Send enquiry",
+                email = "hello@atelier07.studio",
+                phone = "+86 21 6600 8187",
+                address = "215 Anpu Road, Yangpu, Shanghai, Workshop",
+                hours = "Mon - Fri 10:00 - 19:00",
+                longitude = 121.5188,
+                latitude = 31.2589,
+                zoom = 15
+            }))
+        ]),
         new("Footer", "footer", false, "single-column",
         [
             new("main", "cms.footer", "Footer", Serialize(new { brand, tagline = $"{industry} · Form follows rhythm.", copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved." }))
@@ -1101,6 +1341,110 @@ public static class CmsSiteTemplateLibrary
                 html = "<div class=\"cms-sg-platforms\"><h2>在任何地方收听</h2><div><span>Apple Podcasts</span><span>Spotify</span><span>小宇宙</span><span>RSS</span></div></div>"
             }))
         ]),
+        new("节目指南", "guide", true, "three-column",
+        [
+            new("col-1", "cms.heading", "节目指南标题", Serialize(new { title = "如何收听", subtitle = "找到属于你的那一轨，从任何一期开始都不算晚", level = "h2", align = "center" })),
+            new("col-1", "cms.features", "深度对谈", Serialize(new
+            {
+                heading = "TRACK A · 深度对谈",
+                items = new[]
+                {
+                    new { icon = "Mic", title = "每周三更新", description = "一小时不被打断的长谈，保留思考里的沉默。" },
+                    new { icon = "People", title = "真实的人", description = "不谈人设，只聊那些正在发生的具体处境。" }
+                }
+            })),
+            new("col-2", "cms.features", "现场声音", Serialize(new
+            {
+                heading = "TRACK B · 现场声音",
+                items = new[]
+                {
+                    new { icon = "Volume", title = "田野录音", description = "把城市的清晨、渡口与菜市场原样带给你。" },
+                    new { icon = "Headphones", title = "戴上耳机", description = "最适合闭眼听的一轨，声音就是全部画面。" }
+                }
+            })),
+            new("col-3", "cms.features", "幕后花絮", Serialize(new
+            {
+                heading = "BONUS · 幕后",
+                items = new[]
+                {
+                    new { icon = "Star", title = "会员专享", description = "未剪进正片的对话、录错与笑场。" },
+                    new { icon = "Heart", title = "听众来信", description = "每期挑选一封，认真念给你听。" }
+                }
+            }))
+        ]),
+        new("最新一期", "latest", true, "two-column",
+        [
+            new("left", "cms.image", "本期封面", Serialize(new
+            {
+                imageUrl = "https://images.pexels.com/photos/164938/pexels-photo-164938.jpeg?auto=compress&cs=tinysrgb&w=1200",
+                alt = "播客录制现场", caption = "第 128 期录制现场", maxHeight = 420, rounded = true, shadow = true
+            })),
+            new("right", "cms.richtext", "本期简介", Serialize(new
+            {
+                heading = "第 128 期 · 当城市开始学会呼吸",
+                body = "我们和城市规划师聊了三个小时：一座城市如何在不推翻自己的前提下，重新把街道还给走路的人。从一条被拆除的高架，到菜市场清晨六点的第一声吆喝。",
+                imageUrl = ""
+            })),
+            new("right", "cms.stats", "节目数据", Serialize(new
+            {
+                items = new[]
+                {
+                    new { value = "128", label = "已发布期数" }, new { value = "62 万", label = "累计收听" }, new { value = "4.9★", label = "平台评分" }
+                }
+            }))
+        ]),
+        new("听众之声", "reviews", true, "two-column",
+        [
+            new("left", "cms.testimonials", "听众评价", Serialize(new
+            {
+                heading = "听众怎么说",
+                items = new[]
+                {
+                    new { quote = "每次通勤都靠它把拥堵的路变成一段安静的时间。那种不急着给答案的对话，现在太少了。", author = "小满", role = "产品经理 · 听众", avatarUrl = "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=300" },
+                    new { quote = "现场声音那一轨我戴着耳机听了整整半小时，像真的站在清晨的菜市场里。", author = "阿哲", role = "独立开发者 · 听众", avatarUrl = "https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300" }
+                }
+            })),
+            new("right", "cms.articles", "节目手记", Serialize(new
+            {
+                heading = "制作手记",
+                subheading = "话筒之外的故事",
+                items = new[]
+                {
+                    new { title = "我们为什么决定留下那段沉默", category = "幕后", date = "2026-11-20", summary = "一段 40 秒的空白，收到了最多的留言。", content = "剪片时我们习惯性地删掉了那段沉默，重听时又把它放了回去。后来证明这是整期节目里最被反复收听的四十秒。" },
+                    new { title = "在菜市场录音的一周", category = "田野", date = "2026-11-12", summary = "最喧闹的地方，藏着最安静的声音。", content = "连续七天，我们清晨五点半到达市场，只录环境不与人交谈。第七章的那段清晨，最终成为现场声音轨的开头。" }
+                }
+            }))
+        ]),
+        new("常见问题", "faq", true, "single-column",
+        [
+            new("main", "cms.faq", "FAQ", Serialize(new
+            {
+                heading = "常见问题",
+                items = new[]
+                {
+                    new { question = "节目多久更新一次？", answer = "深度对谈每周三更新，现场声音轨每两周一次，会员幕后内容不定期掉落。" },
+                    new { question = "在哪些平台可以收听？", answer = "Apple Podcasts、Spotify、小宇宙与 RSS 同步更新，任选你习惯的平台即可。" },
+                    new { question = "可以投稿或推荐选题吗？", answer = "当然可以。通过下方联系表单或节目邮箱告诉我们，我们每期都会认真阅读听众来信。" },
+                    new { question = "会员内容如何获取？", answer = "在任意平台订阅并留言，我们会发送幕后内容的专属收听链接。" }
+                }
+            }))
+        ]),
+        new("联系节目", "contact", true, "single-column",
+        [
+            new("main", "cms.contact", "节目联络", Serialize(new
+            {
+                heading = $"和 {brand} 说点什么",
+                subheading = "选题建议、嘉宾推荐或只是想打个招呼，我们都期待收到。",
+                submitText = "发送消息",
+                email = "hello@signal.fm",
+                phone = "010-8899 1208",
+                address = "北京市朝阳区三里屯路 19 号 声音工作室",
+                hours = "周一至周五 11:00 - 20:00",
+                longitude = 116.4554,
+                latitude = 39.9370,
+                zoom = 15
+            }))
+        ]),
         new("页脚", "footer", false, "single-column",
         [
             new("main", "cms.footer", "页脚", Serialize(new { brand, tagline = $"{industry} · Listen closer.", copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved." }))
@@ -1159,6 +1503,110 @@ public static class CmsSiteTemplateLibrary
             new("main", "cms.html", "Platforms", Serialize(new
             {
                 html = "<div class=\"cms-sg-platforms\"><h2>Listen anywhere</h2><div><span>Apple Podcasts</span><span>Spotify</span><span>Xiaoyuzhou</span><span>RSS</span></div></div>"
+            }))
+        ]),
+        new("Listening Guide", "guide", true, "three-column",
+        [
+            new("col-1", "cms.heading", "Guide Heading", Serialize(new { title = "How to listen", subtitle = "Find your track. Any episode is a good place to start", level = "h2", align = "center" })),
+            new("col-1", "cms.features", "Deep Talks", Serialize(new
+            {
+                heading = "TRACK A · DEEP TALKS",
+                items = new[]
+                {
+                    new { icon = "Mic", title = "Every Wednesday", description = "An hour of uninterrupted conversation, silences kept in." },
+                    new { icon = "People", title = "Real people", description = "No personas, only the situations people are actually in." }
+                }
+            })),
+            new("col-2", "cms.features", "Field Sound", Serialize(new
+            {
+                heading = "TRACK B · FIELD SOUND",
+                items = new[]
+                {
+                    new { icon = "Volume", title = "Field recordings", description = "The city at 6 a.m., at the ferry, at the market, unedited." },
+                    new { icon = "Headphones", title = "Headphones on", description = "The track made for closed eyes, where sound is the whole picture." }
+                }
+            })),
+            new("col-3", "cms.features", "Bonus", Serialize(new
+            {
+                heading = "BONUS · BEHIND",
+                items = new[]
+                {
+                    new { icon = "Star", title = "Members only", description = "Outtakes, wrong takes and the bits that made us laugh." },
+                    new { icon = "Heart", title = "Listener letters", description = "One letter read in full, every episode." }
+                }
+            }))
+        ]),
+        new("Latest Episode", "latest", true, "two-column",
+        [
+            new("left", "cms.image", "Episode Cover", Serialize(new
+            {
+                imageUrl = "https://images.pexels.com/photos/164938/pexels-photo-164938.jpeg?auto=compress&cs=tinysrgb&w=1200",
+                alt = "Podcast recording", caption = "Recording episode 128", maxHeight = 420, rounded = true, shadow = true
+            })),
+            new("right", "cms.richtext", "Episode Notes", Serialize(new
+            {
+                heading = "Episode 128 · When a city learns to breathe",
+                body = "Three hours with an urban planner: how a city can give its streets back to people who walk, without erasing itself. From a demolished overpass to the first call of the market at six in the morning.",
+                imageUrl = ""
+            })),
+            new("right", "cms.stats", "Show Numbers", Serialize(new
+            {
+                items = new[]
+                {
+                    new { value = "128", label = "episodes" }, new { value = "620K", label = "total listens" }, new { value = "4.9★", label = "rating" }
+                }
+            }))
+        ]),
+        new("Listener Voices", "reviews", true, "two-column",
+        [
+            new("left", "cms.testimonials", "Listener Reviews", Serialize(new
+            {
+                heading = "What listeners say",
+                items = new[]
+                {
+                    new { quote = "It turns my commute into a quiet hour. Conversations that do not rush to an answer are rare these days.", author = "Man", role = "Product manager", avatarUrl = "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=300" },
+                    new { quote = "I wore headphones through the field sound track and genuinely stood in a 6 a.m. market.", author = "Zhe", role = "Indie developer", avatarUrl = "https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300" }
+                }
+            })),
+            new("right", "cms.articles", "Production Notes", Serialize(new
+            {
+                heading = "Behind the mic",
+                subheading = "Stories beyond the recording",
+                items = new[]
+                {
+                    new { title = "Why we kept the silence", category = "Behind", date = "2026-11-20", summary = "A 40-second gap got the most messages.", content = "We cut the silence in the edit, then put it back on a second listen. It became the most replayed forty seconds of the episode." },
+                    new { title = "A week recording at the market", category = "Field", date = "2026-11-12", summary = "The loudest place holds the quietest sound.", content = "For seven days we arrived at 5:30 a.m. and recorded ambience only. Chapter seven became the opening of the field track." }
+                }
+            }))
+        ]),
+        new("FAQ", "faq", true, "single-column",
+        [
+            new("main", "cms.faq", "FAQ", Serialize(new
+            {
+                heading = "Frequently asked questions",
+                items = new[]
+                {
+                    new { question = "How often do you publish?", answer = "Deep talks every Wednesday, field sound every other week, with bonus drops for members." },
+                    new { question = "Where can I listen?", answer = "Apple Podcasts, Spotify, Xiaoyuzhou and RSS, all updated in sync." },
+                    new { question = "Can I suggest a topic or guest?", answer = "Please do. Use the form below or email the show; we read every listener note." },
+                    new { question = "How do I get member content?", answer = "Subscribe on any platform and leave a message; we will send you the private listening link." }
+                }
+            }))
+        ]),
+        new("Contact", "contact", true, "single-column",
+        [
+            new("main", "cms.contact", "Contact the Show", Serialize(new
+            {
+                heading = $"Say something to {brand}",
+                subheading = "Topic ideas, guest tips or just a hello. We read them all.",
+                submitText = "Send message",
+                email = "hello@signal.fm",
+                phone = "+86 10 8899 1208",
+                address = "19 Sanlitun Road, Chaoyang, Beijing, Sound Studio",
+                hours = "Mon - Fri 11:00 - 20:00",
+                longitude = 116.4554,
+                latitude = 39.9370,
+                zoom = 15
             }))
         ]),
         new("Footer", "footer", false, "single-column",
@@ -1248,6 +1696,95 @@ public static class CmsSiteTemplateLibrary
             new("at-card-3", "cms.html", "笔记三", Serialize(new { html = "<article class=\"cms-at-card\"><span>03</span><h3>温度</h3><p>陌生人递来的一杯热茶，让十一月的风变得可以忍受。</p></article>" })),
             new("at-card-4", "cms.html", "笔记四", Serialize(new { html = "<article class=\"cms-at-card\"><span>04</span><h3>留白</h3><p>没有安排的那两个小时，成了整趟旅程最清晰的部分。</p></article>" }))
         ]),
+        new("城市精选", "highlights", true, "single-column",
+        [
+            new("main", "cms.heading", "精选目的地", Serialize(new { title = "值得为它留半天的地方", subtitle = "按主题整理的城市漫游清单，随时取用", level = "h2", align = "center" })),
+            new("main", "cms.tabs", "主题路线", Serialize(new
+            {
+                heading = "四条主题漫游线",
+                items = new[]
+                {
+                    new { title = "老城慢走", content = "从旧书店街出发，穿过三条小巷，最后在河岸长椅结束。全程 3 公里，适合初到一座城市的第一个下午。", imageUrl = "https://images.pexels.com/photos/1648776/pexels-photo-1648776.jpeg?auto=compress&cs=tinysrgb&w=900" },
+                    new { title = "市场与味道", content = "清晨六点的菜市场、只开半天的面包房，和一家没有招牌的早餐铺。用味觉认识一座城市。", imageUrl = "https://images.pexels.com/photos/1181244/pexels-photo-1181244.jpeg?auto=compress&cs=tinysrgb&w=900" },
+                    new { title = "建筑与光", content = "沿着新旧建筑交错的街区，记录一天中光线落在立面上的变化。适合带着相机出门。", imageUrl = "https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=900" },
+                    new { title = "入夜之后", content = "渡口、夜市与街角的小酒馆。天黑之后，城市换一种语速重新讲述自己。", imageUrl = "https://images.pexels.com/photos/8386434/pexels-photo-8386434.jpeg?auto=compress&cs=tinysrgb&w=900" }
+                }
+            }))
+        ]),
+        new("旅行数据", "numbers", true, "three-column",
+        [
+            new("col-1", "cms.stats", "城市数量", Serialize(new { items = new[] { new { value = "36", label = "座城市 · 亲身走过并写下笔记的目的地" } } })),
+            new("col-2", "cms.stats", "路线数量", Serialize(new { items = new[] { new { value = "214", label = "条路线 · 全部可离线查看的手绘漫游路径" } } })),
+            new("col-3", "cms.stats", "出发时间", Serialize(new { items = new[] { new { value = "08:00", label = "我们推荐一天中最好的开始时刻" } } }))
+        ]),
+        new("影像画廊", "gallery", true, "single-column",
+        [
+            new("main", "cms.gallery", "城市影像", Serialize(new
+            {
+                heading = "在路上拍下的瞬间",
+                items = new[]
+                {
+                    new { url = "https://images.pexels.com/photos/1648776/pexels-photo-1648776.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "清晨的街角" },
+                    new { url = "https://images.pexels.com/photos/1181244/pexels-photo-1181244.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "午后的立面" },
+                    new { url = "https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "城墙上的光" },
+                    new { url = "https://images.pexels.com/photos/8386434/pexels-photo-8386434.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "河岸的黄昏" },
+                    new { url = "https://images.pexels.com/photos/290275/pexels-photo-290275.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "夜航渡口" },
+                    new { url = "https://images.pexels.com/photos/1054218/pexels-photo-1054218.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "巷口的书店" }
+                }
+            }))
+        ]),
+        new("旅人回声", "reviews", true, "two-column",
+        [
+            new("left", "cms.testimonials", "读者反馈", Serialize(new
+            {
+                heading = "他们照着走过了",
+                items = new[]
+                {
+                    new { quote = "照着「老城慢走」路线在陌生的城市走了半天，完全没有迷路的焦虑，反而遇见了最难忘的一家书店。", author = "晓宇", role = "读者 · 杭州", avatarUrl = "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=300" },
+                    new { quote = "喜欢它不推荐打卡点，只教你怎么把一座城市看得更细。像一位走路很慢的朋友写的信。", author = "阿岚", role = "读者 · 成都", avatarUrl = "https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300" }
+                }
+            })),
+            new("right", "cms.articles", "路上手记", Serialize(new
+            {
+                heading = "最近的旅途记录",
+                subheading = "关于走路、迷路与停留",
+                items = new[]
+                {
+                    new { title = "在一座没有攻略的城市待够三天", category = "城市观察", date = "2026-11-16", summary = "把导航关掉之后，城市才开始说话。", content = "第一天我迷了两次路，第二次反而走进一条满是老旧维修铺的巷子。老板娘递来一杯热茶，那成了整趟旅程最清晰的记忆。" },
+                    new { title = "为什么我们只推荐半天的路线", category = "方法", date = "2026-10-28", summary = "留白比塞满更能记住一座城。", content = "一天塞十个景点，回来只记得疲惫。半天走三站，每一站都允许停留和走神，反而能记住气味、声音与温度。" }
+                }
+            }))
+        ]),
+        new("行前问答", "faq", true, "single-column",
+        [
+            new("main", "cms.faq", "FAQ", Serialize(new
+            {
+                heading = "出发之前",
+                items = new[]
+                {
+                    new { question = "这些路线适合第一次去的城市吗？", answer = "非常适合。路线按「先读懂日常」设计，第一次到访反而更容易建立对城市的整体感受。" },
+                    new { question = "需要提前准备什么？", answer = "一双好走的鞋、空出的半天，以及愿意绕路的耐心。路线本身可离线查看。" },
+                    new { question = "路线会标注营业时间吗？", answer = "会。我们亲自走访并记录每家店铺的实际营业时段，每月更新一次。" },
+                    new { question = "可以推荐我们自己的城市吗？", answer = "欢迎通过下方表单告诉我。被选中的城市，我们会亲自去走一遍再写。" }
+                }
+            }))
+        ]),
+        new("定制咨询", "contact", true, "single-column",
+        [
+            new("main", "cms.contact", "定制路线", Serialize(new
+            {
+                heading = $"让 {brand} 为你规划一座城",
+                subheading = "告诉我目的地、时间与偏好，我们会手写一条只属于你的漫游路线。",
+                submitText = "提交需求",
+                email = "hello@atlas.walk",
+                phone = "020-8332 6609",
+                address = "广州市越秀区文明路 78 号 旅行工作室",
+                hours = "周一至周六 10:00 - 18:00",
+                longitude = 113.2732,
+                latitude = 23.1241,
+                zoom = 15
+            }))
+        ]),
         new("页脚", "footer", false, "single-column",
         [
             new("main", "cms.footer", "页脚", Serialize(new { brand, tagline = $"{industry} · Walk slowly, see more.", copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved." }))
@@ -1331,6 +1868,95 @@ public static class CmsSiteTemplateLibrary
             new("at-card-2", "cms.html", "Note 2", Serialize(new { html = "<article class=\"cms-at-card\"><span>02</span><h3>Sound</h3><p>A ferry horn marked the time better than any guide.</p></article>" })),
             new("at-card-3", "cms.html", "Note 3", Serialize(new { html = "<article class=\"cms-at-card\"><span>03</span><h3>Warmth</h3><p>A stranger's tea made November's wind bearable.</p></article>" })),
             new("at-card-4", "cms.html", "Note 4", Serialize(new { html = "<article class=\"cms-at-card\"><span>04</span><h3>Whitespace</h3><p>Those two unplanned hours became the clearest part of the trip.</p></article>" }))
+        ]),
+        new("Highlights", "highlights", true, "single-column",
+        [
+            new("main", "cms.heading", "Highlights Heading", Serialize(new { title = "Places worth half a day", subtitle = "Themed city walks, ready whenever you are", level = "h2", align = "center" })),
+            new("main", "cms.tabs", "Themed Routes", Serialize(new
+            {
+                heading = "Four themed walks",
+                items = new[]
+                {
+                    new { title = "Old Town", content = "Start at the old book street, cross three alleys and end on a riverside bench. Three kilometres, ideal for your first afternoon.", imageUrl = "https://images.pexels.com/photos/1648776/pexels-photo-1648776.jpeg?auto=compress&cs=tinysrgb&w=900" },
+                    new { title = "Market & Taste", content = "The market at 6 a.m., a bakery open only in the morning, and a noodle stall with no sign. Get to know a city through its flavours.", imageUrl = "https://images.pexels.com/photos/1181244/pexels-photo-1181244.jpeg?auto=compress&cs=tinysrgb&w=900" },
+                    new { title = "Architecture & Light", content = "Walk streets where old and new mix, and record how light moves across facades through the day. Bring a camera.", imageUrl = "https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=900" },
+                    new { title = "After Dark", content = "Ferries, night markets and corner bars. After sunset the city retells itself at a different pace.", imageUrl = "https://images.pexels.com/photos/8386434/pexels-photo-8386434.jpeg?auto=compress&cs=tinysrgb&w=900" }
+                }
+            }))
+        ]),
+        new("In Numbers", "numbers", true, "three-column",
+        [
+            new("col-1", "cms.stats", "Cities", Serialize(new { items = new[] { new { value = "36", label = "cities walked, noted and written about" } } })),
+            new("col-2", "cms.stats", "Routes", Serialize(new { items = new[] { new { value = "214", label = "hand-drawn routes available offline" } } })),
+            new("col-3", "cms.stats", "Start Time", Serialize(new { items = new[] { new { value = "08:00", label = "the best hour to begin, in our view" } } }))
+        ]),
+        new("Gallery", "gallery", true, "single-column",
+        [
+            new("main", "cms.gallery", "City Frames", Serialize(new
+            {
+                heading = "Moments from the road",
+                items = new[]
+                {
+                    new { url = "https://images.pexels.com/photos/1648776/pexels-photo-1648776.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "Morning corner" },
+                    new { url = "https://images.pexels.com/photos/1181244/pexels-photo-1181244.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "Afternoon facade" },
+                    new { url = "https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "Light on the wall" },
+                    new { url = "https://images.pexels.com/photos/8386434/pexels-photo-8386434.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "Dusk on the river" },
+                    new { url = "https://images.pexels.com/photos/290275/pexels-photo-290275.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "Night ferry" },
+                    new { url = "https://images.pexels.com/photos/1054218/pexels-photo-1054218.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "Bookshop in the alley" }
+                }
+            }))
+        ]),
+        new("Reader Echoes", "reviews", true, "two-column",
+        [
+            new("left", "cms.testimonials", "Reader Reviews", Serialize(new
+            {
+                heading = "They walked it",
+                items = new[]
+                {
+                    new { quote = "We followed the Old Town walk in a city we did not know and never felt lost. We even found a bookshop we still talk about.", author = "Xiaoyu", role = "Reader, Hangzhou", avatarUrl = "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=300" },
+                    new { quote = "It never lists checkpoints; it teaches you to look closer. Like a letter from a friend who walks very slowly.", author = "Alan", role = "Reader, Chengdu", avatarUrl = "https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=300" }
+                }
+            })),
+            new("right", "cms.articles", "Field Notes", Serialize(new
+            {
+                heading = "Recent notes",
+                subheading = "On walking, getting lost and staying",
+                items = new[]
+                {
+                    new { title = "Three days in a city with no guidebook", category = "Observation", date = "2026-11-16", summary = "The city starts talking once you switch off navigation.", content = "I got lost twice on day one. The second time led me into an alley of repair shops; the owner handed me tea, and that became the clearest memory of the trip." },
+                    new { title = "Why we only recommend half-day routes", category = "Method", date = "2026-10-28", summary = "Leaving room beats filling the schedule.", content = "Ten stops in one day and you remember only the tiredness. Three stops in half a day, with time to wander, and you remember smells, sounds and warmth." }
+                }
+            }))
+        ]),
+        new("FAQ", "faq", true, "single-column",
+        [
+            new("main", "cms.faq", "FAQ", Serialize(new
+            {
+                heading = "Before you go",
+                items = new[]
+                {
+                    new { question = "Are these routes good for a first visit?", answer = "Absolutely. They are designed to help you read everyday life first, which works best on a first visit." },
+                    new { question = "What should I prepare?", answer = "Comfortable shoes, half a day free, and a willingness to detour. Routes are viewable offline." },
+                    new { question = "Do you list opening hours?", answer = "Yes. We visit each place in person, record actual hours and refresh them monthly." },
+                    new { question = "Can I suggest my own city?", answer = "Please do. Send the form below and we will walk it ourselves before writing anything." }
+                }
+            }))
+        ]),
+        new("Contact", "contact", true, "single-column",
+        [
+            new("main", "cms.contact", "Custom Route", Serialize(new
+            {
+                heading = $"Let {brand} plan a city for you",
+                subheading = "Tell us the destination, time and your taste. We will hand-write a route just for you.",
+                submitText = "Send request",
+                email = "hello@atlas.walk",
+                phone = "+86 20 8332 6609",
+                address = "78 Wenming Road, Yuexiu, Guangzhou, Travel Studio",
+                hours = "Mon - Sat 10:00 - 18:00",
+                longitude = 113.2732,
+                latitude = 23.1241,
+                zoom = 15
+            }))
         ]),
         new("Footer", "footer", false, "single-column",
         [

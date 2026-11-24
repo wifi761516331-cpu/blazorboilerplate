@@ -61,7 +61,7 @@ public partial class CmsDesigner : IAsyncDisposable
     private string? _activeCulture;
     private bool _isLivePreview;
 
-    private bool IsDefaultTemplate => _design is not null && CmsBuiltInTemplates.IsReadOnly(_design.Site.SiteKey);
+    private bool IsDefaultTemplate => _design is not null && _design.Site.IsReadOnly;
     private bool EffectiveLivePreview => _isLivePreview || IsDefaultTemplate;
 
     private enum UndoKind

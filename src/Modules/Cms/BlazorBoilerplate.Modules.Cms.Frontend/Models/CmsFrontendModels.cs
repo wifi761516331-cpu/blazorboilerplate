@@ -2,23 +2,6 @@ using System.Text.Json;
 
 namespace BlazorBoilerplate.Modules.Cms.Frontend.Models;
 
-/// <summary>内置只读官网模板标识集合（不可直接编辑/删除，仅可复制为新站点）。</summary>
-public static class CmsBuiltInTemplates
-{
-    public static readonly IReadOnlySet<string> ReadOnlyKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-    {
-        "default",
-        "restaurant-demo",
-        "saas-demo",
-        "education-demo",
-        "portfolio-demo",
-        "umbraco-demo"
-    };
-
-    public static bool IsReadOnly(string? siteKey) =>
-        !string.IsNullOrWhiteSpace(siteKey) && ReadOnlyKeys.Contains(siteKey.Trim());
-}
-
 public sealed record CmsThemeConfig(
     string PrimaryColor = "#0f6cbd",
     string AccentColor = "#115ea3",
@@ -111,7 +94,8 @@ public sealed record CmsSiteDto(
     bool IsPublished,
     DateTimeOffset? PublishedAtUtc,
     DateTimeOffset CreatedAtUtc,
-    DateTimeOffset? ModifiedAtUtc);
+    DateTimeOffset? ModifiedAtUtc,
+    bool IsReadOnly = false);
 
 public sealed record CmsLayoutDto(
     Guid Id,

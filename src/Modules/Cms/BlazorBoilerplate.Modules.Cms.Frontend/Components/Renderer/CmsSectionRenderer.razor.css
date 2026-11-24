@@ -1531,7 +1531,7 @@
 [data-cms-style="editorial-ink"] .cms-section { background: #f7f5ef; color: #292524; }
 [data-cms-style="editorial-ink"] .cms-section { padding: 4rem 0; }
 [data-cms-style="editorial-ink"] .cms-section:nth-child(even) { background: #fffdf8; }
-[data-cms-style="editorial-ink"] .cms-container { max-width: 1080px; }
+/* 铺满全屏：移除固定限宽，设计器与发布页一致 */
 [data-cms-style="editorial-ink"] .cms-section ::deep .cms-sec-head h2,
 [data-cms-style="editorial-ink"] .cms-section ::deep .cms-sec-heading h2,
 [data-cms-style="editorial-ink"] .cms-section ::deep h2 color: #1c1917; font-weight: 400; font-style: italic; letter-spacing: -0.01em; }
@@ -1632,7 +1632,7 @@
 [data-cms-style="boutique-minimal"] .cms-section { background: #ffffff; color: #1a1a1a; }
 [data-cms-style="boutique-minimal"] .cms-section { padding: 6rem 0; }
 [data-cms-style="boutique-minimal"] .cms-section:nth-child(even) { background: #faf9f7; }
-[data-cms-style="boutique-minimal"] .cms-container { max-width: 1180px; }
+/* 铺满全屏：移除固定限宽 */
 [data-cms-style="boutique-minimal"] .cms-section ::deep .cms-sec-head h2,
 [data-cms-style="boutique-minimal"] .cms-section ::deep .cms-sec-heading h2,
 [data-cms-style="boutique-minimal"] .cms-section ::deep h2 color: #1a1a1a; font-weight: 300; letter-spacing: 0.02em; }
@@ -1686,7 +1686,7 @@
 [data-cms-style="mosaic-swiss"] .cms-section { background: #f4f1ea; color: #141414; }
 [data-cms-style="mosaic-swiss"] .cms-section { padding: 4.5rem 0; }
 [data-cms-style="mosaic-swiss"] .cms-section:nth-child(even) { background: #eee9de; }
-[data-cms-style="mosaic-swiss"] .cms-container { max-width: 1240px; }
+/* 铺满全屏：移除固定限宽 */
 [data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-sec-head h2,
 [data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-sec-heading h2 { color: #141414; font-weight: 800; letter-spacing: -0.04em; }
 [data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-btn-primary { background: #c1442d; color: #fff; border-radius: 0; }
@@ -1725,7 +1725,7 @@
 [data-cms-style="signal-wave"] .cms-section { background: #0d1b1a; color: #e8f5e9; }
 [data-cms-style="signal-wave"] .cms-section { padding: 4.5rem 0; }
 [data-cms-style="signal-wave"] .cms-section:nth-child(even) { background: #102320; }
-[data-cms-style="signal-wave"] .cms-container { max-width: 1160px; }
+/* 铺满全屏：移除固定限宽 */
 [data-cms-style="signal-wave"] .cms-section ::deep .cms-sec-head h2,
 [data-cms-style="signal-wave"] .cms-section ::deep .cms-sec-heading h2 { color: #e8f5e9; font-weight: 800; letter-spacing: -0.03em; }
 [data-cms-style="signal-wave"] .cms-section ::deep .cms-btn-primary { background: #c6f24e; color: #0d1b1a; border-radius: 999px; }
@@ -1781,7 +1781,7 @@
 [data-cms-style="atlas-terra"] .cms-section { background: #f5efe5; color: #292524; }
 [data-cms-style="atlas-terra"] .cms-section { padding: 4.5rem 0; }
 [data-cms-style="atlas-terra"] .cms-section:nth-child(even) { background: #efe6d8; }
-[data-cms-style="atlas-terra"] .cms-container { max-width: 1200px; }
+/* 铺满全屏：移除固定限宽 */
 [data-cms-style="atlas-terra"] .cms-section ::deep .cms-sec-head h2,
 [data-cms-style="atlas-terra"] .cms-section ::deep .cms-sec-heading h2 { color: #292524; font-weight: 400; font-style: italic; }
 [data-cms-style="atlas-terra"] .cms-section ::deep .cms-btn-primary { background: #b45309; color: #fff; border-radius: 12px; }
@@ -1843,3 +1843,307 @@
 [data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-nested-layout { border-color: rgba(20, 20, 20, 0.45); background: rgba(20, 20, 20, 0.02); border-radius: 0; }
 [data-cms-style="signal-wave"] .cms-section ::deep .cms-nested-layout { border-color: rgba(198, 242, 78, 0.35); background: rgba(198, 242, 78, 0.03); }
 [data-cms-style="atlas-terra"] .cms-section ::deep .cms-nested-layout { border-color: rgba(180, 83, 9, 0.4); background: rgba(180, 83, 9, 0.03); }
+
+/* ==========================================================================
+   异型模板 · 标准微件主题化 + 持续氛围特效（mosaic / signal / atlas）
+   --------------------------------------------------------------------------
+   补充的标准微件区块（服务/团队/画廊/评价/FAQ/联系等）默认套用全局通用样式，
+   视觉与原生异型骨架脱节。这里按各模板设计语言做作用域覆盖，并叠加纯 CSS
+   持续微动画：
+   - 入场动画仍由 ApplyAnimations + IntersectionObserver 负责（作用于 widget box）
+   - 本段动画只作用于微件内部子元素，不与入场动画的 animation 属性互相覆盖
+   - 持续动画仅在预览态（:not(.is-design)）运行，并尊重 prefers-reduced-motion
+   ========================================================================== */
+
+/* ================= 异型拼贴 · mosaic-swiss · 瑞士国际主义 ================= */
+
+/* 标题块：顶部硬黑线 + 砖红扫线揭示 */
+[data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-sec-head,
+[data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-sec-heading,
+[data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-w-heading {
+    position: relative;
+    border-top: 3px solid #141414;
+    padding-top: 1.1rem;
+}
+[data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-sec-head::before,
+[data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-sec-heading::before,
+[data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-w-heading::before {
+    content: "";
+    position: absolute;
+    left: 0; top: -3px;
+    height: 3px; width: 0;
+    background: #c1442d;
+}
+[data-cms-style="mosaic-swiss"] .cms-section:not(.is-design) ::deep .cms-sec-head::before,
+[data-cms-style="mosaic-swiss"] .cms-section:not(.is-design) ::deep .cms-sec-heading::before,
+[data-cms-style="mosaic-swiss"] .cms-section:not(.is-design) ::deep .cms-w-heading::before {
+    animation: cmsMzRule 1.2s cubic-bezier(.22,.8,.3,1) .15s forwards;
+}
+@keyframes cmsMzRule { from { width: 0; } to { width: 100%; } }
+
+/* 服务卡：直角黑边 + hover 砖红硬阴影位移 */
+[data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-feature-card {
+    border: 1px solid #141414;
+    border-radius: 0;
+    background: #faf8f3;
+    box-shadow: 0 0 0 #c1442d;
+    transition: transform .25s cubic-bezier(.22,.8,.3,1), box-shadow .25s ease;
+}
+[data-cms-style="mosaic-swiss"] .cms-section:not(.is-design) ::deep .cms-feature-card:hover {
+    transform: translate(-5px, -5px);
+    box-shadow: 8px 8px 0 #c1442d;
+}
+/* 图标：砖红方块 + 悬停翻正 */
+[data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-feature-icon {
+    background: #c1442d;
+    color: #fff;
+    border-radius: 0;
+    transition: transform .35s ease;
+}
+[data-cms-style="mosaic-swiss"] .cms-section:not(.is-design) ::deep .cms-feature-card:hover .cms-feature-icon {
+    transform: rotate(-8deg) scale(1.08);
+}
+/* 图片：灰度 → hover 彩色 + 微缩放 */
+[data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-w-image img,
+[data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-gallery-card img {
+    filter: grayscale(1) contrast(1.05);
+    transition: filter .45s ease, transform .45s ease;
+}
+[data-cms-style="mosaic-swiss"] .cms-section:not(.is-design) ::deep .cms-w-image:hover img,
+[data-cms-style="mosaic-swiss"] .cms-section:not(.is-design) ::deep .cms-gallery-card:hover img {
+    filter: none;
+    transform: scale(1.05);
+}
+/* 数字：砖红粗体等宽 */
+[data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-stat-num {
+    color: #c1442d;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.04em;
+}
+/* FAQ：黑色分隔线 + 展开砖红左边框 */
+[data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-faq-item {
+    border-bottom: 1px solid #141414;
+}
+[data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-faq-item.is-open {
+    border-left: 4px solid #c1442d;
+    padding-left: 1rem;
+}
+
+/* ================= 异型中心舞台 · signal-wave · 深墨绿荧光 ================= */
+
+/* 卡片：深色底 + 荧光描边 + hover 发光抬起 */
+[data-cms-style="signal-wave"] .cms-section ::deep .cms-feature-card,
+[data-cms-style="signal-wave"] .cms-section ::deep .cms-testimonial-card,
+[data-cms-style="signal-wave"] .cms-section ::deep .cms-article-card {
+    background: #132624;
+    border: 1px solid rgba(198,242,78,.28);
+    border-radius: 16px;
+    color: #e8f5e9;
+    transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease;
+}
+[data-cms-style="signal-wave"] .cms-section:not(.is-design) ::deep .cms-feature-card:hover,
+[data-cms-style="signal-wave"] .cms-section:not(.is-design) ::deep .cms-testimonial-card:hover,
+[data-cms-style="signal-wave"] .cms-section:not(.is-design) ::deep .cms-article-card:hover {
+    transform: translateY(-6px);
+    border-color: rgba(198,242,78,.7);
+    box-shadow: 0 14px 34px rgba(198,242,78,.14);
+}
+/* 图标：荧光呼吸脉冲 */
+[data-cms-style="signal-wave"] .cms-section ::deep .cms-feature-icon {
+    color: #c6f24e;
+}
+[data-cms-style="signal-wave"] .cms-section:not(.is-design) ::deep .cms-feature-icon {
+    animation: cmsSgGlow 2.4s ease-in-out infinite;
+}
+@keyframes cmsSgGlow {
+    0%, 100% { filter: drop-shadow(0 0 0 rgba(198,242,78,0)); transform: scale(1); }
+    50% { filter: drop-shadow(0 0 8px rgba(198,242,78,.55)); transform: scale(1.08); }
+}
+/* 标题副文案：柔和青绿 */
+[data-cms-style="signal-wave"] .cms-section ::deep .cms-sec-heading p,
+[data-cms-style="signal-wave"] .cms-section ::deep .cms-sec-head p,
+[data-cms-style="signal-wave"] .cms-section ::deep .cms-heading-sub {
+    color: #8fbfae;
+}
+/* 数字：荧光 + 发光 */
+[data-cms-style="signal-wave"] .cms-section ::deep .cms-stat-num {
+    color: #c6f24e;
+    text-shadow: 0 0 18px rgba(198,242,78,.35);
+}
+/* 画廊：hover 荧光描边 */
+[data-cms-style="signal-wave"] .cms-section:not(.is-design) ::deep .cms-gallery-card:hover {
+    outline: 2px solid rgba(198,242,78,.6);
+    outline-offset: 3px;
+}
+/* FAQ 展开：荧光左边框 */
+[data-cms-style="signal-wave"] .cms-section ::deep .cms-faq-item.is-open {
+    border-left: 3px solid #c6f24e;
+}
+
+/* ================= 异型跨页 · atlas-terra · 沙色纸张陶土 ================= */
+
+/* 标题：衬线陶土斜体 */
+[data-cms-style="atlas-terra"] .cms-section ::deep .cms-sec-heading h2,
+[data-cms-style="atlas-terra"] .cms-section ::deep .cms-sec-head h2,
+[data-cms-style="atlas-terra"] .cms-section ::deep .cms-w-heading h2 {
+    font-weight: 400;
+    font-style: italic;
+    color: #292524;
+}
+/* 卡片：纸张 + 陶土描边 + hover 柔和抬起 */
+[data-cms-style="atlas-terra"] .cms-section ::deep .cms-feature-card,
+[data-cms-style="atlas-terra"] .cms-section ::deep .cms-testimonial-card,
+[data-cms-style="atlas-terra"] .cms-section ::deep .cms-article-card,
+[data-cms-style="atlas-terra"] .cms-section ::deep .cms-stat-tile {
+    background: #fbf7f0;
+    border: 1px solid rgba(180,83,9,.28);
+    border-radius: 12px;
+    transition: transform .35s cubic-bezier(.22,.8,.3,1), box-shadow .35s ease;
+}
+[data-cms-style="atlas-terra"] .cms-section:not(.is-design) ::deep .cms-feature-card:hover,
+[data-cms-style="atlas-terra"] .cms-section:not(.is-design) ::deep .cms-testimonial-card:hover,
+[data-cms-style="atlas-terra"] .cms-section:not(.is-design) ::deep .cms-article-card:hover,
+[data-cms-style="atlas-terra"] .cms-section:not(.is-design) ::deep .cms-stat-tile:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 16px 30px rgba(120,72,24,.16);
+}
+/* 图片：hover 缓慢放大（视差感） */
+[data-cms-style="atlas-terra"] .cms-section ::deep .cms-gallery-card,
+[data-cms-style="atlas-terra"] .cms-section ::deep .cms-w-image {
+    overflow: hidden;
+}
+[data-cms-style="atlas-terra"] .cms-section ::deep .cms-gallery-card img,
+[data-cms-style="atlas-terra"] .cms-section ::deep .cms-w-image img {
+    transition: transform .7s cubic-bezier(.22,.8,.3,1);
+}
+[data-cms-style="atlas-terra"] .cms-section:not(.is-design) ::deep .cms-gallery-card:hover img,
+[data-cms-style="atlas-terra"] .cms-section:not(.is-design) ::deep .cms-w-image:hover img {
+    transform: scale(1.08);
+}
+/* 数字：陶土色 */
+[data-cms-style="atlas-terra"] .cms-section ::deep .cms-stat-num {
+    color: #b45309;
+    font-weight: 400;
+}
+/* 地图网格：缓慢漂移 */
+[data-cms-style="atlas-terra"] .cms-section:not(.is-design) ::deep .cms-at-map-grid {
+    animation: cmsAtDrift 24s linear infinite;
+}
+@keyframes cmsAtDrift {
+    from { background-position: 0 0; }
+    to { background-position: 44px 44px; }
+}
+/* FAQ：陶土底边 + 展开左边框 */
+[data-cms-style="atlas-terra"] .cms-section ::deep .cms-faq-item {
+    border-bottom: 1px solid rgba(180,83,9,.3);
+}
+[data-cms-style="atlas-terra"] .cms-section ::deep .cms-faq-item.is-open {
+    border-left: 3px solid #b45309;
+}
+
+/* ================= 无障碍：减少动态效果偏好 ================= */
+@media (prefers-reduced-motion: reduce) {
+    [data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-sec-head::before,
+    [data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-sec-heading::before,
+    [data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-w-heading::before,
+    [data-cms-style="signal-wave"] .cms-section ::deep .cms-feature-icon,
+    [data-cms-style="atlas-terra"] .cms-section ::deep .cms-at-map-grid {
+        animation: none !important;
+    }
+    [data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-feature-card,
+    [data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-feature-icon,
+    [data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-w-image img,
+    [data-cms-style="mosaic-swiss"] .cms-section ::deep .cms-gallery-card img,
+    [data-cms-style="signal-wave"] .cms-section ::deep .cms-feature-card,
+    [data-cms-style="signal-wave"] .cms-section ::deep .cms-testimonial-card,
+    [data-cms-style="signal-wave"] .cms-section ::deep .cms-article-card,
+    [data-cms-style="signal-wave"] .cms-section ::deep .cms-gallery-card,
+    [data-cms-style="atlas-terra"] .cms-section ::deep .cms-feature-card,
+    [data-cms-style="atlas-terra"] .cms-section ::deep .cms-testimonial-card,
+    [data-cms-style="atlas-terra"] .cms-section ::deep .cms-article-card,
+    [data-cms-style="atlas-terra"] .cms-section ::deep .cms-stat-tile,
+    [data-cms-style="atlas-terra"] .cms-section ::deep .cms-gallery-card img,
+    [data-cms-style="atlas-terra"] .cms-section ::deep .cms-w-image img {
+        transition: none !important;
+        transform: none !important;
+    }
+}
+
+/* ==========================================================================
+   深色主题的 Bit 表单配色修正
+   --------------------------------------------------------------------------
+   Bit.BlazorUI 默认从 :root 的 --bit-* 亮色板取值，深色 preset 只设了 --cms-*
+   变量，导致联系表单出现「白底输入框 + 亮蓝按钮 + 看不清的暗色 label」。
+   这里在深色 preset 的 contact 表单容器上覆盖 --bit-* 变量，靠继承作用到
+   内部所有 BitTextField / BitButton（对设计态与发布态同时生效）。
+   变量优先级取自 bit.blazorui.css 的实际回退链（--bit-btn-sfg/sbg 优先于 clr）。
+   ========================================================================== */
+
+/* signal-wave：深墨绿 + 荧光绿 */
+[data-cms-style="signal-wave"] .cms-section ::deep .cms-contact-form {
+    --bit-clr-fg-pri: #e8f5e9;
+    --bit-clr-fg-sec: #a7c9bd;
+    --bit-clr-bg-pri: #0d1b1a;
+    --bit-clr-bg-sec: #132624;
+    --bit-clr-pri: #c6f24e;
+    --bit-clr-pri-text: #0d1b1a;
+    --bit-sem-text-primary: #e8f5e9;
+    --bit-sem-text-secondary: #a7c9bd;
+    --bit-sem-surface-page: #0d1b1a;
+    --bit-TextField-label-color: #c6f24e;
+    --bit-tfl-clr: #e8f5e9;
+    --bit-tfl-clr-bg: #132624;
+    --bit-tfl-clr-brd: rgba(198, 242, 78, .40);
+    --bit-tfl-clr-brd-hover: rgba(198, 242, 78, .75);
+    --bit-tfl-clr-focus: #c6f24e;
+    --bit-btn-sbg: #c6f24e;
+    --bit-btn-sfg: #0d1b1a;
+}
+
+/* tech-neon：近黑 + 青 */
+[data-cms-style="tech-neon"] .cms-section ::deep .cms-contact-form {
+    --bit-clr-fg-pri: #e2e8f0;
+    --bit-clr-fg-sec: #94a3b8;
+    --bit-clr-bg-pri: #070b14;
+    --bit-clr-bg-sec: #101827;
+    --bit-clr-pri: #22d3ee;
+    --bit-clr-pri-text: #070b14;
+    --bit-sem-text-primary: #e2e8f0;
+    --bit-sem-text-secondary: #94a3b8;
+    --bit-sem-surface-page: #070b14;
+    --bit-TextField-label-color: #22d3ee;
+    --bit-tfl-clr: #e2e8f0;
+    --bit-tfl-clr-bg: #101827;
+    --bit-tfl-clr-brd: rgba(34, 211, 238, .40);
+    --bit-tfl-clr-brd-hover: rgba(34, 211, 238, .75);
+    --bit-tfl-clr-focus: #22d3ee;
+    --bit-btn-sbg: #22d3ee;
+    --bit-btn-sfg: #070b14;
+}
+
+/* event-pulse：深紫 + 玫红 */
+[data-cms-style="event-pulse"] .cms-section ::deep .cms-contact-form {
+    --bit-clr-fg-pri: #faf5ff;
+    --bit-clr-fg-sec: #d8b4fe;
+    --bit-clr-bg-pri: #12091f;
+    --bit-clr-bg-sec: #1d1033;
+    --bit-clr-pri: #f43f5e;
+    --bit-clr-pri-text: #12091f;
+    --bit-sem-text-primary: #faf5ff;
+    --bit-sem-text-secondary: #d8b4fe;
+    --bit-sem-surface-page: #12091f;
+    --bit-TextField-label-color: #fb7185;
+    --bit-tfl-clr: #faf5ff;
+    --bit-tfl-clr-bg: #1d1033;
+    --bit-tfl-clr-brd: rgba(244, 63, 94, .45);
+    --bit-tfl-clr-brd-hover: rgba(244, 63, 94, .80);
+    --bit-tfl-clr-focus: #f43f5e;
+    --bit-btn-sbg: #f43f5e;
+    --bit-btn-sfg: #12091f;
+}
+
+/* 深色表单卡片本身也用主题表面色，避免卡片容器与输入框割裂 */
+[data-cms-style="signal-wave"] .cms-section ::deep .cms-contact-card { background: #132624; }
+[data-cms-style="tech-neon"] .cms-section ::deep .cms-contact-card { background: #101827; }
+[data-cms-style="event-pulse"] .cms-section ::deep .cms-contact-card { background: #1d1033; }
