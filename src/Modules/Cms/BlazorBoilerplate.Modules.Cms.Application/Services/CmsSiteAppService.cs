@@ -396,12 +396,10 @@ public sealed class CmsSiteAppService(
             EnsureEditableSite(site);
         }
         var allLayouts = await layouts.ListAsync(ct);
+        // 递归收集整棵布局树（含子布局）的叶子 ZoneId，供嵌套布局与草稿落库匹配
         var layoutZones = allLayouts.ToDictionary(
             l => l.Id,
-            l => CmsDtoMapper.DeserializeRows(l.RowsJson)
-                .SelectMany(r => r.Columns)
-                .Select(c => c.ZoneId.Trim().ToLowerInvariant())
-                .ToHashSet(StringComparer.OrdinalIgnoreCase));
+            l => CmsLayoutTree.CollectLeafZones(CmsDtoMapper.DeserializeRows(l.RowsJson)));
 
         var singleCol = allLayouts.FirstOrDefault(l => layoutZones[l.Id].SetEquals(["main"]))
             ?? allLayouts.FirstOrDefault(l => l.Name.Contains("单栏") || l.Name.Contains("通栏"))
@@ -426,13 +424,17 @@ public sealed class CmsSiteAppService(
         var secOrder = 0;
         foreach (var secDraft in draft.Sections)
         {
-            var layout = secDraft.LayoutPreset switch
+            // 内置异型结构模板直接以布局名称作为 LayoutPreset：先按名称精确命中，找不到再回退传统四态预设。
+            // 这样新增骨架布局无需扩展固定枚举，也不会误命中下面按插槽特征推断的通用布局。
+            var namedLayout = allLayouts.FirstOrDefault(l =>
+                string.Equals(l.Name, secDraft.LayoutPreset?.Trim(), StringComparison.OrdinalIgnoreCase));
+            var layout = namedLayout ?? (secDraft.LayoutPreset switch
             {
                 "two-column" => twoCol,
                 "three-column" => threeCol,
                 "sidebar" => sidebarCol,
                 _ => singleCol
-            };
+            });
             var layoutId = (layout ?? singleCol).Id;
             var sec = new CmsSection
             {

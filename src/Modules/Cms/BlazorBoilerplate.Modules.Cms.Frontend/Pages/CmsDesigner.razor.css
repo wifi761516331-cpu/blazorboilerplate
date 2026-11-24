@@ -602,3 +602,17 @@
     justify-content: flex-end;
     gap: 0.5rem;
 }
+
+/* ============ 分阶段：布局设计编辑器 ============ */
+.cms-layout-editor { padding: 0.6rem; overflow-y: auto; height: 100%; }
+.cms-layout-presets { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
+.cms-layout-presets button { padding: 0.35rem 0.65rem; border: 1px solid rgba(100,116,139,0.35); border-radius: 6px; background: transparent; color: inherit; cursor: pointer; font-size: 0.78rem; }
+.cms-layout-presets button:hover { border-color: #0f6cbd; color: #0f6cbd; }
+.cms-layout-row-edit { border: 1px solid rgba(100,116,139,0.28); border-radius: 8px; padding: 0.6rem; margin-bottom: 0.65rem; }
+.cms-layout-row-head { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; opacity: 0.75; margin-bottom: 0.4rem; }
+.cms-layout-col-edit { border: 1px dashed rgba(100,116,139,0.35); border-radius: 6px; padding: 0.5rem; margin-bottom: 0.4rem; cursor: pointer; }
+.cms-layout-col-edit.is-active { border-color: #0f6cbd; background: rgba(15,108,189,0.06); }
+.cms-layout-col-edit button { padding: 0.15rem 0.45rem; font-size: 0.72rem; border: 1px solid rgba(100,116,139,0.35); border-radius: 4px; background: transparent; color: inherit; cursor: pointer; }
+.cms-nested-edit-list { margin-top: 0.4rem; padding-left: 0.6rem; border-left: 2px solid rgba(15,108,189,0.3); }
+.cms-nested-edit-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; padding: 0.2rem 0; }
+.cms-nested-edit-row button { border: none; background: none; cursor: pointer; color: #dc2626; }

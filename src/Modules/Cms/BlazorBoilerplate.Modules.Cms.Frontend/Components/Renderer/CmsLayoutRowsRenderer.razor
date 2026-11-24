@@ -1,0 +1,78 @@
+@namespace BlazorBoilerplate.Modules.Cms.Frontend.Components.Renderer
+
+@* 递归渲染布局树：列有 Children 时渲染子 Rows，否则按 ZoneId 承载 widget *@
+@foreach (var row in Rows)
+{
+    <div class="cms-grid-row @row.CssClass">
+        @foreach (var col in row.Columns)
+        {
+            var isContainer = col.Children is { Count: > 0 };
+            var zoneWidgets = isContainer
+                ? []
+                : Widgets.Where(w => string.Equals(w.ZoneId, col.ZoneId, StringComparison.OrdinalIgnoreCase))
+                         .OrderBy(w => w.SortOrder)
+                         .ToList();
+
+            <div class="cms-grid-col span-@col.Span @col.CssClass @(IsDesignMode ? "cms-zone-design" : "") @(isContainer ? "cms-grid-col-container" : "")"
+                 style="grid-column: span @col.Span;"
+                 ondragenter="event.preventDefault();"
+                 ondragover="event.preventDefault();"
+                 @ondrop="() => HandleDropAsync(col.ZoneId)">
+                @if (IsDesignMode)
+                {
+                    <div class="cms-zone-badge">@(isContainer ? "嵌套布局" : "插槽"): @col.Label (@col.ZoneId)</div>
+                }
+
+                @if (isContainer)
+                {
+                    var childRows = col.Children ?? [];
+                    <div class="cms-nested-layout">
+                        <CmsLayoutRowsRenderer Rows="@childRows"
+                                               Widgets="@Widgets"
+                                               SiteKey="@SiteKey"
+                                               SectionId="@SectionId"
+                                               IsDesignMode="@IsDesignMode"
+                                               SelectedWidgetId="@SelectedWidgetId"
+                                               OnNavigateAnchor="@OnNavigateAnchor"
+                                               OnSelectWidget="@OnSelectWidget"
+                                               OnMoveWidgetOrder="@OnMoveWidgetOrder"
+                                               OnDeleteWidget="@OnDeleteWidget"
+                                               OnDuplicateWidget="@OnDuplicateWidget"
+                                               OnDragStartWidget="@OnDragStartWidget"
+                                               OnDropToZone="@OnDropToZone"
+                                               OnDropOnWidget="@OnDropOnWidget"
+                                               OnResizeWidget="@OnResizeWidget"
+                                               OnInlineEditText="@OnInlineEditText"
+                                               OnInlineEditImage="@OnInlineEditImage" />
+                    </div>
+                }
+                else
+                {
+                    if (zoneWidgets.Count == 0 && IsDesignMode)
+                    {
+                        <div class="cms-zone-empty">拖拽组件到此处，或点击左侧组件插入</div>
+                    }
+                    @foreach (var w in zoneWidgets)
+                    {
+                        <CmsWidgetRenderer @key="w.Id"
+                                           Widget="@w"
+                                           SiteKey="@SiteKey"
+                                           SectionId="@SectionId"
+                                           IsDesignMode="@IsDesignMode"
+                                           IsSelected="@(SelectedWidgetId == w.Id)"
+                                           OnNavigateAnchor="@OnNavigateAnchor"
+                                           OnSelectWidget="@OnSelectWidget"
+                                           OnMoveWidgetOrder="@OnMoveWidgetOrder"
+                                           OnDuplicateWidget="@OnDuplicateWidget"
+                                           OnDeleteWidget="@OnDeleteWidget"
+                                           OnDragStartWidget="@OnDragStartWidget"
+                                           OnDropOnWidget="@OnDropOnWidget"
+                                           OnResizeWidget="@OnResizeWidget"
+                                           OnInlineEditText="@OnInlineEditText"
+                                           OnInlineEditImage="@OnInlineEditImage" />
+                    }
+                }
+            </div>
+        }
+    </div>
+}

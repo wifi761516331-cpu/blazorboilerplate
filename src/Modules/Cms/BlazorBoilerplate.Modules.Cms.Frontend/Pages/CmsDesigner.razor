@@ -23,6 +23,14 @@
             </div>
 
             <div class="cms-bar-center">
+                @if (!IsDefaultTemplate)
+                {
+                    <BitButton Size="BitSize.Small" Variant='@(IsLayoutStage ? BitVariant.Fill : BitVariant.Outline)'
+                               OnClick='() => SwitchStageAsync(DesignerStage.Layout)'>布局</BitButton>
+                    <BitButton Size="BitSize.Small" Variant='@(!IsLayoutStage ? BitVariant.Fill : BitVariant.Outline)'
+                               OnClick='() => SwitchStageAsync(DesignerStage.Content)'>内容</BitButton>
+                    <span style="width:1px;height:20px;background:rgba(100,116,139,0.3);margin:0 0.35rem;"></span>
+                }
                 <BitButton Size="BitSize.Small" Variant='@(_viewport == "desktop" ? BitVariant.Fill : BitVariant.Outline)' OnClick='() => _viewport = "desktop"'>@L["cms.designer.viewport.desktop"]</BitButton>
                 <BitButton Size="BitSize.Small" Variant='@(_viewport == "tablet" ? BitVariant.Fill : BitVariant.Outline)' OnClick='() => _viewport = "tablet"'>@L["cms.designer.viewport.tablet"]</BitButton>
                 <BitButton Size="BitSize.Small" Variant='@(_viewport == "mobile" ? BitVariant.Fill : BitVariant.Outline)' OnClick='() => _viewport = "mobile"'>@L["cms.designer.viewport.mobile"]</BitButton>
@@ -83,8 +91,69 @@
         <div class="cms-designer-body @(EffectiveLivePreview ? "is-preview" : "")">
             @if (!EffectiveLivePreview)
             {
-            <!-- 左侧：组件库 & 区块大纲 -->
+            <!-- 左侧：布局阶段=布局树编辑器；内容阶段=组件库 & 区块大纲 -->
             <aside class="cms-panel-left">
+                @if (IsLayoutStage)
+                {
+                    <div class="cms-layout-editor">
+                        <p class="cms-hint">先设计布局：为当前区块增删行、列与嵌套子布局；完成后切到「内容」填充组件。</p>
+                        <div style="font-size:0.75rem;padding:0.35rem 0.6rem;border-radius:6px;background:rgba(15,108,189,0.08);color:#0f6cbd;margin-bottom:0.5rem;">
+                            当前区块：<strong>@(_design.Sections.FirstOrDefault(s => s.Id == _activeSectionId)?.Title ?? "未选择")</strong>
+                        </div>
+                        <div class="cms-layout-presets">
+                            <button type="button" @onclick="() => AddPresetRow([12])">通栏</button>
+                            <button type="button" @onclick="() => AddPresetRow([6, 6])">两栏</button>
+                            <button type="button" @onclick="() => AddPresetRow([4, 4, 4])">三栏</button>
+                            <button type="button" @onclick="() => AddPresetRow([4, 8])">侧栏</button>
+                            <button type="button" @onclick="AddRow">＋ 自定义行</button>
+                        </div>
+                        @if (_layoutRows is null)
+                        {
+                            <p class="cms-hint">点击上方预设开始搭建布局。</p>
+                        }
+                        else
+                        {
+                            @foreach (var row in _layoutRows)
+                            {
+                                <div class="cms-layout-row-edit">
+                                    <div class="cms-layout-row-head">
+                                        <span>@row.Id</span>
+                                        <button type="button" class="cms-sec-del" @onclick="() => RemoveRow(row.Id)">✕</button>
+                                    </div>
+                                    @foreach (var col in row.Columns)
+                                    {
+                                        var path = $"{row.Id}/{col.ZoneId}";
+                                        <div class="cms-layout-col-edit @(_selectedZonePath == path ? "is-active" : "")"
+                                             @onclick="() => SelectZone(path)">
+                                            <div style="display:flex;align-items:center;gap:0.35rem;">
+                                                <strong>@col.ZoneId</strong>
+                                                <span style="opacity:0.7;font-size:0.75rem;">@col.Label · span @col.Span</span>
+                                            </div>
+                                            <div style="display:flex;gap:0.35rem;margin-top:0.35rem;">
+                                                <button type="button" @onclick:stopPropagation="true" @onclick="() => AddNestedRow(path)">＋ 嵌套行</button>
+                                            </div>
+                                            @if (col.Children is { Count: > 0 })
+                                            {
+                                                <div class="cms-nested-edit-list">
+                                                    @foreach (var child in col.Children)
+                                                    {
+                                                        <div class="cms-nested-edit-row">
+                                                            <span>↳ @child.Id</span>
+                                                            <button type="button" @onclick:stopPropagation="true" @onclick="() => RemoveRow(child.Id)">✕</button>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            <BitButton Size="BitSize.Small" Variant="BitVariant.Fill" OnClick="SaveLayoutAsync" IsEnabled="@(!_busy)">保存布局</BitButton>
+                        }
+                    </div>
+                }
+                else
+                {
                 <div class="cms-panel-tabs">
                     <button type="button" class='@(_leftTab == "widgets" ? "is-active" : "")' @onclick='() => _leftTab = "widgets"'>@L["cms.designer.tab.widgets"]</button>
                     <button type="button" class='@(_leftTab == "sections" ? "is-active" : "")' @onclick='() => _leftTab = "sections"'>@L.GetString("cms.designer.tab.sections", _design.Sections.Count)</button>
@@ -155,6 +224,7 @@
                             </div>
                         }
                     </div>
+                }
                 }
             </aside>
             }
@@ -278,8 +348,8 @@
                                                 OnDuplicateWidget="DuplicateWidgetAsync"
                                                 OnDeleteWidget="DeleteWidgetAsync"
                                                 OnDragStartWidget="StartDragExistingWidget"
-                                                OnDropToZone="HandleDropToZoneAsync"
-                                                OnDropOnWidget="HandleDropOnWidgetAsync"
+                                                OnDropToZone="DropToZoneCallback"
+                                                OnDropOnWidget="DropOnWidgetCallback"
                                                 OnResizeWidget="ResizeWidgetAsync"
                                                 OnInlineEditText="InlineEditWidgetTextAsync"
                                                 OnInlineEditImage="StartInlineImagePick" />
@@ -292,7 +362,39 @@
             {
             <!-- 右侧：属性与主题配置面板 -->
             <aside class="cms-panel-right">
-                @if (_selectedWidget is not null)
+                @if (IsLayoutStage && SelectedLayoutColumn is { } selCol)
+                {
+                    <div class="cms-inspector">
+                        <div class="cms-inspector-head"><h4>布局列设置</h4></div>
+                        <div style="padding:0.6rem;font-size:0.8rem;opacity:0.75;">@_selectedZonePath</div>
+                        <BitTextField Value="@selCol.ZoneId" ValueChanged="SetSelectedZoneId" Label="插槽标识 (ZoneId)" />
+                        <BitTextField Value="@selCol.Label" ValueChanged="SetSelectedLabel" Label="显示名称" />
+                        <div style="padding:0.6rem 0;">
+                            <label style="font-size:0.8rem;">栅格宽度 (1–12)：@selCol.Span</label>
+                            <input type="range" min="1" max="12" value="@selCol.Span"
+                                   @oninput='e => SetSelectedSpan(int.TryParse(e.Value?.ToString(), out var v) ? v : 12)' style="width:100%;" />
+                        </div>
+                        <div style="color:#b45309;font-size:0.8rem;padding:0.4rem 0;">
+                            @if (selCol.Children is { Count: > 0 })
+                            {
+                                <span>该列是嵌套容器（@selCol.Children.Count 个子行），内容由子布局的列承载。</span>
+                            }
+                            else
+                            {
+                                <span>叶子插槽：切到「内容」阶段后可拖入组件。</span>
+                            }
+                        </div>
+                        <BitButton Size="BitSize.Small" Variant="BitVariant.Fill" OnClick="SaveLayoutAsync" IsEnabled="@(!_busy)">保存布局</BitButton>
+                    </div>
+                }
+                else if (IsLayoutStage)
+                {
+                    <div class="cms-inspector">
+                        <div class="cms-inspector-head"><h4>布局设计</h4></div>
+                        <p class="cms-hint">在左侧选一行预设搭建骨架，点击列可设置宽度；点「＋ 嵌套行」在列内嵌子布局。完成后点「保存布局」并切到「内容」阶段。</p>
+                    </div>
+                }
+                else if (_selectedWidget is not null)
                 {
                     var widgetDef = CmsWidgetCatalog.Find(_selectedWidget.WidgetType);
                     <div class="cms-inspector">

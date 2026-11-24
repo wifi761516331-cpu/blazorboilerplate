@@ -39,6 +39,24 @@ public partial class CmsDesigner : IAsyncDisposable
     private bool _busy;
     private string _viewport = "desktop";
     private string _leftTab = "widgets";
+
+    // 设计阶段：Layout = 先设计布局骨架；Content = 后填充内容组件
+    private enum DesignerStage { Layout, Content }
+    private DesignerStage _stage = DesignerStage.Content;
+    private bool IsLayoutStage => _stage == DesignerStage.Layout && !EffectiveLivePreview;
+
+    // 布局阶段保留设计态视觉（显示嵌套插槽徽标），但 widget 拖拽/选择回调置空以免误操作
+    private EventCallback<(Guid SectionId, string ZoneId)> DropToZoneCallback =>
+        IsLayoutStage ? EventCallback<(Guid SectionId, string ZoneId)>.Empty : EventCallback.Factory.Create<(Guid SectionId, string ZoneId)>(this, HandleDropToZoneAsync);
+
+    private EventCallback<(Guid SectionId, string ZoneId, Guid TargetWidgetId)> DropOnWidgetCallback =>
+        IsLayoutStage ? EventCallback<(Guid SectionId, string ZoneId, Guid TargetWidgetId)>.Empty : EventCallback.Factory.Create<(Guid SectionId, string ZoneId, Guid TargetWidgetId)>(this, HandleDropOnWidgetAsync);
+
+    // 布局编辑（作用于当前选中区块所用布局的行列树）
+    private List<CmsLayoutRow>? _layoutRows;
+    private Guid? _layoutEditingLayoutId;
+    private string? _selectedZonePath;
+    private CmsLayoutColumn? SelectedLayoutColumn => FindColumn(_layoutRows, _selectedZonePath);
     private string _widgetFilter = string.Empty;
     private string? _activeCulture;
     private bool _isLivePreview;
@@ -161,10 +179,135 @@ public partial class CmsDesigner : IAsyncDisposable
         }
     }
 
+    // ============ 阶段切换与布局编辑（先布局，后内容） ============
+
+    private async Task SwitchStageAsync(DesignerStage stage)
+    {
+        if (_busy) return;
+        _stage = stage;
+        ClearWidgetSelection();
+        if (stage == DesignerStage.Layout)
+            await LoadLayoutForActiveSectionAsync();
+        else
+            _layoutRows = null;
+    }
+
+    private async Task LoadLayoutForActiveSectionAsync()
+    {
+        var sec = _design?.Sections.FirstOrDefault(s => s.Id == _activeSectionId);
+        if (sec is null || _design is null) { _layoutRows = null; return; }
+        var layout = _design.Layouts.FirstOrDefault(l => l.Id == sec.LayoutId);
+        _layoutEditingLayoutId = layout?.Id;
+        // 深拷贝，避免编辑影响预览（预览阶段以保存后的布局为准）
+        _layoutRows = layout?.Rows.Select(r => new CmsLayoutRow(r.Id, r.CssClass,
+            r.Columns.Select(c => CloneColumn(c)).ToList())).ToList() ?? [];
+        _selectedZonePath = null;
+        await Task.CompletedTask;
+    }
+
+    private static CmsLayoutColumn CloneColumn(CmsLayoutColumn c) => new(
+        c.ZoneId, c.Label, c.Span, c.CssClass,
+        c.Children?.Select(r => new CmsLayoutRow(r.Id, r.CssClass, r.Columns.Select(CloneColumn).ToList())).ToList());
+
+    private static CmsLayoutColumn? FindColumn(List<CmsLayoutRow>? rows, string? path)
+    {
+        if (rows is null || string.IsNullOrWhiteSpace(path)) return null;
+        var parts = path.Split('/');
+        CmsLayoutRow? row = rows.FirstOrDefault(r => r.Id == parts[0]);
+        for (var i = 1; i < parts.Length && row is not null; i++)
+        {
+            var col = row.Columns.FirstOrDefault(c => c.ZoneId == parts[i]);
+            if (col is null) return null;
+            if (i == parts.Length - 1) return col;
+            row = col.Children?.FirstOrDefault(r => r.Id == parts[i + 1]);
+            i++;
+        }
+        return row?.Columns.FirstOrDefault(c => c.ZoneId == parts[^1]);
+    }
+
+    private void SelectZone(string path) => _selectedZonePath = path;
+
+    private void AddRow()
+    {
+        _layoutRows ??= [];
+        _layoutRows.Add(new CmsLayoutRow($"row-{Guid.NewGuid():N}".Substring(0, 12), null,
+            [new CmsLayoutColumn("main", "主内容区", 12)]));
+    }
+
+    private void AddPresetRow(int[] spans)
+    {
+        _layoutRows ??= [];
+        var rowId = $"row-{_layoutRows.Count + 1}";
+        _layoutRows.Add(new CmsLayoutRow(rowId, null,
+            spans.Select((s, i) => new CmsLayoutColumn($"col-{i + 1}", $"第 {i + 1} 列", s)).ToList()));
+    }
+
+    private void AddNestedRow(string parentPath)
+    {
+        var col = FindColumn(_layoutRows, parentPath);
+        if (col is null) return;
+        col.Children ??= [];
+        col.Children.Add(new CmsLayoutRow($"row-{Guid.NewGuid():N}".Substring(0, 12), null,
+            [new CmsLayoutColumn("main", "主内容区", 12)]));
+    }
+
+    private void RemoveRow(string rowId)
+    {
+        if (_layoutRows is null) return;
+        RemoveRowCore(_layoutRows, rowId);
+        _selectedZonePath = null;
+    }
+
+    private static bool RemoveRowCore(List<CmsLayoutRow> rows, string rowId)
+    {
+        if (rows.RemoveAll(r => r.Id == rowId) > 0) return true;
+        foreach (var col in rows.SelectMany(r => r.Columns))
+            if (col.Children is not null && RemoveRowCore(col.Children, rowId)) return true;
+        return false;
+    }
+
+    private void SetSelectedSpan(int span)
+    {
+        var col = SelectedLayoutColumn;
+        if (col is not null) col.Span = Math.Clamp(span, 1, 12);
+    }
+
+    private void SetSelectedZoneId(string zoneId)
+    {
+        var col = SelectedLayoutColumn;
+        if (col is not null && !string.IsNullOrWhiteSpace(zoneId)) col.ZoneId = zoneId.Trim();
+    }
+
+    private void SetSelectedLabel(string label)
+    {
+        var col = SelectedLayoutColumn;
+        if (col is not null) col.Label = label;
+    }
+
+    private async Task SaveLayoutAsync()
+    {
+        if (_layoutEditingLayoutId is null || _layoutRows is null || _design is null) return;
+        _busy = true;
+        try
+        {
+            var layout = _design.Layouts.First(l => l.Id == _layoutEditingLayoutId);
+            await CmsApi.UpdateLayoutAsync(layout.Id, new(layout.Name, layout.Description, _layoutRows,
+                layout.CustomCss, layout.ThumbnailUrl, layout.SortOrder));
+            await LoadDesignAsync();
+            await LoadLayoutForActiveSectionAsync();
+            Toast.Success("布局已保存");
+        }
+        catch (Exception ex) { Toast.Error($"保存布局失败：{ex.Message}"); }
+        finally { _busy = false; }
+    }
+
     private CmsPublishedSection ToPublishedSection(CmsSectionDto sec)
     {
         var layout = _design!.Layouts.FirstOrDefault(l => l.Id == sec.LayoutId) ?? _design.Layouts.FirstOrDefault();
-        var rows = layout?.Rows ?? [new("row-1", null, [new("main", "主内容区", 12)])];
+        // 布局阶段：当前区块实时预览正在编辑的布局树；其余区块/内容阶段用已保存布局
+        var rows = IsLayoutStage && _activeSectionId == sec.Id && _layoutRows is not null
+            ? _layoutRows
+            : layout?.Rows ?? [new("row-1", null, [new("main", "主内容区", 12)])];
         var widgets = _design.Widgets
             .Where(w => w.SectionId == sec.Id && !w.IsTemplate)
             .OrderBy(w => w.SortOrder)

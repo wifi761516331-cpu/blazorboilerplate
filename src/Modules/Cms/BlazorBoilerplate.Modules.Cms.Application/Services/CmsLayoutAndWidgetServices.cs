@@ -7,6 +7,7 @@ using BlazorBoilerplate.Modules.Cms.Application.Caching;
 using BlazorBoilerplate.Modules.Cms.Application.DTOs;
 using BlazorBoilerplate.Modules.Cms.Domain.Entities;
 using BlazorBoilerplate.Modules.Cms.Domain.Repositories;
+using BlazorBoilerplate.Modules.Cms.Domain.ValueObjects;
 
 namespace BlazorBoilerplate.Modules.Cms.Application.Services;
 
@@ -36,6 +37,8 @@ public sealed class CmsLayoutAppService(ICmsLayoutRepository layouts, ICmsUnitOf
             throw new InvalidOperationException("布局名称不能为空。");
         if (req.Rows is not { Count: > 0 })
             throw new InvalidOperationException("布局至少需要包含一行。");
+        if (!CmsLayoutTree.Validate(req.Rows, out var layoutError))
+            throw new InvalidOperationException(layoutError);
         if (await layouts.ExistsNameAsync(name, null, ct))
             throw new InvalidOperationException($"布局名称 '{name}' 已存在。");
 
@@ -63,6 +66,8 @@ public sealed class CmsLayoutAppService(ICmsLayoutRepository layouts, ICmsUnitOf
             throw new InvalidOperationException("布局名称不能为空。");
         if (req.Rows is not { Count: > 0 })
             throw new InvalidOperationException("布局至少需要包含一行。");
+        if (!CmsLayoutTree.Validate(req.Rows, out var layoutError))
+            throw new InvalidOperationException(layoutError);
         if (await layouts.ExistsNameAsync(name, id, ct))
             throw new InvalidOperationException($"布局名称 '{name}' 已被其他布局使用。");
 

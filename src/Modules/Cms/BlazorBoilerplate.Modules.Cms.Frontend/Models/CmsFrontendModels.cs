@@ -32,7 +32,24 @@ public sealed record CmsThemeConfig(
 
 public sealed record CmsLayoutRow(string Id, string? CssClass, List<CmsLayoutColumn> Columns);
 
-public sealed record CmsLayoutColumn(string ZoneId, string Label, int Span = 12, string? CssClass = null);
+/// <summary>列可嵌套子行（Children）；为空则是承载 widget 的叶子插槽。属性可变以支持设计器就地编辑。</summary>
+public sealed record CmsLayoutColumn
+{
+    public CmsLayoutColumn(string zoneId, string label, int span = 12, string? cssClass = null, List<CmsLayoutRow>? children = null)
+    {
+        ZoneId = zoneId;
+        Label = label;
+        Span = span;
+        CssClass = cssClass;
+        Children = children;
+    }
+
+    public string ZoneId { get; set; }
+    public string Label { get; set; }
+    public int Span { get; set; }
+    public string? CssClass { get; set; }
+    public List<CmsLayoutRow>? Children { get; set; }
+}
 
 public sealed record CmsWidgetStyle(
     string? BackgroundColor = null,

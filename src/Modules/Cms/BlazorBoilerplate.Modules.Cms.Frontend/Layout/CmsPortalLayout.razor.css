@@ -511,3 +511,95 @@
     background: rgba(40, 58, 151, 0.08);
     color: var(--cms-pri, #283a97);
 }
+
+/* ============ 4 套新增隔离风格的门户导航（各自作用域，互不污染） ============ */
+/* 暗夜霓虹科技 */
+.cms-portal-shell ::deep [data-cms-style="tech-neon"].cms-site-root {
+    background: #070b14; color: #e2e8f0;
+    font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+}
+.cms-portal-shell ::deep [data-cms-style="tech-neon"] .cms-spa-nav {
+    background: rgba(7, 11, 20, 0.92); border-bottom: 1px solid rgba(34, 211, 238, 0.25); backdrop-filter: blur(12px);
+}
+.cms-portal-shell ::deep [data-cms-style="tech-neon"] .cms-brand-btn { color: #22d3ee; letter-spacing: 0.05em; }
+.cms-portal-shell ::deep [data-cms-style="tech-neon"] .cms-spa-link { border-radius: 4px; color: #94a3b8; }
+.cms-portal-shell ::deep [data-cms-style="tech-neon"] .cms-spa-link.is-active,
+.cms-portal-shell ::deep [data-cms-style="tech-neon"] .cms-spa-link:hover { background: rgba(34, 211, 238, 0.12); color: #22d3ee; }
+
+/* 墨白杂志编辑 */
+.cms-portal-shell ::deep [data-cms-style="editorial-ink"].cms-site-root {
+    background: #f7f5ef; color: #292524;
+    font-family: Georgia, 'Times New Roman', 'Songti SC', 'SimSun', serif;
+}
+.cms-portal-shell ::deep [data-cms-style="editorial-ink"] .cms-spa-nav {
+    background: rgba(247, 245, 239, 0.95); border-bottom: 1px solid #1c1917; backdrop-filter: none;
+}
+.cms-portal-shell ::deep [data-cms-style="editorial-ink"] .cms-brand-btn { color: #1c1917; letter-spacing: 0.2em; text-transform: uppercase; }
+.cms-portal-shell ::deep [data-cms-style="editorial-ink"] .cms-spa-link { border-radius: 0; color: #57534e; font-style: italic; }
+.cms-portal-shell ::deep [data-cms-style="editorial-ink"] .cms-spa-link.is-active,
+.cms-portal-shell ::deep [data-cms-style="editorial-ink"] .cms-spa-link:hover { background: transparent; color: #b45309; border-bottom: 1px solid #b45309; }
+
+/* 脉冲活动峰会 */
+.cms-portal-shell ::deep [data-cms-style="event-pulse"].cms-site-root {
+    background: #12091f; color: #faf5ff;
+    font-family: 'Arial Black', 'Segoe UI', system-ui, sans-serif;
+}
+.cms-portal-shell ::deep [data-cms-style="event-pulse"] .cms-spa-nav {
+    background: rgba(18, 9, 31, 0.94); border-bottom: 1px solid rgba(244, 63, 94, 0.35); backdrop-filter: blur(14px);
+}
+.cms-portal-shell ::deep [data-cms-style="event-pulse"] .cms-brand-btn { color: #fbbf24; font-weight: 900; letter-spacing: 0.05em; }
+.cms-portal-shell ::deep [data-cms-style="event-pulse"] .cms-spa-link { border-radius: 999px; color: #c4b5fd; font-weight: 700; text-transform: uppercase; font-size: 0.8rem; }
+.cms-portal-shell ::deep [data-cms-style="event-pulse"] .cms-spa-link.is-active,
+.cms-portal-shell ::deep [data-cms-style="event-pulse"] .cms-spa-link:hover { background: linear-gradient(90deg, #f43f5e, #a855f7); color: #fff; }
+
+/* 极简精品生活 */
+.cms-portal-shell ::deep [data-cms-style="boutique-minimal"].cms-site-root {
+    background: #ffffff; color: #1a1a1a;
+    font-family: 'Helvetica Neue', 'Inter', 'PingFang SC', system-ui, sans-serif;
+}
+.cms-portal-shell ::deep [data-cms-style="boutique-minimal"] .cms-spa-nav {
+    background: rgba(255, 255, 255, 0.94); border-bottom: 1px solid #e7e5e4; backdrop-filter: none;
+}
+.cms-portal-shell ::deep [data-cms-style="boutique-minimal"] .cms-brand-btn { color: #1a1a1a; font-weight: 300; letter-spacing: 0.3em; text-transform: uppercase; }
+.cms-portal-shell ::deep [data-cms-style="boutique-minimal"] .cms-spa-link { border-radius: 0; color: #78716c; font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase; }
+.cms-portal-shell ::deep [data-cms-style="boutique-minimal"] .cms-spa-link.is-active,
+.cms-portal-shell ::deep [data-cms-style="boutique-minimal"] .cms-spa-link:hover { background: transparent; color: #1a1a1a; border-bottom: 1px solid #1a1a1a; }
+
+/* 异型拼贴 · mosaic-swiss */
+.cms-portal-shell ::deep [data-cms-style="mosaic-swiss"].cms-site-root {
+    background: #f4f1ea; color: #141414;
+    font-family: 'Helvetica Neue', Arial, 'PingFang SC', system-ui, sans-serif;
+}
+.cms-portal-shell ::deep [data-cms-style="mosaic-swiss"] .cms-spa-nav {
+    background: rgba(244, 241, 234, 0.96); border-bottom: 2px solid #141414; backdrop-filter: none;
+}
+.cms-portal-shell ::deep [data-cms-style="mosaic-swiss"] .cms-brand-btn { color: #141414; font-weight: 800; letter-spacing: 0.04em; }
+.cms-portal-shell ::deep [data-cms-style="mosaic-swiss"] .cms-spa-link { border-radius: 0; color: #57534e; font-weight: 700; text-transform: uppercase; font-size: 0.78rem; letter-spacing: 0.08em; }
+.cms-portal-shell ::deep [data-cms-style="mosaic-swiss"] .cms-spa-link.is-active,
+.cms-portal-shell ::deep [data-cms-style="mosaic-swiss"] .cms-spa-link:hover { background: #c1442d; color: #fff; }
+
+/* 异型中心舞台 · signal-wave */
+.cms-portal-shell ::deep [data-cms-style="signal-wave"].cms-site-root {
+    background: #0d1b1a; color: #e8f5e9;
+    font-family: 'Inter', 'PingFang SC', system-ui, sans-serif;
+}
+.cms-portal-shell ::deep [data-cms-style="signal-wave"] .cms-spa-nav {
+    background: rgba(13, 27, 26, 0.94); border-bottom: 1px solid rgba(198, 242, 78, 0.25);
+}
+.cms-portal-shell ::deep [data-cms-style="signal-wave"] .cms-brand-btn { color: #c6f24e; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.cms-portal-shell ::deep [data-cms-style="signal-wave"] .cms-spa-link { border-radius: 999px; color: #8fbfae; font-size: 0.78rem; font-weight: 600; }
+.cms-portal-shell ::deep [data-cms-style="signal-wave"] .cms-spa-link.is-active,
+.cms-portal-shell ::deep [data-cms-style="signal-wave"] .cms-spa-link:hover { background: #c6f24e; color: #0d1b1a; }
+
+/* 异型跨页 · atlas-terra */
+.cms-portal-shell ::deep [data-cms-style="atlas-terra"].cms-site-root {
+    background: #f5efe5; color: #292524;
+    font-family: Georgia, 'Songti SC', 'Noto Serif SC', serif;
+}
+.cms-portal-shell ::deep [data-cms-style="atlas-terra"] .cms-spa-nav {
+    background: rgba(245, 239, 229, 0.95); border-bottom: 1px solid rgba(180, 83, 9, 0.3); backdrop-filter: none;
+}
+.cms-portal-shell ::deep [data-cms-style="atlas-terra"] .cms-brand-btn { color: #b45309; font-style: italic; letter-spacing: 0.08em; }
+.cms-portal-shell ::deep [data-cms-style="atlas-terra"] .cms-spa-link { border-radius: 0; color: #57534e; font-size: 0.82rem; letter-spacing: 0.05em; }
+.cms-portal-shell ::deep [data-cms-style="atlas-terra"] .cms-spa-link.is-active,
+.cms-portal-shell ::deep [data-cms-style="atlas-terra"] .cms-spa-link:hover { background: transparent; color: #b45309; border-bottom: 1px solid #b45309; }

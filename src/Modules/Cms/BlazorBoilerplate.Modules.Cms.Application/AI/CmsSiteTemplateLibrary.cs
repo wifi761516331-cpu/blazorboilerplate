@@ -6,8 +6,10 @@ namespace BlazorBoilerplate.Modules.Cms.Application.AI;
 
 /// <summary>
 /// 内置行业官网模板库（手写静态模板，不经 AI/LLM）：
-/// 在默认企业官网模板之外，为种子阶段提供餐饮、SaaS、教育、作品集四个示例站点。
-/// 四套模板采用差异化的多栏布局节奏与丰富的微件组合（轮播、选项卡、画廊、定价、案例文章、FAQ、高德地图、留资表单等），
+/// 在默认企业官网模板之外，为种子阶段提供多套风格完全隔离的示例站点。
+/// 每套模板拥有独立的 StylePreset（data-cms-style 作用域）、专属 CSS 前缀、主题配色/字体/圆角、动画序列与布局节奏，
+/// 互不污染：黑暗霓虹科技 / 墨白衬线杂志 / 高饱和活动峰会 / 极简精品电商 / 暖调编辑企业风 / 餐饮 / SaaS / 教育 / 作品集，
+/// 以及三套以非对称、递归嵌套骨架为核心的异型结构示例（拼贴 / 中心舞台 / 跨页）。
 /// 所有 PropsJson 字段与前端各 Widget 的 Props record 一一对应。
 /// </summary>
 public static class CmsSiteTemplateLibrary
@@ -18,7 +20,7 @@ public static class CmsSiteTemplateLibrary
         string BrandName, string IndustryZh, string IndustryEn,
         string StylePromptZh, string StylePromptEn, string PrimaryColor);
 
-    /// <summary>所有内置只读模板的 SiteKey（默认官网 + 4 套行业示例模板）。</summary>
+    /// <summary>所有内置只读模板的 SiteKey（默认官网 + 12 套风格与结构隔离的行业示例模板）。</summary>
     public static IReadOnlySet<string> ReadOnlyTemplateKeys { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         "default",
@@ -26,7 +28,14 @@ public static class CmsSiteTemplateLibrary
         "saas-demo",
         "education-demo",
         "portfolio-demo",
-        "umbraco-demo"
+        "umbraco-demo",
+        "tech-demo",
+        "editorial-demo",
+        "event-demo",
+        "boutique-demo",
+        "mosaic-demo",
+        "signal-demo",
+        "atlas-demo"
     };
 
     /// <summary>判断给定 SiteKey 是否为内置只读模板。</summary>
@@ -50,7 +59,30 @@ public static class CmsSiteTemplateLibrary
             "极简、有设计感、突出作品与联系", "Minimal, artistic, work and contact focused", "#0f766e"),
         new("umbraco", "umbraco-demo", "Umbraco 暖调编辑企业风", "OpenCMS · 企业级 DXP 平台",
             "复刻 Umbraco.com 暖调编辑风（#f1f0ee 暖灰画布 + #283a97 皇家蓝 + 滚动变形导航 + Logo 跑马灯 + 证言轮播）", "OpenCMS", "开源企业级 CMS", "Open-Source .NET CMS",
-            "面向 AI 时代的开源企业级内容底座", "The open-source .NET CMS, ready for AI", "#283a97")
+            "面向 AI 时代的开源企业级内容底座", "The open-source .NET CMS, ready for AI", "#283a97"),
+        new("tech", "tech-demo", "暗夜霓虹科技示例站", "NEXUS · 开发者基础设施",
+            "独立视觉体系 tech-neon：近黑画布 #070b14 + 青紫霓虹发光 + 等宽字网格背景 + 终端窗口特性 + API 定价", "NEXUS", "开发者基础设施", "Developer Infrastructure",
+            "冷峻、未来感、面向工程师的 Neon 科技风", "Dark, futuristic, neon tech for engineers", "#22d3ee"),
+        new("editorial", "editorial-demo", "墨白杂志编辑示例站", "PAPER · 独立文化志",
+            "独立视觉体系 editorial-ink：米白纸张 #f7f5ef + 墨黑衬线大标题 + 发丝分隔线 + 首字下沉 + 期刊编号", "PAPER", "独立文化出版", "Independent Publishing",
+            "克制、文艺、富有排版韵律的杂志风", "Restrained, literary, editorial typography", "#1c1917"),
+        new("event", "event-demo", "脉冲活动峰会示例站", "PULSE 2026 · 全球开发者峰会",
+            "独立视觉体系 event-pulse：深靛底 + 玫红荧光渐变 + 巨型日期 + 票据撕边日程 + 三栏讲者 + 早鸟票", "PULSE", "科技活动会议", "Tech Conference",
+            "高能量、强节奏、充满现场感的峰会风", "High-energy, bold, conference atmosphere", "#f43f5e"),
+        new("boutique", "boutique-demo", "极简精品生活示例站", "ATELIER · 生活方式买手店",
+            "独立视觉体系 boutique-minimal：纯白 + 超大留白 + 极细字 + 灰褐点缀 + 大图叙事 + 发丝线网格", "ATELIER", "精品生活方式", "Boutique Lifestyle",
+            "极简、克制、注重质感与留白的高级买手风", "Minimal, quiet, high-end boutique with generous whitespace", "#1a1a1a"),
+
+        // 以下三套主打「结构异型」：Section 的 LayoutPreset 直接写内置布局名，由种子服务补种的骨架决定排版。
+        new("mosaic", "mosaic-demo", "异型拼贴作品示例站", "ATELIER 07 · 创意工作室",
+            "异型结构拼贴示例：7/5 错位拼贴 + 封面内嵌三列 + 4/8 转 8/4 阶梯流，瑞士国际主义排版", "ATELIER 07", "建筑与创意工作室", "Architecture Studio",
+            "不对称网格、粗黑编号与砖红强调色", "Asymmetric grid, bold numbering, terracotta accents", "#c1442d"),
+        new("signal", "signal-demo", "异型中心舞台播客示例站", "SIGNAL · 独立播客网络",
+            "异型结构中心舞台示例：3/6/3 卫星环绕 + 舞台内嵌 5/7 双轨节目单", "SIGNAL", "独立播客网络", "Independent Podcast Network",
+            "深墨绿与荧光黄绿、声波节奏感", "Dark green and neon lime with waveform rhythm", "#c6f24e"),
+        new("atlas", "atlas-demo", "异型跨页旅行示例站", "ATLAS · 城市漫游指南",
+            "异型结构跨页示例：5/7 转 7/5 图文互换 + 地图内嵌四列目的地卡片", "ATLAS", "城市旅行指南", "City Travel Guide",
+            "大地色、陶土红、地图网格与跨页叙事", "Earthy tones, terracotta, map grid and spread storytelling", "#b45309")
     ];
 
     /// <summary>
@@ -62,7 +94,14 @@ public static class CmsSiteTemplateLibrary
         ["saas"]       = ["zoom-in", "slide-left", "scale-up", "flip", "fade-up", "slide-right", "blur-in", "bounce", "slide-down", "slide-up-big", "fade-in"],
         ["education"]  = ["fade-up", "zoom-in", "flip", "slide-down", "bounce", "slide-right", "scale-up", "blur-in", "slide-up-big", "slide-left", "fade-in"],
         ["portfolio"]  = ["slide-up-big", "zoom-in", "blur-in", "scale-up", "flip", "slide-left", "bounce", "slide-down", "fade-up", "slide-right", "fade-in"],
-        ["umbraco"]    = ["fade-up", "fade-in", "zoom-in", "slide-left", "scale-up", "blur-in", "slide-right", "flip", "bounce", "fade-up", "fade-in"]
+        ["umbraco"]    = ["fade-up", "fade-in", "zoom-in", "slide-left", "scale-up", "blur-in", "slide-right", "flip", "bounce", "fade-up", "fade-in"],
+        ["tech"]       = ["blur-in", "zoom-in", "slide-left", "fade-up", "scale-up", "flip", "slide-right", "bounce", "slide-up-big", "slide-down", "fade-in"],
+        ["editorial"]  = ["fade-up", "fade-in", "slide-down", "blur-in", "zoom-in", "fade-up", "slide-right", "scale-up", "flip", "fade-in", "slide-up-big"],
+        ["event"]      = ["slide-up-big", "bounce", "zoom-in", "slide-left", "flip", "scale-up", "slide-right", "blur-in", "fade-up", "slide-down", "fade-in"],
+        ["boutique"]   = ["fade-up", "blur-in", "zoom-in", "fade-in", "slide-up-big", "scale-up", "slide-right", "fade-up", "flip", "blur-in", "fade-in"],
+        ["mosaic"]     = ["flip", "slide-up-big", "slide-right", "fade-up", "zoom-in", "scale-up", "slide-left", "blur-in", "fade-in"],
+        ["signal"]     = ["scale-up", "blur-in", "slide-left", "bounce", "fade-up", "zoom-in", "slide-right", "fade-in"],
+        ["atlas"]      = ["slide-right", "fade-up", "slide-up-big", "blur-in", "zoom-in", "flip", "slide-left", "fade-in"]
     };
 
     /// <summary>按模板标识与语言构建完整整站草稿（标题/主题/区块），供种子服务写入站点。</summary>
@@ -72,17 +111,7 @@ public static class CmsSiteTemplateLibrary
             ?? throw new InvalidOperationException($"未知官网模板标识: {templateKey}");
         sections = ApplyAnimations(templateKey, sections);
         var primary = string.IsNullOrWhiteSpace(primaryColor) ? "#0f6cbd" : primaryColor.Trim();
-        var theme = string.Equals(templateKey, "umbraco", StringComparison.OrdinalIgnoreCase)
-            ? new CmsThemeConfig(
-                PrimaryColor: "#283a97",
-                AccentColor: "#f5c1bc",
-                BackgroundColor: "#f1f0ee",
-                SurfaceColor: "#f9f7f4",
-                TextColor: "#162335",
-                FontFamily: "'Lato', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif",
-                BorderRadius: "20px",
-                StylePreset: "umbraco-editorial")
-            : new CmsThemeConfig(PrimaryColor: primary, AccentColor: primary);
+        var theme = BuildTheme(templateKey, primary);
 
         return new CmsAiSiteDraft(
             Title: isEn ? $"{brand} Official Website" : $"{brand} 官方网站",
@@ -93,11 +122,109 @@ public static class CmsSiteTemplateLibrary
     }
 
     /// <summary>
+    /// 每套模板拥有完全独立的主题：配色、字体、圆角与 StylePreset 均隔离，
+    /// 页面样式由前端 [data-cms-style="{preset}"] 作用域 CSS 承接，模板之间互不污染。
+    /// </summary>
+    private static CmsThemeConfig BuildTheme(string templateKey, string primary) =>
+        templateKey.Trim().ToLowerInvariant() switch
+        {
+            "umbraco" => new CmsThemeConfig(
+                PrimaryColor: "#283a97", AccentColor: "#f5c1bc", BackgroundColor: "#f1f0ee",
+                SurfaceColor: "#f9f7f4", TextColor: "#162335",
+                FontFamily: "'Lato', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif",
+                BorderRadius: "20px", StylePreset: "umbraco-editorial"),
+
+            // 暗夜霓虹科技：近黑画布 + 青紫霓虹 + 等宽字体 + 硬朗小圆角
+            "tech" => new CmsThemeConfig(
+                PrimaryColor: "#22d3ee", AccentColor: "#a78bfa", BackgroundColor: "#070b14",
+                SurfaceColor: "#101827", TextColor: "#e2e8f0",
+                FontFamily: "'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace",
+                BorderRadius: "6px", StylePreset: "tech-neon"),
+
+            // 墨白杂志：宣纸米白 + 墨黑衬线 + 直角排版 + 发丝线
+            "editorial" => new CmsThemeConfig(
+                PrimaryColor: "#1c1917", AccentColor: "#b45309", BackgroundColor: "#f7f5ef",
+                SurfaceColor: "#fffdf8", TextColor: "#292524",
+                FontFamily: "Georgia, 'Times New Roman', 'Songti SC', 'SimSun', serif",
+                BorderRadius: "0px", StylePreset: "editorial-ink"),
+
+            // 脉冲峰会：深靛底 + 玫红荧光 + 无衬线粗黑 + 大圆角票据感
+            "event" => new CmsThemeConfig(
+                PrimaryColor: "#f43f5e", AccentColor: "#fbbf24", BackgroundColor: "#12091f",
+                SurfaceColor: "#1d1033", TextColor: "#faf5ff",
+                FontFamily: "'Arial Black', 'Segoe UI', system-ui, sans-serif",
+                BorderRadius: "18px", StylePreset: "event-pulse"),
+
+            // 极简精品：纯白 + 大留白 + 极细字 + 灰褐点缀 + 直角发丝线
+            "boutique" => new CmsThemeConfig(
+                PrimaryColor: "#1a1a1a", AccentColor: "#9a8c7a", BackgroundColor: "#ffffff",
+                SurfaceColor: "#f6f4f1", TextColor: "#1a1a1a",
+                FontFamily: "'Helvetica Neue', 'Inter', 'PingFang SC', system-ui, sans-serif",
+                BorderRadius: "0px", StylePreset: "boutique-minimal"),
+
+            // 异型拼贴：瑞士国际主义米白画布 + 砖红 + 硬朗直角 + 编号排版
+            "mosaic" => new CmsThemeConfig(
+                PrimaryColor: "#c1442d", AccentColor: "#141414", BackgroundColor: "#f4f1ea",
+                SurfaceColor: "#eae5da", TextColor: "#141414",
+                FontFamily: "'Helvetica Neue', Arial, 'PingFang SC', system-ui, sans-serif",
+                BorderRadius: "0px", StylePreset: "mosaic-swiss"),
+
+            // 异型中心舞台：深墨绿 + 荧光黄绿 + 圆角声波卡片
+            "signal" => new CmsThemeConfig(
+                PrimaryColor: "#c6f24e", AccentColor: "#4fd1c5", BackgroundColor: "#0d1b1a",
+                SurfaceColor: "#132624", TextColor: "#e8f5e9",
+                FontFamily: "'Inter', 'PingFang SC', system-ui, sans-serif",
+                BorderRadius: "16px", StylePreset: "signal-wave"),
+
+            // 异型跨页：沙色纸张 + 陶土红 + 衬线叙事 + 中圆角
+            "atlas" => new CmsThemeConfig(
+                PrimaryColor: "#b45309", AccentColor: "#0f766e", BackgroundColor: "#f5efe5",
+                SurfaceColor: "#ebe0d0", TextColor: "#292524",
+                FontFamily: "Georgia, 'Songti SC', 'Noto Serif SC', serif",
+                BorderRadius: "12px", StylePreset: "atlas-terra"),
+
+            _ => new CmsThemeConfig(PrimaryColor: primary, AccentColor: primary)
+        };
+
+    /// <summary>
     /// 为草稿各 widget 注入差异化入场动画 StyleJson（按区块布局与插槽位置分配方向感动画，已显式设置的不覆盖）：
     /// - two-column / sidebar：左/侧栏从左滑入（slide-right），右/主栏从右滑入（slide-left），形成对向呼应；
     /// - three-column：三列依次采用左滑、上浮/缩放、右滑的节奏；
     /// - single-column：按模板专属动画序列逐个轮转。
     /// </summary>
+    /// <summary>
+    /// 异型骨架按叶子插槽方位注入对向动画：左侧列从左入（slide-right），右侧列从右入（slide-left），
+    /// 中央主区沿用模板基础节奏（方向类动画则改zoom避免同向堆叠）。非异型插槽返回 null 走原逻辑。
+    /// </summary>
+    private static string? AsymmetricAnimation(string zoneId, string fallback)
+    {
+        if (zoneId.StartsWith("mz-", StringComparison.Ordinal))
+            return zoneId switch
+            {
+                "mz-feature" or "mz-step-a" or "mz-step-c" or "mz-work-1" => "slide-right",
+                "mz-aside" or "mz-step-d" or "mz-work-3" => "slide-left",
+                "mz-band" or "mz-cover" or "mz-work-2" => fallback is "slide-left" or "slide-right" ? "zoom-in" : fallback,
+                _ => fallback
+            };
+        if (zoneId.StartsWith("sg-", StringComparison.Ordinal))
+            return zoneId switch
+            {
+                "sg-left" or "sg-track-a" => "slide-right",
+                "sg-right" or "sg-track-b" => "slide-left",
+                "sg-stage" or "sg-head" => fallback is "slide-left" or "slide-right" ? "zoom-in" : fallback,
+                _ => fallback
+            };
+        if (zoneId.StartsWith("at-", StringComparison.Ordinal))
+            return zoneId switch
+            {
+                "at-text-left" or "at-visual-left" or "at-card-1" or "at-card-2" => "slide-right",
+                "at-text-right" or "at-visual-right" or "at-card-3" or "at-card-4" => "slide-left",
+                "at-map" => fallback is "slide-left" or "slide-right" ? "zoom-in" : fallback,
+                _ => fallback
+            };
+        return null;
+    }
+
     private static List<CmsAiSectionDraft> ApplyAnimations(string templateKey, List<CmsAiSectionDraft> sections)
     {
         if (!Animations.TryGetValue(templateKey, out var sequence) || sequence.Length == 0)
@@ -118,6 +245,7 @@ public static class CmsSiteTemplateLibrary
                     continue;
                 }
 
+                var fallback = wIdx == 0 ? baseAnim : sequence[(s + wIdx) % sequence.Length];
                 var anim = sec.LayoutPreset switch
                 {
                     "two-column" or "sidebar" => w.ZoneId is "left" or "sidebar"
@@ -130,7 +258,7 @@ public static class CmsSiteTemplateLibrary
                         "col-3" => "slide-left",
                         _ => baseAnim
                     },
-                    _ => wIdx == 0 ? baseAnim : sequence[(s + wIdx) % sequence.Length]
+                    _ => AsymmetricAnimation(w.ZoneId, fallback) ?? fallback
                 };
 
                 updatedWidgets.Add(w with { StyleJson = Serialize(new { animation = anim }) });
@@ -149,8 +277,1066 @@ public static class CmsSiteTemplateLibrary
             "education"  => isEn ? EducationEn(brand, industry, stylePrompt)  : EducationZh(brand, industry, stylePrompt),
             "portfolio"  => isEn ? PortfolioEn(brand, industry, stylePrompt)  : PortfolioZh(brand, industry, stylePrompt),
             "umbraco"    => isEn ? UmbracoEn(brand, industry, stylePrompt)    : UmbracoZh(brand, industry, stylePrompt),
+            "tech"       => isEn ? TechEn(brand, industry, stylePrompt)       : TechZh(brand, industry, stylePrompt),
+            "editorial"  => isEn ? EditorialEn(brand, industry, stylePrompt)  : EditorialZh(brand, industry, stylePrompt),
+            "event"      => isEn ? EventEn(brand, industry, stylePrompt)      : EventZh(brand, industry, stylePrompt),
+            "boutique"   => isEn ? BoutiqueEn(brand, industry, stylePrompt)   : BoutiqueZh(brand, industry, stylePrompt),
+            "mosaic"     => isEn ? MosaicEn(brand, industry, stylePrompt)     : MosaicZh(brand, industry, stylePrompt),
+            "signal"     => isEn ? SignalEn(brand, industry, stylePrompt)     : SignalZh(brand, industry, stylePrompt),
+            "atlas"      => isEn ? AtlasEn(brand, industry, stylePrompt)      : AtlasZh(brand, industry, stylePrompt),
             _ => null
         };
+
+    // ============================================================
+    // 6. 暗夜霓虹科技 —— 近黑画布 + 青紫发光 + 等宽字体 + 终端代码块
+    //    区块节奏：终端 Hero → 三栏霓虹指标 → 左码右特性 → 场景选项卡 → 阶梯定价 → 侧栏 FAQ
+    // ============================================================
+    private static List<CmsAiSectionDraft> TechZh(string brand, string industry, string? stylePrompt) =>
+    [
+        new("主页", "home", true, "single-column",
+        [
+            new("main", "cms.html", "终端风 Hero", Serialize(new
+            {
+                html = $"<div class=\"cms-tech-hero\"><div class=\"cms-tech-grid\"></div><div class=\"cms-tech-badge\">● SYSTEM ONLINE &nbsp;/&nbsp; v2.4.0</div><h1 class=\"cms-tech-title\">&gt; {brand}<br/><span>构建下一代</span><br/><span class=\"cms-tech-accent\">开发者基础设施_</span></h1><p class=\"cms-tech-lead\">{stylePrompt ?? "从边缘到云端，为工程团队提供可观测、可扩展、可组合的核心底座。"}</p><div class=\"cms-tech-actions\"><a href=\"#pricing\" class=\"cms-tech-btn-primary\">开始构建 →</a><a href=\"#features\" class=\"cms-tech-btn-ghost\">查看文档</a></div><div class=\"cms-tech-terminal\"><div class=\"cms-tech-term-bar\"><span>●</span><span>●</span><span>●</span><b>bash — nexus</b></div><pre><code>$ nexus deploy --prod\n<span class=\"cms-tech-ok\">✓</span> build complete in 1.42s\n<span class=\"cms-tech-ok\">✓</span> 12 regions synced\n<span class=\"cms-tech-cursor\">▊</span></code></pre></div></div>"
+            }))
+        ]),
+        new("关键指标", "metrics", true, "three-column",
+        [
+            new("col-1", "cms.html", "指标 1", Serialize(new { html = "<div class=\"cms-tech-metric\"><div class=\"cms-tech-metric-value\">99.99<span>%</span></div><div class=\"cms-tech-metric-label\">SLA 可用性</div><div class=\"cms-tech-metric-bar\"></div></div>" })),
+            new("col-2", "cms.html", "指标 2", Serialize(new { html = "<div class=\"cms-tech-metric\"><div class=\"cms-tech-metric-value\">&lt;40<span>ms</span></div><div class=\"cms-tech-metric-label\">全球边缘延迟</div><div class=\"cms-tech-metric-bar\"></div></div>" })),
+            new("col-3", "cms.html", "指标 3", Serialize(new { html = "<div class=\"cms-tech-metric\"><div class=\"cms-tech-metric-value\">18<span>M+</span></div><div class=\"cms-tech-metric-label\">日均请求处理</div><div class=\"cms-tech-metric-bar\"></div></div>" }))
+        ]),
+        new("核心能力", "features", true, "two-column",
+        [
+            new("left", "cms.html", "代码窗口", Serialize(new
+            {
+                html = "<div class=\"cms-tech-code\"><div class=\"cms-tech-term-bar\"><b>pipeline.ts</b></div><pre><code><span class=\"cms-tech-key\">import</span> { nexus } <span class=\"cms-tech-key\">from</span> '@nexus/core';\n\n<span class=\"cms-tech-key\">const</span> app = nexus({\n  region: <span class=\"cms-tech-str\">'auto'</span>,\n  edge: <span class=\"cms-tech-key\">true</span>,\n  observability: <span class=\"cms-tech-str\">'full'</span>\n});\n\napp.<span class=\"cms-tech-fn\">deploy</span>();</code></pre></div>"
+            })),
+            new("right", "cms.features", "特性列表", Serialize(new
+            {
+                heading = "为工程团队而生",
+                subheading = "每一层都为可组合与可观测而设计",
+                items = new[]
+                {
+                    new { icon = "⚡", title = "边缘原生", description = "全球 18 个区域自动调度，请求就近响应。" },
+                    new { icon = "🔍", title = "全链路可观测", description = "内置 Trace、Metrics、Log，问题定位秒级完成。" },
+                    new { icon = "🧩", title = "可组合架构", description = "模块热插拔，按需装配，零停机升级。" }
+                }
+            }))
+        ]),
+        new("使用场景", "scenarios", true, "single-column",
+        [
+            new("main", "cms.tabs", "场景选项卡", Serialize(new
+            {
+                heading = "从原型到生产，一套底座贯穿始终",
+                items = new[]
+                {
+                    new { title = "API 平台", content = "统一网关、鉴权与限流，内置 OpenAPI 契约与版本管理，让团队专注业务本身。", imageUrl = "https://images.pexels.com/photos/1181244/pexels-photo-1181244.jpeg?auto=compress&cs=tinysrgb&w=900" },
+                    new { title = "实时数据", content = "毫秒级流式管线，支持 CDC、事件重放与幂等消费，轻松应对高峰流量。", imageUrl = "https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=900" },
+                    new { title = "AI 应用", content = "模型网关、向量检索与 Prompt 编排一体化，快速交付企业级智能体。", imageUrl = "https://images.pexels.com/photos/8386434/pexels-photo-8386434.jpeg?auto=compress&cs=tinysrgb&w=900" }
+                }
+            }))
+        ]),
+        new("定价", "pricing", true, "single-column",
+        [
+            new("main", "cms.pricing", "阶梯定价", Serialize(new
+            {
+                heading = "按用量增长，随时平滑升级",
+                subheading = "所有方案均含 14 天试用，无需信用卡",
+                plans = new[]
+                {
+                    new { name = "Hobby", price = "¥0", badge = "", period = "/ 月", features = new[] { "1 个项目", "10 万次请求", "社区支持" }, buttonText = "免费开始", buttonHref = "#contact", highlighted = false },
+                    new { name = "Pro", price = "¥499", badge = "最受欢迎", period = "/ 月", features = new[] { "无限项目", "500 万次请求", "全链路可观测", "优先支持" }, buttonText = "立即升级", buttonHref = "#contact", highlighted = true },
+                    new { name = "Enterprise", price = "定制", badge = "", period = "", features = new[] { "私有化部署", "专属区域", "SLA 保障", "专属架构师" }, buttonText = "联系销售", buttonHref = "#contact", highlighted = false }
+                }
+            }))
+        ]),
+        new("常见问题", "faq", false, "sidebar",
+        [
+            new("sidebar", "cms.richtext", "侧栏说明", Serialize(new
+            {
+                heading = "还有疑问？",
+                body = "我们的工程师团队随时为你解答架构选型、迁移路径与容量规划问题。",
+                imageUrl = "https://images.pexels.com/photos/1181675/pexels-photo-1181675.jpeg?auto=compress&cs=tinysrgb&w=800"
+            })),
+            new("main", "cms.faq", "FAQ", Serialize(new
+            {
+                heading = "常见问题",
+                items = new[]
+                {
+                    new { question = "是否支持私有化部署？", answer = "支持。Enterprise 方案可在你的 Kubernetes 集群或裸机环境中完整部署。" },
+                    new { question = "从现有系统迁移需要多久？", answer = "标准迁移路径通常 1–2 周，我们的架构师会全程协助。" },
+                    new { question = "如何计费？", answer = "按实际请求量与功能层级计费，超出部分有明确的阶梯价格，不会有意外出账。" }
+                }
+            }))
+        ]),
+        new("页脚", "footer", false, "single-column",
+        [
+            new("main", "cms.footer", "页脚", Serialize(new { brand, tagline = $"{industry} · Build the next.", copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved." }))
+        ])
+    ];
+
+    private static List<CmsAiSectionDraft> TechEn(string brand, string industry, string? stylePrompt) =>
+    [
+        new("Home", "home", true, "single-column",
+        [
+            new("main", "cms.html", "Terminal Hero", Serialize(new
+            {
+                html = $"<div class=\"cms-tech-hero\"><div class=\"cms-tech-grid\"></div><div class=\"cms-tech-badge\">● SYSTEM ONLINE &nbsp;/&nbsp; v2.4.0</div><h1 class=\"cms-tech-title\">&gt; {brand}<br/><span>Build the next</span><br/><span class=\"cms-tech-accent\">gen infrastructure_</span></h1><p class=\"cms-tech-lead\">{stylePrompt ?? "Observable, scalable and composable core infrastructure for engineering teams."}</p><div class=\"cms-tech-actions\"><a href=\"#pricing\" class=\"cms-tech-btn-primary\">Start building →</a><a href=\"#features\" class=\"cms-tech-btn-ghost\">Read docs</a></div><div class=\"cms-tech-terminal\"><div class=\"cms-tech-term-bar\"><span>●</span><span>●</span><span>●</span><b>bash — nexus</b></div><pre><code>$ nexus deploy --prod\n<span class=\"cms-tech-ok\">✓</span> build complete in 1.42s\n<span class=\"cms-tech-ok\">✓</span> 12 regions synced\n<span class=\"cms-tech-cursor\">▊</span></code></pre></div></div>"
+            }))
+        ]),
+        new("Metrics", "metrics", true, "three-column",
+        [
+            new("col-1", "cms.html", "Metric 1", Serialize(new { html = "<div class=\"cms-tech-metric\"><div class=\"cms-tech-metric-value\">99.99<span>%</span></div><div class=\"cms-tech-metric-label\">SLA Uptime</div><div class=\"cms-tech-metric-bar\"></div></div>" })),
+            new("col-2", "cms.html", "Metric 2", Serialize(new { html = "<div class=\"cms-tech-metric\"><div class=\"cms-tech-metric-value\">&lt;40<span>ms</span></div><div class=\"cms-tech-metric-label\">Edge Latency</div><div class=\"cms-tech-metric-bar\"></div></div>" })),
+            new("col-3", "cms.html", "Metric 3", Serialize(new { html = "<div class=\"cms-tech-metric\"><div class=\"cms-tech-metric-value\">18<span>M+</span></div><div class=\"cms-tech-metric-label\">Requests / Day</div><div class=\"cms-tech-metric-bar\"></div></div>" }))
+        ]),
+        new("Features", "features", true, "two-column",
+        [
+            new("left", "cms.html", "Code Window", Serialize(new
+            {
+                html = "<div class=\"cms-tech-code\"><div class=\"cms-tech-term-bar\"><b>pipeline.ts</b></div><pre><code><span class=\"cms-tech-key\">import</span> { nexus } <span class=\"cms-tech-key\">from</span> '@nexus/core';\n\n<span class=\"cms-tech-key\">const</span> app = nexus({\n  region: <span class=\"cms-tech-str\">'auto'</span>,\n  edge: <span class=\"cms-tech-key\">true</span>,\n  observability: <span class=\"cms-tech-str\">'full'</span>\n});\n\napp.<span class=\"cms-tech-fn\">deploy</span>();</code></pre></div>"
+            })),
+            new("right", "cms.features", "Feature List", Serialize(new
+            {
+                heading = "Built for engineers",
+                subheading = "Composable and observable at every layer",
+                items = new[]
+                {
+                    new { icon = "⚡", title = "Edge native", description = "Auto-routed across 18 regions for nearby responses." },
+                    new { icon = "🔍", title = "Full observability", description = "Traces, metrics and logs built in for instant diagnosis." },
+                    new { icon = "🧩", title = "Composable", description = "Hot-swappable modules, upgrade with zero downtime." }
+                }
+            }))
+        ]),
+        new("Scenarios", "scenarios", true, "single-column",
+        [
+            new("main", "cms.tabs", "Scenario Tabs", Serialize(new
+            {
+                heading = "One platform from prototype to production",
+                items = new[]
+                {
+                    new { title = "API Platform", content = "Unified gateway, auth and rate limits with OpenAPI contracts and versioning built in.", imageUrl = "https://images.pexels.com/photos/1181244/pexels-photo-1181244.jpeg?auto=compress&cs=tinysrgb&w=900" },
+                    new { title = "Realtime Data", content = "Millisecond streaming with CDC, event replay and idempotent consumers for peak loads.", imageUrl = "https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=900" },
+                    new { title = "AI Apps", content = "Model gateway, vector search and prompt orchestration for enterprise agents.", imageUrl = "https://images.pexels.com/photos/8386434/pexels-photo-8386434.jpeg?auto=compress&cs=tinysrgb&w=900" }
+                }
+            }))
+        ]),
+        new("Pricing", "pricing", true, "single-column",
+        [
+            new("main", "cms.pricing", "Pricing", Serialize(new
+            {
+                heading = "Grow on usage, upgrade anytime",
+                subheading = "14-day trial on every plan, no credit card required",
+                plans = new[]
+                {
+                    new { name = "Hobby", price = "$0", badge = "", period = "/ mo", features = new[] { "1 project", "100k requests", "Community support" }, buttonText = "Start free", buttonHref = "#contact", highlighted = false },
+                    new { name = "Pro", price = "$69", badge = "Most popular", period = "/ mo", features = new[] { "Unlimited projects", "5M requests", "Full observability", "Priority support" }, buttonText = "Upgrade now", buttonHref = "#contact", highlighted = true },
+                    new { name = "Enterprise", price = "Custom", badge = "", period = "", features = new[] { "Private deployment", "Dedicated regions", "SLA guarantee", "Dedicated architect" }, buttonText = "Contact sales", buttonHref = "#contact", highlighted = false }
+                }
+            }))
+        ]),
+        new("FAQ", "faq", false, "sidebar",
+        [
+            new("sidebar", "cms.richtext", "Side Note", Serialize(new
+            {
+                heading = "Still curious?",
+                body = "Our engineers can help with architecture choices, migration paths and capacity planning.",
+                imageUrl = "https://images.pexels.com/photos/1181675/pexels-photo-1181675.jpeg?auto=compress&cs=tinysrgb&w=800"
+            })),
+            new("main", "cms.faq", "FAQ", Serialize(new
+            {
+                heading = "Frequently asked questions",
+                items = new[]
+                {
+                    new { question = "Do you support private deployment?", answer = "Yes. Enterprise can be fully deployed in your Kubernetes cluster or on bare metal." },
+                    new { question = "How long does migration take?", answer = "A standard migration takes 1–2 weeks, with our architects guiding you throughout." },
+                    new { question = "How is billing calculated?", answer = "Usage-based with clear tiers and no surprise charges." }
+                }
+            }))
+        ]),
+        new("Footer", "footer", false, "single-column",
+        [
+            new("main", "cms.footer", "Footer", Serialize(new { brand, tagline = $"{industry} · Build the next.", copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved." }))
+        ])
+    ];
+
+    // ============================================================
+    // 7. 墨白杂志编辑 —— 宣纸米白 + 墨黑衬线 + 发丝线 + 首字下沉 + 期刊编号
+    //    区块节奏：杂志封面 Hero → 首字下沉导读 → 双栏图文 → 三栏专题 → 引言 → 订阅
+    // ============================================================
+    private static List<CmsAiSectionDraft> EditorialZh(string brand, string industry, string? stylePrompt) =>
+    [
+        new("封面", "cover", true, "single-column",
+        [
+            new("main", "cms.html", "杂志封面", Serialize(new
+            {
+                html = $"<div class=\"cms-ed-cover\"><div class=\"cms-ed-masthead\">{brand} <span>ISSUE № 07 / 2026</span></div><div class=\"cms-ed-rule\"></div><div class=\"cms-ed-kicker\">独立文化志 · 深度阅读</div><h1 class=\"cms-ed-title\">{brand}<br/><em>此刻，慢下来</em></h1><p class=\"cms-ed-deck\">{stylePrompt ?? "在快速流动的时代，我们选择用更长的时间，记录更少却更重要的事。"}</p><div class=\"cms-ed-byline\">主编手记 &nbsp;·&nbsp; 阅读约 8 分钟</div></div>"
+            })),
+            new("main", "cms.image", "封面摄影", Serialize(new
+            {
+                imageUrl = "https://images.pexels.com/photos/1648776/pexels-photo-1648776.jpeg?auto=compress&cs=tinysrgb&w=1400",
+                alt = "杂志封面摄影", caption = "摄影 / 山本 · 静物与光", rounded = false, shadow = false, maxHeight = 520
+            }))
+        ]),
+        new("导读", "editor-note", true, "single-column",
+        [
+            new("main", "cms.html", "首字下沉导读", Serialize(new
+            {
+                html = "<div class=\"cms-ed-columns\"><p class=\"cms-ed-dropcap\">我们总在追逐更快——更快的资讯、更短的反馈、更即时的满足。但那些真正留在记忆里的，往往是慢下来才看得见的东西：一段被放大阅读的文字，一次不被打断的对话，一张反复端详的照片。</p><p>这一期，我们走访了三位在不同领域坚持「慢」的创作者。他们用各自的方式抵抗速朽，也提醒我们：深度本身，就是一种稀缺的奢侈。</p></div>"
+            }))
+        ]),
+        new("人物", "profiles", true, "two-column",
+        [
+            new("left", "cms.image", "人物肖像", Serialize(new
+            {
+                imageUrl = "https://images.pexels.com/photos/3184454/pexels-photo-3184454.jpeg?auto=compress&cs=tinysrgb&w=900",
+                alt = "专访人物", caption = "专访 / 陶艺家 林见山", rounded = false, shadow = false, maxHeight = 460
+            })),
+            new("right", "cms.richtext", "人物故事", Serialize(new
+            {
+                heading = "林见山：把时间揉进泥土里",
+                body = "「一件器物要烧三个月，急不得。」在景德镇的工作室里，林见山用二十年时间只做一件事——让泥与火说出它们自己的语言。慢，是他的方法论，也是他的美学。" ,
+                imageUrl = ""
+            }))
+        ]),
+        new("专题", "features", true, "three-column",
+        [
+            new("col-1", "cms.html", "专题 1", Serialize(new { html = "<article class=\"cms-ed-article\"><div class=\"cms-ed-num\">01</div><h3>城市漫游者</h3><p>在熟悉的街道里，重新发现被忽略的风景与故事。</p><div class=\"cms-ed-read\">阅读文章 →</div></article>" })),
+            new("col-2", "cms.html", "专题 2", Serialize(new { html = "<article class=\"cms-ed-article\"><div class=\"cms-ed-num\">02</div><h3>纸上的温度</h3><p>独立书店如何用选书，维系一座城市的精神角落。</p><div class=\"cms-ed-read\">阅读文章 →</div></article>" })),
+            new("col-3", "cms.html", "专题 3", Serialize(new { html = "<article class=\"cms-ed-article\"><div class=\"cms-ed-num\">03</div><h3>手作复兴</h3><p>当机器能复制一切，手工的意义反而更加清晰。</p><div class=\"cms-ed-read\">阅读文章 →</div></article>" }))
+        ]),
+        new("引文", "quote", false, "single-column",
+        [
+            new("main", "cms.html", "杂志引言", Serialize(new
+            {
+                html = "<blockquote class=\"cms-ed-quote\"><p>“深度阅读不是一种怀旧，而是一种抵抗——抵抗把一切简化为标题与点赞的冲动。”</p><cite>— 本期卷首语</cite></blockquote>"
+            }))
+        ]),
+        new("订阅", "subscribe", false, "single-column",
+        [
+            new("main", "cms.html", "订阅区", Serialize(new
+            {
+                html = $"<div class=\"cms-ed-subscribe\"><div class=\"cms-ed-kicker\">NEWSLETTER</div><h2>每月一封，慢慢读</h2><p>{brand} 精选长文，每月第一个周日送达你的邮箱。</p><div class=\"cms-ed-form\"><input type=\"email\" placeholder=\"你的邮箱地址\" /><button>订阅</button></div></div>"
+            }))
+        ]),
+        new("页脚", "footer", false, "single-column",
+        [
+            new("main", "cms.footer", "页脚", Serialize(new { brand, tagline = $"{industry} · 慢下来，读进去。", copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved." }))
+        ])
+    ];
+
+    private static List<CmsAiSectionDraft> EditorialEn(string brand, string industry, string? stylePrompt) =>
+    [
+        new("Cover", "cover", true, "single-column",
+        [
+            new("main", "cms.html", "Magazine Cover", Serialize(new
+            {
+                html = $"<div class=\"cms-ed-cover\"><div class=\"cms-ed-masthead\">{brand} <span>ISSUE № 07 / 2026</span></div><div class=\"cms-ed-rule\"></div><div class=\"cms-ed-kicker\">An Independent Journal · Long-form</div><h1 class=\"cms-ed-title\">{brand}<br/><em>Slow down, right now</em></h1><p class=\"cms-ed-deck\">{stylePrompt ?? "In a world that moves fast, we take more time to record fewer, more meaningful things."}</p><div class=\"cms-ed-byline\">Editor's Note · 8 min read</div></div>"
+            })),
+            new("main", "cms.image", "Cover Photo", Serialize(new
+            {
+                imageUrl = "https://images.pexels.com/photos/1648776/pexels-photo-1648776.jpeg?auto=compress&cs=tinysrgb&w=1400",
+                alt = "Cover photography", caption = "Photo / Yamamoto · Still life & light", rounded = false, shadow = false, maxHeight = 520
+            }))
+        ]),
+        new("Editor's Note", "editor-note", true, "single-column",
+        [
+            new("main", "cms.html", "Dropcap Intro", Serialize(new
+            {
+                html = "<div class=\"cms-ed-columns\"><p class=\"cms-ed-dropcap\">We keep chasing faster — faster news, shorter feedback, more instant gratification. Yet the things that stay with us are the ones we slows down for: a passage read twice, an uninterrupted conversation, a photograph examined at length.</p><p>This issue, we meet three makers who have chosen slowness in different fields. Their practice reminds us that depth itself is a rare luxury.</p></div>"
+            }))
+        ]),
+        new("Profiles", "profiles", true, "two-column",
+        [
+            new("left", "cms.image", "Portrait", Serialize(new
+            {
+                imageUrl = "https://images.pexels.com/photos/3184454/pexels-photo-3184454.jpeg?auto=compress&cs=tinysrgb&w=900",
+                alt = "Interviewee", caption = "Interview / ceramicist Lin Jianshan", rounded = false, shadow = false, maxHeight = 460
+            })),
+            new("right", "cms.richtext", "Profile Story", Serialize(new
+            {
+                heading = "Lin Jianshan: Kneading time into clay",
+                body = "A single piece takes three months to fire. In his Jingdezhen studio, Lin has spent twenty years letting clay and fire speak for themselves. Slowness is both his method and his aesthetic.",
+                imageUrl = ""
+            }))
+        ]),
+        new("Features", "features", true, "three-column",
+        [
+            new("col-1", "cms.html", "Feature 1", Serialize(new { html = "<article class=\"cms-ed-article\"><div class=\"cms-ed-num\">01</div><h3>Urban Wanderers</h3><p>Rediscovering overlooked corners of familiar streets.</p><div class=\"cms-ed-read\">Read story →</div></article>" })),
+            new("col-2", "cms.html", "Feature 2", Serialize(new { html = "<article class=\"cms-ed-article\"><div class=\"cms-ed-num\">02</div><h3>The Warmth of Paper</h3><p>How independent bookshops hold a city's intellectual ground.</p><div class=\"cms-ed-read\">Read story →</div></article>" })),
+            new("col-3", "cms.html", "Feature 3", Serialize(new { html = "<article class=\"cms-ed-article\"><div class=\"cms-ed-num\">03</div><h3>The Craft Revival</h3><p>When machines can copy everything, handmade means more.</p><div class=\"cms-ed-read\">Read story →</div></article>" }))
+        ]),
+        new("Quote", "quote", false, "single-column",
+        [
+            new("main", "cms.html", "Pull Quote", Serialize(new
+            {
+                html = "<blockquote class=\"cms-ed-quote\"><p>“Deep reading is not nostalgia — it is resistance to reducing everything to headlines and likes.”</p><cite>— From the editor's letter</cite></blockquote>"
+            }))
+        ]),
+        new("Subscribe", "subscribe", false, "single-column",
+        [
+            new("main", "cms.html", "Subscribe", Serialize(new
+            {
+                html = $"<div class=\"cms-ed-subscribe\"><div class=\"cms-ed-kicker\">NEWSLETTER</div><h2>A letter a month, read slowly</h2><p>{brand} picks, delivered the first Sunday of every month.</p><div class=\"cms-ed-form\"><input type=\"email\" placeholder=\"Your email address\" /><button>Subscribe</button></div></div>"
+            }))
+        ]),
+        new("Footer", "footer", false, "single-column",
+        [
+            new("main", "cms.footer", "Footer", Serialize(new { brand, tagline = $"{industry} · Slow down, read deeper.", copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved." }))
+        ])
+    ];
+
+    // ============================================================
+    // 8. 脉冲活动峰会 —— 深靛底 + 玫红荧光渐变 + 巨型日期 + 票据撕边日程 + 三栏讲者 + 早鸟票
+    //    区块节奏：倒计时 Hero → 讲者三栏 → 票据式日程 → 赞助跑马 → 早鸟定价 → 报名
+    // ============================================================
+    private static List<CmsAiSectionDraft> EventZh(string brand, string industry, string? stylePrompt) =>
+    [
+        new("主页", "home", true, "single-column",
+        [
+            new("main", "cms.html", "峰会 Hero", Serialize(new
+            {
+                html = $"<div class=\"cms-ev-hero\"><div class=\"cms-ev-glow\"></div><div class=\"cms-ev-badge\">⚡ THE DEVELOPER EVENT OF THE YEAR</div><h1 class=\"cms-ev-title\">{brand}<br/><span class=\"cms-ev-neon\">2026</span></h1><div class=\"cms-ev-date\"><div><strong>11</strong><span>NOV · 周六</span></div><i>—</i><div><strong>28</strong><span>SHANGHAI</span></div><i>—</i><div><strong>09:00</strong><span>OPEN GATES</span></div></div><p class=\"cms-ev-lead\">{stylePrompt ?? "两天，六大轨道，一百位实践者。与全球开发者一起，见证技术的下一个脉冲。"}</p><div class=\"cms-ev-actions\"><a href=\"#tickets\" class=\"cms-ev-btn\">立即抢早鸟票 →</a><a href=\"#agenda\" class=\"cms-ev-btn-ghost\">查看议程</a></div><div class=\"cms-ev-countdown\"><span>距开幕</span><b>04</b>天<b>12</b>时<b>36</b>分</div></div>"
+            }))
+        ]),
+        new("讲者", "speakers", true, "three-column",
+        [
+            new("col-1", "cms.html", "讲者 1", Serialize(new { html = "<div class=\"cms-ev-speaker\"><div class=\"cms-ev-avatar\" style=\"background-image:url('https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400')\"></div><div class=\"cms-ev-sp-name\">陈 · 开源架构师</div><div class=\"cms-ev-sp-role\">平台工程 / 主题演讲</div><div class=\"cms-ev-sp-topic\">「AI 时代的开发者工具链」</div></div>" })),
+            new("col-2", "cms.html", "讲者 2", Serialize(new { html = "<div class=\"cms-ev-speaker\"><div class=\"cms-ev-avatar\" style=\"background-image:url('https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=400')\"></div><div class=\"cms-ev-sp-name\">林 · 前端负责人</div><div class=\"cms-ev-sp-role\">体验工程 / 工作坊</div><div class=\"cms-ev-sp-topic\">「全栈框架的下一站」</div></div>" })),
+            new("col-3", "cms.html", "讲者 3", Serialize(new { html = "<div class=\"cms-ev-speaker\"><div class=\"cms-ev-avatar\" style=\"background-image:url('https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=400')\"></div><div class=\"cms-ev-sp-name\">周 · 研究科学家</div><div class=\"cms-ev-sp-role\">AI 平台 / 圆桌</div><div class=\"cms-ev-sp-topic\">「大模型落地的真实边界」</div></div>" }))
+        ]),
+        new("议程", "agenda", true, "two-column",
+        [
+            new("left", "cms.html", "票据式日程", Serialize(new
+            {
+                html = "<div class=\"cms-ev-ticket\"><div class=\"cms-ev-ticket-stub\">DAY 01 / 11.28</div><div class=\"cms-ev-agenda\"><div class=\"cms-ev-ag-row\"><b>09:00</b><span>签到 &amp; 晨间咖啡</span></div><div class=\"cms-ev-ag-row\"><b>10:00</b><span>开幕主题演讲</span></div><div class=\"cms-ev-ag-row\"><b>13:30</b><span>六大并行轨道</span></div><div class=\"cms-ev-ag-row\"><b>18:00</b><span>社区之夜</span></div></div><div class=\"cms-ev-ticket-perf\">ADMIT ONE · #2026</div></div>"
+            })),
+            new("right", "cms.tabs", "轨道介绍", Serialize(new
+            {
+                heading = "六大主题轨道",
+                items = new[]
+                {
+                    new { title = "AI & Agent", content = "从模型能力到工程落地，探讨智能体平台的架构边界与真实案例。", imageUrl = "https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=800" },
+                    new { title = "Platform Eng", content = "平台工程、开发者体验与内部工具链的规模化实践。", imageUrl = "https://images.pexels.com/photos/1181244/pexels-photo-1181244.jpeg?auto=compress&cs=tinysrgb&w=800" },
+                    new { title = "Frontend", content = "现代前端框架、渲染模式与设计系统的最新进展。", imageUrl = "https://images.pexels.com/photos/11035380/pexels-photo-11035380.jpeg?auto=compress&cs=tinysrgb&w=800" }
+                }
+            }))
+        ]),
+        new("赞助", "sponsors", false, "single-column",
+        [
+            new("main", "cms.partners", "赞助商跑马灯", Serialize(new
+            {
+                heading = "合作伙伴",
+                variant = "marquee",
+                items = new[] { new { name = "Vercel" }, new { name = "Cloudflare" }, new { name = "Supabase" }, new { name = "GitHub" }, new { name = "JetBrains" }, new { name = "Docker" }, new { name = "MongoDB" } }
+            }))
+        ]),
+        new("票务", "tickets", true, "single-column",
+        [
+            new("main", "cms.pricing", "早鸟票价", Serialize(new
+            {
+                heading = "选择你的通行证",
+                subheading = "早鸟价截止 10 月 31 日，售完即止",
+                plans = new[]
+                {
+                    new { name = "单日票", price = "¥699", badge = "", period = "/ 人", features = new[] { "单日入场", "全部轨道", "午餐与茶歇" }, buttonText = "立即购买", buttonHref = "#register", highlighted = false },
+                    new { name = "双日通票", price = "¥1,199", badge = "最超值", period = "/ 人", features = new[] { "两日入场", "全部工作坊", "社区之夜", "限量周边" }, buttonText = "抢早鸟票", buttonHref = "#register", highlighted = true },
+                    new { name = "VIP 通行证", price = "¥2,999", badge = "", period = "/ 人", features = new[] { "两日入场", "讲者晚宴", "前排席位", "专属休息区" }, buttonText = "了解权益", buttonHref = "#register", highlighted = false }
+                }
+            }))
+        ]),
+        new("报名", "register", false, "single-column",
+        [
+            new("main", "cms.contact", "报名留资", Serialize(new
+            {
+                heading = "锁定你的席位",
+                subheading = "留下信息，我们会第一时间发送购票链接与议程更新",
+                submitText = "立即报名", email = "hello@pulse2026.dev", phone = "400-028-2026", address = "上海 · 西岸艺术中心"
+            }))
+        ]),
+        new("页脚", "footer", false, "single-column",
+        [
+            new("main", "cms.footer", "页脚", Serialize(new { brand, tagline = $"{industry} · Feel the pulse.", copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved." }))
+        ])
+    ];
+
+    private static List<CmsAiSectionDraft> EventEn(string brand, string industry, string? stylePrompt) =>
+    [
+        new("Home", "home", true, "single-column",
+        [
+            new("main", "cms.html", "Summit Hero", Serialize(new
+            {
+                html = $"<div class=\"cms-ev-hero\"><div class=\"cms-ev-glow\"></div><div class=\"cms-ev-badge\">⚡ THE DEVELOPER EVENT OF THE YEAR</div><h1 class=\"cms-ev-title\">{brand}<br/><span class=\"cms-ev-neon\">2026</span></h1><div class=\"cms-ev-date\"><div><strong>11</strong><span>NOV · SAT</span></div><i>—</i><div><strong>28</strong><span>SHANGHAI</span></div><i>—</i><div><strong>09:00</strong><span>OPEN GATES</span></div></div><p class=\"cms-ev-lead\">{stylePrompt ?? "Two days, six tracks, a hundred practitioners. Join developers worldwide for the next pulse of technology."}</p><div class=\"cms-ev-actions\"><a href=\"#tickets\" class=\"cms-ev-btn\">Grab early bird →</a><a href=\"#agenda\" class=\"cms-ev-btn-ghost\">View agenda</a></div><div class=\"cms-ev-countdown\"><span>Opens in</span><b>04</b>d<b>12</b>h<b>36</b>m</div></div>"
+            }))
+        ]),
+        new("Speakers", "speakers", true, "three-column",
+        [
+            new("col-1", "cms.html", "Speaker 1", Serialize(new { html = "<div class=\"cms-ev-speaker\"><div class=\"cms-ev-avatar\" style=\"background-image:url('https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400')\"></div><div class=\"cms-ev-sp-name\">Chen · OSS Architect</div><div class=\"cms-ev-sp-role\">Platform Eng / Keynote</div><div class=\"cms-ev-sp-topic\">\"Dev tools in the AI era\"</div></div>" })),
+            new("col-2", "cms.html", "Speaker 2", Serialize(new { html = "<div class=\"cms-ev-speaker\"><div class=\"cms-ev-avatar\" style=\"background-image:url('https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=400')\"></div><div class=\"cms-ev-sp-name\">Lin · Frontend Lead</div><div class=\"cms-ev-sp-role\">DX / Workshop</div><div class=\"cms-ev-sp-topic\">\"The next stop for frameworks\"</div></div>" })),
+            new("col-3", "cms.html", "Speaker 3", Serialize(new { html = "<div class=\"cms-ev-speaker\"><div class=\"cms-ev-avatar\" style=\"background-image:url('https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&cs=tinysrgb&w=400')\"></div><div class=\"cms-ev-sp-name\">Zhou · Research Scientist</div><div class=\"cms-ev-sp-role\">AI Platform / Panel</div><div class=\"cms-ev-sp-topic\">\"Real limits of LLM adoption\"</div></div>" }))
+        ]),
+        new("Agenda", "agenda", true, "two-column",
+        [
+            new("left", "cms.html", "Ticket Agenda", Serialize(new
+            {
+                html = "<div class=\"cms-ev-ticket\"><div class=\"cms-ev-ticket-stub\">DAY 01 / 11.28</div><div class=\"cms-ev-agenda\"><div class=\"cms-ev-ag-row\"><b>09:00</b><span>Registration &amp; coffee</span></div><div class=\"cms-ev-ag-row\"><b>10:00</b><span>Opening keynote</span></div><div class=\"cms-ev-ag-row\"><b>13:30</b><span>Six parallel tracks</span></div><div class=\"cms-ev-ag-row\"><b>18:00</b><span>Community night</span></div></div><div class=\"cms-ev-ticket-perf\">ADMIT ONE · #2026</div></div>"
+            })),
+            new("right", "cms.tabs", "Tracks", Serialize(new
+            {
+                heading = "Six theme tracks",
+                items = new[]
+                {
+                    new { title = "AI & Agent", content = "From model capability to engineering practice — agent platform architecture and real cases.", imageUrl = "https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=800" },
+                    new { title = "Platform Eng", content = "Platform engineering, developer experience and scaling internal toolchains.", imageUrl = "https://images.pexels.com/photos/1181244/pexels-photo-1181244.jpeg?auto=compress&cs=tinysrgb&w=800" },
+                    new { title = "Frontend", content = "Modern frameworks, rendering modes and design systems.", imageUrl = "https://images.pexels.com/photos/11035380/pexels-photo-11035380.jpeg?auto=compress&cs=tinysrgb&w=800" }
+                }
+            }))
+        ]),
+        new("Sponsors", "sponsors", false, "single-column",
+        [
+            new("main", "cms.partners", "Sponsor Marquee", Serialize(new
+            {
+                heading = "Partners",
+                variant = "marquee",
+                items = new[] { new { name = "Vercel" }, new { name = "Cloudflare" }, new { name = "Supabase" }, new { name = "GitHub" }, new { name = "JetBrains" }, new { name = "Docker" }, new { name = "MongoDB" } }
+            }))
+        ]),
+        new("Tickets", "tickets", true, "single-column",
+        [
+            new("main", "cms.pricing", "Early Bird", Serialize(new
+            {
+                heading = "Pick your pass",
+                subheading = "Early bird ends Oct 31, while stocks last",
+                plans = new[]
+                {
+                    new { name = "Day Pass", price = "$99", badge = "", period = "/ person", features = new[] { "One-day entry", "All tracks", "Lunch & coffee" }, buttonText = "Buy now", buttonHref = "#register", highlighted = false },
+                    new { name = "Full Pass", price = "$169", badge = "Best value", period = "/ person", features = new[] { "Two-day entry", "All workshops", "Community night", "Limited swag" }, buttonText = "Grab early bird", buttonHref = "#register", highlighted = true },
+                    new { name = "VIP", price = "$429", badge = "", period = "/ person", features = new[] { "Two-day entry", "Speakers' dinner", "Front-row seats", "Lounge access" }, buttonText = "See benefits", buttonHref = "#register", highlighted = false }
+                }
+            }))
+        ]),
+        new("Register", "register", false, "single-column",
+        [
+            new("main", "cms.contact", "Registration", Serialize(new
+            {
+                heading = "Claim your seat",
+                subheading = "Leave your details for the ticket link and agenda updates",
+                submitText = "Register now", email = "hello@pulse2026.dev", phone = "+86 400-028-2026", address = "Shanghai · West Bund Art Center"
+            }))
+        ]),
+        new("Footer", "footer", false, "single-column",
+        [
+            new("main", "cms.footer", "Footer", Serialize(new { brand, tagline = $"{industry} · Feel the pulse.", copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved." }))
+        ])
+    ];
+
+    // ============================================================
+    // 9. 极简精品生活 —— 纯白 + 超大留白 + 极细字 + 灰褐点缀 + 大图叙事 + 发丝线网格
+    //    区块节奏：大图 Hero → 画廊 → 左图右文叙事 → 三栏系列 → 极简评价 → 订阅
+    // ============================================================
+    private static List<CmsAiSectionDraft> BoutiqueZh(string brand, string industry, string? stylePrompt) =>
+    [
+        new("主页", "home", true, "single-column",
+        [
+            new("main", "cms.html", "极简 Hero", Serialize(new
+            {
+                html = $"<div class=\"cms-bt-hero\"><div class=\"cms-bt-eyebrow\">{brand} &nbsp;—&nbsp; EST. 2026</div><h1 class=\"cms-bt-title\">Less,<br/><em>but better.</em></h1><p class=\"cms-bt-lead\">{stylePrompt ?? "我们只挑选那些经得起时间审视的物件。少一点，但更好。"}</p><a href=\"#collection\" class=\"cms-bt-link\">探索系列 ↗</a></div>"
+            })),
+            new("main", "cms.image", "叙事主图", Serialize(new
+            {
+                imageUrl = "https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=1400",
+                alt = "精品空间", caption = "01 / 光的房间", rounded = false, shadow = false, maxHeight = 620
+            }))
+        ]),
+        new("画廊", "gallery", true, "single-column",
+        [
+            new("main", "cms.gallery", "作品画廊", Serialize(new
+            {
+                heading = "物件志",
+                items = new[]
+                {
+                    new { url = "https://images.pexels.com/photos/1866149/pexels-photo-1866149.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "座椅 / 橡木" },
+                    new { url = "https://images.pexels.com/photos/1112598/pexels-photo-1112598.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "灯具 / 黄铜" },
+                    new { url = "https://images.pexels.com/photos/6487838/pexels-photo-6487838.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "器皿 / 陶土" },
+                    new { url = "https://images.pexels.com/photos/4202325/pexels-photo-4202325.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "织物 / 亚麻" }
+                }
+            }))
+        ]),
+        new("故事", "story", true, "two-column",
+        [
+            new("left", "cms.image", "工艺图", Serialize(new
+            {
+                imageUrl = "https://images.pexels.com/photos/6069265/pexels-photo-6069265.jpeg?auto=compress&cs=tinysrgb&w=900",
+                alt = "手作工艺", caption = "02 / 手的痕迹", rounded = false, shadow = false, maxHeight = 520
+            })),
+            new("right", "cms.richtext", "品牌故事", Serialize(new
+            {
+                heading = "关于挑选",
+                body = "每一件进入 {brand} 的物件，都要经过三个月的观察——材质的来源、工艺的过程、使用的质感。我们不做过多的解释，只把真正好的东西，放在你面前。"
+            }))
+        ]),
+        new("系列", "collection", true, "three-column",
+        [
+            new("col-1", "cms.html", "系列 1", Serialize(new { html = "<div class=\"cms-bt-card\"><div class=\"cms-bt-card-img\" style=\"background-image:url('https://images.pexels.com/photos/276583/pexels-photo-276583.jpeg?auto=compress&cs=tinysrgb&w=700')\"></div><div class=\"cms-bt-card-no\">COLLECTION 01</div><h3>居住</h3><p>为日常而生的家具与陈设。</p></div>" })),
+            new("col-2", "cms.html", "系列 2", Serialize(new { html = "<div class=\"cms-bt-card\"><div class=\"cms-bt-card-img\" style=\"background-image:url('https://images.pexels.com/photos/1018901/pexels-photo-1018901.jpeg?auto=compress&cs=tinysrgb&w=700')\"></div><div class=\"cms-bt-card-no\">COLLECTION 02</div><h3>器物</h3><p>可以被握在手里的时间。</p></div>" })),
+            new("col-3", "cms.html", "系列 3", Serialize(new { html = "<div class=\"cms-bt-card\"><div class=\"cms-bt-card-img\" style=\"background-image:url('https://images.pexels.com/photos/3771118/pexels-photo-3771118.jpeg?auto=compress&cs=tinysrgb&w=700')\"></div><div class=\"cms-bt-card-no\">COLLECTION 03</div><h3>织物</h3><p>触感编织出的生活温度。</p></div>" }))
+        ]),
+        new("评价", "voices", false, "single-column",
+        [
+            new("main", "cms.testimonials", "客户之声", Serialize(new
+            {
+                heading = "他们说",
+                variant = "carousel",
+                items = new[]
+                {
+                    new { quote = "第一次觉得，买一件东西也可以是一种克制而愉快的选择。", author = "沈女士", role = "室内设计师" },
+                    new { quote = "材质和细节经得起反复看，这才是想要长期留在身边的东西。", author = "孟先生", role = "建筑师" }
+                }
+            }))
+        ]),
+        new("订阅", "newsletter", false, "single-column",
+        [
+            new("main", "cms.html", "极简订阅", Serialize(new
+            {
+                html = $"<div class=\"cms-bt-subscribe\"><div class=\"cms-bt-eyebrow\">LETTER</div><h2>新品与故事，<br/>偶尔来信。</h2><div class=\"cms-bt-form\"><input type=\"email\" placeholder=\"邮箱地址\" /><button>订阅 ↗</button></div><p>{brand} · {industry}</p></div>"
+            }))
+        ]),
+        new("页脚", "footer", false, "single-column",
+        [
+            new("main", "cms.footer", "页脚", Serialize(new { brand, tagline = $"{industry} · Less, but better.", copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved." }))
+        ])
+    ];
+
+    private static List<CmsAiSectionDraft> BoutiqueEn(string brand, string industry, string? stylePrompt) =>
+    [
+        new("Home", "home", true, "single-column",
+        [
+            new("main", "cms.html", "Minimal Hero", Serialize(new
+            {
+                html = $"<div class=\"cms-bt-hero\"><div class=\"cms-bt-eyebrow\">{brand} &nbsp;—&nbsp; EST. 2026</div><h1 class=\"cms-bt-title\">Less,<br/><em>but better.</em></h1><p class=\"cms-bt-lead\">{stylePrompt ?? "We only select objects that stand the test of time. Less, but better."}</p><a href=\"#collection\" class=\"cms-bt-link\">Explore collection ↗</a></div>"
+            })),
+            new("main", "cms.image", "Hero Image", Serialize(new
+            {
+                imageUrl = "https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=1400",
+                alt = "Boutique space", caption = "01 / The room of light", rounded = false, shadow = false, maxHeight = 620
+            }))
+        ]),
+        new("Gallery", "gallery", true, "single-column",
+        [
+            new("main", "cms.gallery", "Gallery", Serialize(new
+            {
+                heading = "Object notes",
+                items = new[]
+                {
+                    new { url = "https://images.pexels.com/photos/1866149/pexels-photo-1866149.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "Chair / Oak" },
+                    new { url = "https://images.pexels.com/photos/1112598/pexels-photo-1112598.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "Lamp / Brass" },
+                    new { url = "https://images.pexels.com/photos/6487838/pexels-photo-6487838.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "Vessel / Clay" },
+                    new { url = "https://images.pexels.com/photos/4202325/pexels-photo-4202325.jpeg?auto=compress&cs=tinysrgb&w=800", caption = "Textile / Linen" }
+                }
+            }))
+        ]),
+        new("Story", "story", true, "two-column",
+        [
+            new("left", "cms.image", "Craft Image", Serialize(new
+            {
+                imageUrl = "https://images.pexels.com/photos/6069265/pexels-photo-6069265.jpeg?auto=compress&cs=tinysrgb&w=900",
+                alt = "Handcraft", caption = "02 / Traces of hands", rounded = false, shadow = false, maxHeight = 520
+            })),
+            new("right", "cms.richtext", "Brand Story", Serialize(new
+            {
+                heading = "On selection",
+                body = "Every object at {brand} is observed for three months — its material origin, making process and tactile quality. We don't over-explain; we simply place the truly good things before you."
+            }))
+        ]),
+        new("Collection", "collection", true, "three-column",
+        [
+            new("col-1", "cms.html", "Collection 1", Serialize(new { html = "<div class=\"cms-bt-card\"><div class=\"cms-bt-card-img\" style=\"background-image:url('https://images.pexels.com/photos/276583/pexels-photo-276583.jpeg?auto=compress&cs=tinysrgb&w=700')\"></div><div class=\"cms-bt-card-no\">COLLECTION 01</div><h3>Living</h3><p>Furniture made for the everyday.</p></div>" })),
+            new("col-2", "cms.html", "Collection 2", Serialize(new { html = "<div class=\"cms-bt-card\"><div class=\"cms-bt-card-img\" style=\"background-image:url('https://images.pexels.com/photos/1018901/pexels-photo-1018901.jpeg?auto=compress&cs=tinysrgb&w=700')\"></div><div class=\"cms-bt-card-no\">COLLECTION 02</div><h3>Objects</h3><p>Time you can hold in your hands.</p></div>" })),
+            new("col-3", "cms.html", "Collection 3", Serialize(new { html = "<div class=\"cms-bt-card\"><div class=\"cms-bt-card-img\" style=\"background-image:url('https://images.pexels.com/photos/3771118/pexels-photo-3771118.jpeg?auto=compress&cs=tinysrgb&w=700')\"></div><div class=\"cms-bt-card-no\">COLLECTION 03</div><h3>Textiles</h3><p>Warmth woven into daily life.</p></div>" }))
+        ]),
+        new("Voices", "voices", false, "single-column",
+        [
+            new("main", "cms.testimonials", "Voices", Serialize(new
+            {
+                heading = "What they say",
+                variant = "carousel",
+                items = new[]
+                {
+                    new { quote = "For the first time, buying something feels like a restrained and pleasant choice.", author = "Ms. Shen", role = "Interior designer" },
+                    new { quote = "The material and details stand up to repeated looking — things I want to keep for years.", author = "Mr. Meng", role = "Architect" }
+                }
+            }))
+        ]),
+        new("Newsletter", "newsletter", false, "single-column",
+        [
+            new("main", "cms.html", "Minimal Subscribe", Serialize(new
+            {
+                html = $"<div class=\"cms-bt-subscribe\"><div class=\"cms-bt-eyebrow\">LETTER</div><h2>New things &amp; stories,<br/>occasionally in your inbox.</h2><div class=\"cms-bt-form\"><input type=\"email\" placeholder=\"Email address\" /><button>Subscribe ↗</button></div><p>{brand} · {industry}</p></div>"
+            }))
+        ]),
+        new("Footer", "footer", false, "single-column",
+        [
+            new("main", "cms.footer", "Footer", Serialize(new { brand, tagline = $"{industry} · Less, but better.", copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved." }))
+        ])
+    ];
+
+    // ============================================================
+    // 10. 异型拼贴 —— 7/5 错位 + 封面内嵌三列 + 4/8→8/4 阶梯（mosaic-swiss）
+    // ============================================================
+    private static List<CmsAiSectionDraft> MosaicZh(string brand, string industry, string? stylePrompt) =>
+    [
+        new("主页", "home", true, CmsBuiltInLayoutNames.MosaicCollage,
+        [
+            new("mz-feature", "cms.html", "拼贴主视觉", Serialize(new
+            {
+                html = $"<div class=\"cms-mz-hero\"><div class=\"cms-mz-index\">01 / 07 — {industry}</div><h1 class=\"cms-mz-title\">{brand}<br/><span>空间，</span><br/><span>被重新编排</span></h1><p class=\"cms-mz-lead\">{stylePrompt ?? "我们以不对称的秩序组织空间与叙事，让每一次观看都产生新的路径。"}</p><a href=\"#works\" class=\"cms-mz-link\">查看作品 ↗</a></div>"
+            })),
+            new("mz-aside", "cms.richtext", "侧边摘要", Serialize(new
+            {
+                heading = "关于工作室",
+                body = "成立于城市旧厂房的工作室，专注建筑更新、展陈设计与品牌空间。我们相信留白与错位本身就是一种精确。",
+                imageUrl = ""
+            })),
+            new("mz-band", "cms.html", "编号数据条", Serialize(new
+            {
+                html = "<div class=\"cms-mz-band\"><div><b>42</b><span>建成项目</span></div><div><b>11</b><span>城市</span></div><div><b>07</b><span>设计奖项</span></div><div><b>2026</b><span>此刻</span></div></div>"
+            }))
+        ]),
+        new("精选作品", "works", true, CmsBuiltInLayoutNames.MosaicNested,
+        [
+            new("mz-cover", "cms.html", "作品区标题", Serialize(new
+            {
+                html = "<div class=\"cms-mz-section-head\"><span>SELECTED WORKS / 001—003</span><h2>三个空间，三种秩序</h2></div>"
+            })),
+            new("mz-work-1", "cms.html", "作品一", Serialize(new
+            {
+                html = "<article class=\"cms-mz-work\"><img src=\"https://images.pexels.com/photos/323780/pexels-photo-323780.jpeg?auto=compress&cs=tinysrgb&w=900\" alt=\"旧厂房更新\" /><div class=\"cms-mz-work-no\">№ 001</div><h3>旧厂房更新</h3><p>把工业遗存折叠成公共客厅。</p></article>"
+            })),
+            new("mz-work-2", "cms.html", "作品二", Serialize(new
+            {
+                html = "<article class=\"cms-mz-work\"><img src=\"https://images.pexels.com/photos/1181406/pexels-photo-1181406.jpeg?auto=compress&cs=tinysrgb&w=900\" alt=\"城市展厅\" /><div class=\"cms-mz-work-no\">№ 002</div><h3>城市展厅</h3><p>用一条动线串起 十二个叙事片段。</p></article>"
+            })),
+            new("mz-work-3", "cms.html", "作品三", Serialize(new
+            {
+                html = "<article class=\"cms-mz-work\"><img src=\"https://images.pexels.com/photos/2102587/pexels-photo-2102587.jpeg?auto=compress&cs=tinysrgb&w=900\" alt=\"滨水住宅\" /><div class=\"cms-mz-work-no\">№ 003</div><h3>滨水住宅</h3><p>让水面成为立面的一部分。</p></article>"
+            }))
+        ]),
+        new("工作方法", "approach", true, CmsBuiltInLayoutNames.MosaicStairs,
+        [
+            new("mz-step-a", "cms.html", "步骤一", Serialize(new
+            {
+                html = "<div class=\"cms-mz-step cms-mz-step-num\"><b>01</b><h3>观察</h3></div>"
+            })),
+            new("mz-step-b", "cms.html", "步骤二", Serialize(new
+            {
+                html = "<div class=\"cms-mz-step\"><p>从场地原有的纹理出发，记录光线、人流与时间的痕迹。不预设风格，先读懂场所。</p></div>"
+            })),
+            new("mz-step-c", "cms.html", "步骤三", Serialize(new
+            {
+                html = "<div class=\"cms-mz-step\"><p>用错位、留白与比例尺度的反复推演，把抽象概念落成可步入的空间结构。</p></div>"
+            })),
+            new("mz-step-d", "cms.html", "步骤四", Serialize(new
+            {
+                html = "<div class=\"cms-mz-step cms-mz-step-num\"><b>04</b><h3>交付</h3></div>"
+            }))
+        ]),
+        new("近期手记", "notes", true, CmsBuiltInLayoutNames.MosaicCollage,
+        [
+            new("mz-feature", "cms.html", "手记主文", Serialize(new
+            {
+                html = "<div class=\"cms-mz-note\"><div class=\"cms-mz-work-no\">JOURNAL / 06</div><h2>错位不是失衡，<br/>而是另一种秩序</h2><p>当对称被打破，视线开始移动；空间不再是静态的画面，而成为一段被组织过的时间。</p></div>"
+            })),
+            new("mz-aside", "cms.richtext", "手记侧栏", Serialize(new
+            {
+                heading = "更多记录",
+                body = "材料笔记 04 / 混凝土的温度 · 城市观察 11 / 街道的缝隙 · 设计复盘 02 / 一次失败的竞标。",
+                imageUrl = ""
+            })),
+            new("mz-band", "cms.html", "引用", Serialize(new
+            {
+                html = "<blockquote class=\"cms-mz-quote\">「 好的布局不告诉你该看哪里，而是让你愿意多看一眼。 」</blockquote>"
+            }))
+        ]),
+        new("页脚", "footer", false, "single-column",
+        [
+            new("main", "cms.footer", "页脚", Serialize(new { brand, tagline = $"{industry} · Form follows rhythm.", copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved." }))
+        ])
+    ];
+
+    private static List<CmsAiSectionDraft> MosaicEn(string brand, string industry, string? stylePrompt) =>
+    [
+        new("Home", "home", true, CmsBuiltInLayoutNames.MosaicCollage,
+        [
+            new("mz-feature", "cms.html", "Collage Hero", Serialize(new
+            {
+                html = $"<div class=\"cms-mz-hero\"><div class=\"cms-mz-index\">01 / 07 — {industry}</div><h1 class=\"cms-mz-title\">{brand}<br/><span>Space,</span><br/><span>recomposed</span></h1><p class=\"cms-mz-lead\">{stylePrompt ?? "We organise space and narrative with asymmetric order so every view opens a new path."}</p><a href=\"#works\" class=\"cms-mz-link\">See the work ↗</a></div>"
+            })),
+            new("mz-aside", "cms.richtext", "Studio Note", Serialize(new
+            {
+                heading = "About the studio",
+                body = "Based in a converted factory, we work on adaptive reuse, exhibition design and brand spaces. We believe whitespace and offset are a form of precision.",
+                imageUrl = ""
+            })),
+            new("mz-band", "cms.html", "Number Strip", Serialize(new
+            {
+                html = "<div class=\"cms-mz-band\"><div><b>42</b><span>built projects</span></div><div><b>11</b><span>cities</span></div><div><b>07</b><span>design awards</span></div><div><b>2026</b><span>right now</span></div></div>"
+            }))
+        ]),
+        new("Selected Works", "works", true, CmsBuiltInLayoutNames.MosaicNested,
+        [
+            new("mz-cover", "cms.html", "Works Heading", Serialize(new
+            {
+                html = "<div class=\"cms-mz-section-head\"><span>SELECTED WORKS / 001—003</span><h2>Three spaces, three orders</h2></div>"
+            })),
+            new("mz-work-1", "cms.html", "Work 1", Serialize(new
+            {
+                html = "<article class=\"cms-mz-work\"><img src=\"https://images.pexels.com/photos/323780/pexels-photo-323780.jpeg?auto=compress&cs=tinysrgb&w=900\" alt=\"Factory renewal\" /><div class=\"cms-mz-work-no\">№ 001</div><h3>Factory Renewal</h3><p>Folding industrial remains into a public living room.</p></article>"
+            })),
+            new("mz-work-2", "cms.html", "Work 2", Serialize(new
+            {
+                html = "<article class=\"cms-mz-work\"><img src=\"https://images.pexels.com/photos/1181406/pexels-photo-1181406.jpeg?auto=compress&cs=tinysrgb&w=900\" alt=\"City gallery\" /><div class=\"cms-mz-work-no\">№ 002</div><h3>City Gallery</h3><p>Twelve stories stitched into one continuous route.</p></article>"
+            })),
+            new("mz-work-3", "cms.html", "Work 3", Serialize(new
+            {
+                html = "<article class=\"cms-mz-work\"><img src=\"https://images.pexels.com/photos/2102587/pexels-photo-2102587.jpeg?auto=compress&cs=tinysrgb&w=900\" alt=\"Waterfront house\" /><div class=\"cms-mz-work-no\">№ 003</div><h3>Waterfront House</h3><p>Letting the river become part of the facade.</p></article>"
+            }))
+        ]),
+        new("Approach", "approach", true, CmsBuiltInLayoutNames.MosaicStairs,
+        [
+            new("mz-step-a", "cms.html", "Step 1", Serialize(new
+            {
+                html = "<div class=\"cms-mz-step cms-mz-step-num\"><b>01</b><h3>Observe</h3></div>"
+            })),
+            new("mz-step-b", "cms.html", "Step 2", Serialize(new
+            {
+                html = "<div class=\"cms-mz-step\"><p>We start with the existing texture of a site, recording light, movement and traces of time. Style comes later.</p></div>"
+            })),
+            new("mz-step-c", "cms.html", "Step 3", Serialize(new
+            {
+                html = "<div class=\"cms-mz-step\"><p>Offset, whitespace and scale are tested again and again until an abstract idea becomes a walkable structure.</p></div>"
+            })),
+            new("mz-step-d", "cms.html", "Step 4", Serialize(new
+            {
+                html = "<div class=\"cms-mz-step cms-mz-step-num\"><b>04</b><h3>Deliver</h3></div>"
+            }))
+        ]),
+        new("Journal", "notes", true, CmsBuiltInLayoutNames.MosaicCollage,
+        [
+            new("mz-feature", "cms.html", "Journal Lead", Serialize(new
+            {
+                html = "<div class=\"cms-mz-note\"><div class=\"cms-mz-work-no\">JOURNAL / 06</div><h2>Offset is not imbalance,<br/>it is another order</h2><p>Once symmetry breaks, the eye starts moving. Space stops being a still image and becomes organised time.</p></div>"
+            })),
+            new("mz-aside", "cms.richtext", "Journal Aside", Serialize(new
+            {
+                heading = "More notes",
+                body = "Material 04 / The warmth of concrete · City 11 / Gaps in the street · Review 02 / A failed competition.",
+                imageUrl = ""
+            })),
+            new("mz-band", "cms.html", "Quote", Serialize(new
+            {
+                html = "<blockquote class=\"cms-mz-quote\">“ A good layout does not tell you where to look. It makes you want to look again. ”</blockquote>"
+            }))
+        ]),
+        new("Footer", "footer", false, "single-column",
+        [
+            new("main", "cms.footer", "Footer", Serialize(new { brand, tagline = $"{industry} · Form follows rhythm.", copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved." }))
+        ])
+    ];
+
+    // ============================================================
+    // 11. 异型中心舞台 —— 3/6/3 卫星环绕 + 舞台内嵌双轨（signal-wave）
+    // ============================================================
+    private static List<CmsAiSectionDraft> SignalZh(string brand, string industry, string? stylePrompt) =>
+    [
+        new("首页", "home", true, CmsBuiltInLayoutNames.SignalStage,
+        [
+            new("sg-left", "cms.html", "左侧卫星", Serialize(new
+            {
+                html = "<div class=\"cms-sg-satellite\"><div class=\"cms-sg-wave\"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span>EPISODE<br/>№ 128</span><small>正在播出</small></div>"
+            })),
+            new("sg-stage", "cms.html", "中心舞台", Serialize(new
+            {
+                html = $"<div class=\"cms-sg-stage\"><div class=\"cms-sg-live\">● ON AIR / 每周三更新</div><h1 class=\"cms-sg-title\">{brand}<br/><span>听见</span><em>另一种答案</em></h1><p class=\"cms-sg-lead\">{stylePrompt ?? "和那些愿意慢下来的人，聊技术、城市与生活的真实切面。"}</p><a href=\"#episodes\" class=\"cms-sg-play\">▶ 收听最新一期</a></div>"
+            })),
+            new("sg-right", "cms.html", "右侧卫星", Serialize(new
+            {
+                html = "<div class=\"cms-sg-satellite cms-sg-satellite-alt\"><span class=\"cms-sg-kicker\">LATEST</span><b>38:12</b><p>当城市开始<br/>学会呼吸</p><small>2026.11.20</small></div>"
+            }))
+        ]),
+        new("最新节目", "episodes", true, CmsBuiltInLayoutNames.SignalNested,
+        [
+            new("sg-head", "cms.html", "节目区标题", Serialize(new
+            {
+                html = "<div class=\"cms-sg-head\"><span>EPISODE ARCHIVE</span><h2>双轨节目单</h2><p>左轨是深度对谈，右轨是现场声音。</p></div>"
+            })),
+            new("sg-track-a", "cms.html", "深度对谈轨", Serialize(new
+            {
+                html = "<div class=\"cms-sg-track\"><div class=\"cms-sg-track-label\">TRACK A / 深度对谈</div><div class=\"cms-sg-ep\"><b>128</b><div><h3>当城市开始学会呼吸</h3><span>38:12 · 与城市规划师的对谈</span></div><i>▶</i></div><div class=\"cms-sg-ep\"><b>127</b><div><h3>一个人如何做独立软件</h3><span>52:40 · 独立开发者故事</span></div><i>▶</i></div><div class=\"cms-sg-ep\"><b>126</b><div><h3>重新理解「慢」</h3><span>44:08 · 生活方式观察</span></div><i>▶</i></div></div>"
+            })),
+            new("sg-track-b", "cms.html", "现场声音轨", Serialize(new
+            {
+                html = "<div class=\"cms-sg-track cms-sg-track-wide\"><div class=\"cms-sg-track-label\">TRACK B / 现场声音</div><div class=\"cms-sg-feature-ep\"><div class=\"cms-sg-wave\"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><h3>城市采样：清晨六点的菜市场</h3><p>我们用一周时间，在最喧闹的地方录下最安静的声音。戴上耳机，走进那段还没被城市叫醒的时间。</p><span>24:36 · FIELD RECORDING</span></div></div>"
+            }))
+        ]),
+        new("主播", "hosts", true, CmsBuiltInLayoutNames.SignalStage,
+        [
+            new("sg-left", "cms.html", "主播一", Serialize(new
+            {
+                html = "<div class=\"cms-sg-host\"><img class=\"cms-sg-avatar\" src=\"https://images.pexels.com/photos/3184454/pexels-photo-3184454.jpeg?auto=compress&cs=tinysrgb&w=500\" alt=\"林 澈\" /><b>林 澈</b><span>主持 / 城市观察</span></div>"
+            })),
+            new("sg-stage", "cms.html", "主播介绍", Serialize(new
+            {
+                html = "<div class=\"cms-sg-host-intro\"><span>THE VOICES</span><h2>两个麦克风，<br/>一种好奇心</h2><p>我们相信好对话不需要脚本。每期留一段没有剪辑的沉默，因为那往往是真正开始思考的地方。</p></div>"
+            })),
+            new("sg-right", "cms.html", "主播二", Serialize(new
+            {
+                html = "<div class=\"cms-sg-host\"><img class=\"cms-sg-avatar\" src=\"https://images.pexels.com/photos/1181675/pexels-photo-1181675.jpeg?auto=compress&cs=tinysrgb&w=500\" alt=\"周 未\" /><b>周 未</b><span>制作 / 声音设计</span></div>"
+            }))
+        ]),
+        new("收听平台", "subscribe", true, "single-column",
+        [
+            new("main", "cms.html", "平台卡片", Serialize(new
+            {
+                html = "<div class=\"cms-sg-platforms\"><h2>在任何地方收听</h2><div><span>Apple Podcasts</span><span>Spotify</span><span>小宇宙</span><span>RSS</span></div></div>"
+            }))
+        ]),
+        new("页脚", "footer", false, "single-column",
+        [
+            new("main", "cms.footer", "页脚", Serialize(new { brand, tagline = $"{industry} · Listen closer.", copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved." }))
+        ])
+    ];
+
+    private static List<CmsAiSectionDraft> SignalEn(string brand, string industry, string? stylePrompt) =>
+    [
+        new("Home", "home", true, CmsBuiltInLayoutNames.SignalStage,
+        [
+            new("sg-left", "cms.html", "Left Satellite", Serialize(new
+            {
+                html = "<div class=\"cms-sg-satellite\"><div class=\"cms-sg-wave\"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span>EPISODE<br/>№ 128</span><small>ON AIR NOW</small></div>"
+            })),
+            new("sg-stage", "cms.html", "Center Stage", Serialize(new
+            {
+                html = $"<div class=\"cms-sg-stage\"><div class=\"cms-sg-live\">● ON AIR / Every Wednesday</div><h1 class=\"cms-sg-title\">{brand}<br/><span>Hear it</span><em>differently</em></h1><p class=\"cms-sg-lead\">{stylePrompt ?? "Real conversations about technology, cities and the unedited parts of life."}</p><a href=\"#episodes\" class=\"cms-sg-play\">▶ Play latest episode</a></div>"
+            })),
+            new("sg-right", "cms.html", "Right Satellite", Serialize(new
+            {
+                html = "<div class=\"cms-sg-satellite cms-sg-satellite-alt\"><span class=\"cms-sg-kicker\">LATEST</span><b>38:12</b><p>When a city<br/>learns to breathe</p><small>2026.11.20</small></div>"
+            }))
+        ]),
+        new("Episodes", "episodes", true, CmsBuiltInLayoutNames.SignalNested,
+        [
+            new("sg-head", "cms.html", "Episodes Heading", Serialize(new
+            {
+                html = "<div class=\"cms-sg-head\"><span>EPISODE ARCHIVE</span><h2>Two tracks, one signal</h2><p>Track A is long-form conversation. Track B is raw field sound.</p></div>"
+            })),
+            new("sg-track-a", "cms.html", "Talk Track", Serialize(new
+            {
+                html = "<div class=\"cms-sg-track\"><div class=\"cms-sg-track-label\">TRACK A / DEEP TALKS</div><div class=\"cms-sg-ep\"><b>128</b><div><h3>When a city learns to breathe</h3><span>38:12 · with an urban planner</span></div><i>▶</i></div><div class=\"cms-sg-ep\"><b>127</b><div><h3>Building software alone</h3><span>52:40 · an indie developer story</span></div><i>▶</i></div><div class=\"cms-sg-ep\"><b>126</b><div><h3>Rethinking slow</h3><span>44:08 · notes on lifestyle</span></div><i>▶</i></div></div>"
+            })),
+            new("sg-track-b", "cms.html", "Field Track", Serialize(new
+            {
+                html = "<div class=\"cms-sg-track cms-sg-track-wide\"><div class=\"cms-sg-track-label\">TRACK B / FIELD SOUND</div><div class=\"cms-sg-feature-ep\"><div class=\"cms-sg-wave\"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><h3>City sampling: 6 a.m. at the market</h3><p>We spent a week recording the quietest sounds in the loudest places. Put on your headphones and step into the hour before the city wakes.</p><span>24:36 · FIELD RECORDING</span></div></div>"
+            }))
+        ]),
+        new("Hosts", "hosts", true, CmsBuiltInLayoutNames.SignalStage,
+        [
+            new("sg-left", "cms.html", "Host 1", Serialize(new
+            {
+                html = "<div class=\"cms-sg-host\"><img class=\"cms-sg-avatar\" src=\"https://images.pexels.com/photos/3184454/pexels-photo-3184454.jpeg?auto=compress&cs=tinysrgb&w=500\" alt=\"Lin Che\" /><b>Lin Che</b><span>Host / City watch</span></div>"
+            })),
+            new("sg-stage", "cms.html", "Host Intro", Serialize(new
+            {
+                html = "<div class=\"cms-sg-host-intro\"><span>THE VOICES</span><h2>Two microphones,<br/>one curiosity</h2><p>We believe a good conversation needs no script. Every episode keeps one unedited pause, because that is usually where thinking begins.</p></div>"
+            })),
+            new("sg-right", "cms.html", "Host 2", Serialize(new
+            {
+                html = "<div class=\"cms-sg-host\"><img class=\"cms-sg-avatar\" src=\"https://images.pexels.com/photos/1181675/pexels-photo-1181675.jpeg?auto=compress&cs=tinysrgb&w=500\" alt=\"Zhou Wei\" /><b>Zhou Wei</b><span>Producer / Sound</span></div>"
+            }))
+        ]),
+        new("Subscribe", "subscribe", true, "single-column",
+        [
+            new("main", "cms.html", "Platforms", Serialize(new
+            {
+                html = "<div class=\"cms-sg-platforms\"><h2>Listen anywhere</h2><div><span>Apple Podcasts</span><span>Spotify</span><span>Xiaoyuzhou</span><span>RSS</span></div></div>"
+            }))
+        ]),
+        new("Footer", "footer", false, "single-column",
+        [
+            new("main", "cms.footer", "Footer", Serialize(new { brand, tagline = $"{industry} · Listen closer.", copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved." }))
+        ])
+    ];
+
+    // ============================================================
+    // 12. 异型跨页 —— 5/7 转 7/5 图文互换 + 地图内嵌四列（atlas-terra）
+    // ============================================================
+    private static List<CmsAiSectionDraft> AtlasZh(string brand, string industry, string? stylePrompt) =>
+    [
+        new("目的地", "home", true, CmsBuiltInLayoutNames.AtlasSpread,
+        [
+            new("at-text-left", "cms.html", "跨页左文", Serialize(new
+            {
+                html = $"<div class=\"cms-at-intro\"><div class=\"cms-at-kicker\">FIELD NOTES / 2026</div><h1 class=\"cms-at-title\">{brand}<br/><em>城市漫游指南</em></h1><p class=\"cms-at-lead\">{stylePrompt ?? "不追景点，只追那些让一座城市变得可亲的日常细节。"}</p><a href=\"#map\" class=\"cms-at-link\">打开地图 ↗</a></div>"
+            })),
+            new("at-visual-right", "cms.image", "跨页右图", Serialize(new
+            {
+                imageUrl = "https://images.pexels.com/photos/1648776/pexels-photo-1648776.jpeg?auto=compress&cs=tinysrgb&w=1200",
+                alt = "城市街景", caption = "01 / 清晨的街角", rounded = true, shadow = false, maxHeight = 520
+            })),
+            new("at-visual-left", "cms.image", "反向左图", Serialize(new
+            {
+                imageUrl = "https://images.pexels.com/photos/1181244/pexels-photo-1181244.jpeg?auto=compress&cs=tinysrgb&w=1200",
+                alt = "城市建筑", caption = "02 / 午后的立面", rounded = true, shadow = false, maxHeight = 520
+            })),
+            new("at-text-right", "cms.html", "跨页右文", Serialize(new
+            {
+                html = "<div class=\"cms-at-note\"><span>ON SLOW TRAVEL</span><h2>把地图折起来，<br/>用脚步丈量</h2><p>最好的路线从来不在攻略里。它藏在一条小巷的拐角、一家只开半天的书店，和某个愿意和你聊十分钟的人那里。</p></div>"
+            }))
+        ]),
+        new("城市地图", "map", true, CmsBuiltInLayoutNames.AtlasNested,
+        [
+            new("at-map", "cms.html", "地图横幅", Serialize(new
+            {
+                html = "<div class=\"cms-at-map\"><div class=\"cms-at-map-grid\"></div><div class=\"cms-at-map-label\">CITY / 04 STOPS</div><h2>四站，一条不赶时间的路线</h2><div class=\"cms-at-pin pin-1\">A</div><div class=\"cms-at-pin pin-2\">B</div><div class=\"cms-at-pin pin-3\">C</div><div class=\"cms-at-pin pin-4\">D</div></div>"
+            })),
+            new("at-card-1", "cms.html", "目的地一", Serialize(new
+            {
+                html = "<article class=\"cms-at-card\"><span>A / 08:00</span><h3>旧书店街</h3><p>只在上午营业，老板会替你挑一本没听说过的书。</p></article>"
+            })),
+            new("at-card-2", "cms.html", "目的地二", Serialize(new
+            {
+                html = "<article class=\"cms-at-card\"><span>B / 11:30</span><h3>菜市场</h3><p>在一碗热汤前坐下，听整座城市最真实的背景音。</p></article>"
+            })),
+            new("at-card-3", "cms.html", "目的地三", Serialize(new
+            {
+                html = "<article class=\"cms-at-card\"><span>C / 15:00</span><h3>河岸长椅</h3><p>一段没有目的地的散步，尽头是水面与风。</p></article>"
+            })),
+            new("at-card-4", "cms.html", "目的地四", Serialize(new
+            {
+                html = "<article class=\"cms-at-card\"><span>D / 19:00</span><h3>夜航渡口</h3><p>天黑之后，换一种速度重新认识这条河。</p></article>"
+            }))
+        ]),
+        new("路线", "routes", true, CmsBuiltInLayoutNames.AtlasSpread,
+        [
+            new("at-text-left", "cms.html", "路线左文", Serialize(new
+            {
+                html = "<div class=\"cms-at-note\"><span>ROUTE 02 / HALF DAY</span><h2>沿着旧城墙，<br/>走到河的另一端</h2><p>四公里，三个小时。中途没有必须到达的点，只有值得停下来的瞬间。</p></div>"
+            })),
+            new("at-visual-right", "cms.image", "路线右图", Serialize(new
+            {
+                imageUrl = "https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=1200",
+                alt = "城墙步道", caption = "03 / 城墙上的光", rounded = true, shadow = false, maxHeight = 520
+            })),
+            new("at-visual-left", "cms.image", "路线反向图", Serialize(new
+            {
+                imageUrl = "https://images.pexels.com/photos/8386434/pexels-photo-8386434.jpeg?auto=compress&cs=tinysrgb&w=1200",
+                alt = "河岸黄昏", caption = "04 / 河岸的黄昏", rounded = true, shadow = false, maxHeight = 520
+            })),
+            new("at-text-right", "cms.html", "路线右文", Serialize(new
+            {
+                html = "<div class=\"cms-at-note\"><span>WHAT TO BRING</span><h2>一双好走的鞋，<br/>和空出来的下午</h2><p>不需要计划书。带上好奇心，把导航关掉一小时——迷路常常是这座城市给你的额外章节。</p></div>"
+            }))
+        ]),
+        new("旅行笔记", "journal", true, CmsBuiltInLayoutNames.AtlasNested,
+        [
+            new("at-map", "cms.html", "笔记引言", Serialize(new
+            {
+                html = "<div class=\"cms-at-journal-head\"><span>TRAVEL JOURNAL</span><h2>回来之后，记住的是什么</h2></div>"
+            })),
+            new("at-card-1", "cms.html", "笔记一", Serialize(new { html = "<article class=\"cms-at-card\"><span>01</span><h3>气味</h3><p>雨后的石板路，和第一炉面包同时出现的清晨。</p></article>" })),
+            new("at-card-2", "cms.html", "笔记二", Serialize(new { html = "<article class=\"cms-at-card\"><span>02</span><h3>声音</h3><p>渡口汽笛，比任何导览都更准确地标出了时间。</p></article>" })),
+            new("at-card-3", "cms.html", "笔记三", Serialize(new { html = "<article class=\"cms-at-card\"><span>03</span><h3>温度</h3><p>陌生人递来的一杯热茶，让十一月的风变得可以忍受。</p></article>" })),
+            new("at-card-4", "cms.html", "笔记四", Serialize(new { html = "<article class=\"cms-at-card\"><span>04</span><h3>留白</h3><p>没有安排的那两个小时，成了整趟旅程最清晰的部分。</p></article>" }))
+        ]),
+        new("页脚", "footer", false, "single-column",
+        [
+            new("main", "cms.footer", "页脚", Serialize(new { brand, tagline = $"{industry} · Walk slowly, see more.", copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved." }))
+        ])
+    ];
+
+    private static List<CmsAiSectionDraft> AtlasEn(string brand, string industry, string? stylePrompt) =>
+    [
+        new("Destination", "home", true, CmsBuiltInLayoutNames.AtlasSpread,
+        [
+            new("at-text-left", "cms.html", "Spread Left", Serialize(new
+            {
+                html = $"<div class=\"cms-at-intro\"><div class=\"cms-at-kicker\">FIELD NOTES / 2026</div><h1 class=\"cms-at-title\">{brand}<br/><em>A city walk guide</em></h1><p class=\"cms-at-lead\">{stylePrompt ?? "No landmarks to chase, only the everyday details that make a city feel close."}</p><a href=\"#map\" class=\"cms-at-link\">Open the map ↗</a></div>"
+            })),
+            new("at-visual-right", "cms.image", "Spread Right Image", Serialize(new
+            {
+                imageUrl = "https://images.pexels.com/photos/1648776/pexels-photo-1648776.jpeg?auto=compress&cs=tinysrgb&w=1200",
+                alt = "City street", caption = "01 / Early morning corner", rounded = true, shadow = false, maxHeight = 520
+            })),
+            new("at-visual-left", "cms.image", "Reverse Left Image", Serialize(new
+            {
+                imageUrl = "https://images.pexels.com/photos/1181244/pexels-photo-1181244.jpeg?auto=compress&cs=tinysrgb&w=1200",
+                alt = "City architecture", caption = "02 / Afternoon facade", rounded = true, shadow = false, maxHeight = 520
+            })),
+            new("at-text-right", "cms.html", "Spread Right Text", Serialize(new
+            {
+                html = "<div class=\"cms-at-note\"><span>ON SLOW TRAVEL</span><h2>Fold the map,<br/>measure on foot</h2><p>The best routes never appear in a guidebook. They hide in a side street, a bookshop open only half the day, and someone willing to talk for ten minutes.</p></div>"
+            }))
+        ]),
+        new("City Map", "map", true, CmsBuiltInLayoutNames.AtlasNested,
+        [
+            new("at-map", "cms.html", "Map Banner", Serialize(new
+            {
+                html = "<div class=\"cms-at-map\"><div class=\"cms-at-map-grid\"></div><div class=\"cms-at-map-label\">CITY / 04 STOPS</div><h2>Four stops, one unhurried route</h2><div class=\"cms-at-pin pin-1\">A</div><div class=\"cms-at-pin pin-2\">B</div><div class=\"cms-at-pin pin-3\">C</div><div class=\"cms-at-pin pin-4\">D</div></div>"
+            })),
+            new("at-card-1", "cms.html", "Stop 1", Serialize(new
+            {
+                html = "<article class=\"cms-at-card\"><span>A / 08:00</span><h3>Old book street</h3><p>Open only in the morning. The owner will pick a book you have never heard of.</p></article>"
+            })),
+            new("at-card-2", "cms.html", "Stop 2", Serialize(new
+            {
+                html = "<article class=\"cms-at-card\"><span>B / 11:30</span><h3>Wet market</h3><p>Sit down for a hot bowl and listen to the city's most honest soundtrack.</p></article>"
+            })),
+            new("at-card-3", "cms.html", "Stop 3", Serialize(new
+            {
+                html = "<article class=\"cms-at-card\"><span>C / 15:00</span><h3>Riverside bench</h3><p>A walk with no destination, ending at the water and the wind.</p></article>"
+            })),
+            new("at-card-4", "cms.html", "Stop 4", Serialize(new
+            {
+                html = "<article class=\"cms-at-card\"><span>D / 19:00</span><h3>Night ferry</h3><p>After dark, see the same river at a completely different speed.</p></article>"
+            }))
+        ]),
+        new("Routes", "routes", true, CmsBuiltInLayoutNames.AtlasSpread,
+        [
+            new("at-text-left", "cms.html", "Route Left", Serialize(new
+            {
+                html = "<div class=\"cms-at-note\"><span>ROUTE 02 / HALF DAY</span><h2>Follow the old wall<br/>to the far bank</h2><p>Four kilometres, three hours. No checkpoint to reach, only moments worth stopping for.</p></div>"
+            })),
+            new("at-visual-right", "cms.image", "Route Right Image", Serialize(new
+            {
+                imageUrl = "https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=1200",
+                alt = "City wall path", caption = "03 / Light on the wall", rounded = true, shadow = false, maxHeight = 520
+            })),
+            new("at-visual-left", "cms.image", "Route Reverse Image", Serialize(new
+            {
+                imageUrl = "https://images.pexels.com/photos/8386434/pexels-photo-8386434.jpeg?auto=compress&cs=tinysrgb&w=1200",
+                alt = "River at dusk", caption = "04 / Dusk on the river", rounded = true, shadow = false, maxHeight = 520
+            })),
+            new("at-text-right", "cms.html", "Route Right Text", Serialize(new
+            {
+                html = "<div class=\"cms-at-note\"><span>WHAT TO BRING</span><h2>Good shoes,<br/>and a free afternoon</h2><p>No itinerary needed. Turn off the navigation for one hour — getting lost is often the city's extra chapter.</p></div>"
+            }))
+        ]),
+        new("Journal", "journal", true, CmsBuiltInLayoutNames.AtlasNested,
+        [
+            new("at-map", "cms.html", "Journal Head", Serialize(new
+            {
+                html = "<div class=\"cms-at-journal-head\"><span>TRAVEL JOURNAL</span><h2>What stays after you return</h2></div>"
+            })),
+            new("at-card-1", "cms.html", "Note 1", Serialize(new { html = "<article class=\"cms-at-card\"><span>01</span><h3>Smell</h3><p>Wet stone and the first bread of the day arriving at once.</p></article>" })),
+            new("at-card-2", "cms.html", "Note 2", Serialize(new { html = "<article class=\"cms-at-card\"><span>02</span><h3>Sound</h3><p>A ferry horn marked the time better than any guide.</p></article>" })),
+            new("at-card-3", "cms.html", "Note 3", Serialize(new { html = "<article class=\"cms-at-card\"><span>03</span><h3>Warmth</h3><p>A stranger's tea made November's wind bearable.</p></article>" })),
+            new("at-card-4", "cms.html", "Note 4", Serialize(new { html = "<article class=\"cms-at-card\"><span>04</span><h3>Whitespace</h3><p>Those two unplanned hours became the clearest part of the trip.</p></article>" }))
+        ]),
+        new("Footer", "footer", false, "single-column",
+        [
+            new("main", "cms.footer", "Footer", Serialize(new { brand, tagline = $"{industry} · Walk slowly, see more.", copyright = $"© {DateTime.UtcNow.Year} {brand}. All rights reserved." }))
+        ])
+    ];
 
     private static string Serialize<T>(T value) => JsonSerializer.Serialize(value, CmsDtoMapper.JsonOptions);
 
@@ -225,9 +1411,9 @@ public static class CmsSiteTemplateLibrary
                 subheading = "免服务费，提前在线预订可享主厨迎宾甜品一份",
                 plans = new[]
                 {
-                    new { name = "午间轻食单人餐", price = "¥78", period = "/ 份", badge = "工作日推荐", highlighted = false, features = new[] { "香草烤鸡沙拉 / 意面二选一", "当日主厨例汤 1 份", "现磨美式或冰红茶 1 杯" }, buttonText = "预订此套餐", buttonHref = "#contact" },
-                    new { name = "主厨双人赏味宴", price = "¥298", period = "/ 套", badge = "人气首选", highlighted = true, features = new[] { "低温慢烤牛排主菜 1 份", "黑松露菌菇意面 + 凯撒沙拉", "手作提拉米苏 + 特调饮品 2 杯" }, buttonText = "立即预订", buttonHref = "#contact" },
-                    new { name = "欢聚四人分享餐", price = "¥568", period = "/ 套", badge = "聚会超值", highlighted = false, features = new[] { "精选双拼主菜 + 海鲜拼盘", "4 款开胃前菜与手工面包篮", "4 杯特调饮品或精选餐酒" }, buttonText = "预约包间", buttonHref = "#contact" }
+                    new { name = "午间轻食单人餐", price = "¥78", badge = "工作日推荐", period = "/ 份", highlighted = false, features = new[] { "香草烤鸡沙拉 / 意面二选一", "当日主厨例汤 1 份", "现磨美式或冰红茶 1 杯" }, buttonText = "预订此套餐", buttonHref = "#contact" },
+                    new { name = "主厨双人赏味宴", price = "¥298", badge = "人气首选", period = "/ 套", highlighted = true, features = new[] { "低温慢烤牛排主菜 1 份", "黑松露菌菇意面 + 凯撒沙拉", "手作提拉米苏 + 特调饮品 2 杯" }, buttonText = "立即预订", buttonHref = "#contact" },
+                    new { name = "欢聚四人分享餐", price = "¥568", badge = "聚会超值", period = "/ 套", highlighted = false, features = new[] { "精选双拼主菜 + 海鲜拼盘", "4 款开胃前菜与手工面包篮", "4 杯特调饮品或精选餐酒" }, buttonText = "预约包间", buttonHref = "#contact" }
                 }
             }))
         ]),
@@ -496,9 +1682,9 @@ public static class CmsSiteTemplateLibrary
                 subheading = "No service charge — online bookings include a complimentary welcome dessert",
                 plans = new[]
                 {
-                    new { name = "Weekday Lunch", price = "$15", period = "/ guest", badge = "Lunch", highlighted = false, features = new[] { "Herb chicken salad or pasta", "Soup of the day", "Americano or iced tea" }, buttonText = "Book Lunch", buttonHref = "#contact" },
-                    new { name = "Chef's Tasting for Two", price = "$48", period = "/ set", badge = "Most Popular", highlighted = true, features = new[] { "Slow-roasted prime steak", "Truffle mushroom pasta + salad", "Tiramisu + 2 signature drinks" }, buttonText = "Book Now", buttonHref = "#contact" },
-                    new { name = "Feast for Four", price = "$89", period = "/ set", badge = "Group Value", highlighted = false, features = new[] { "Dual main platters + seafood", "4 starters & sourdough basket", "4 craft drinks or house wines" }, buttonText = "Reserve Table", buttonHref = "#contact" }
+                    new { name = "Weekday Lunch", price = "$15", badge = "Lunch", period = "/ guest", highlighted = false, features = new[] { "Herb chicken salad or pasta", "Soup of the day", "Americano or iced tea" }, buttonText = "Book Lunch", buttonHref = "#contact" },
+                    new { name = "Chef's Tasting for Two", price = "$48", badge = "Most Popular", period = "/ set", highlighted = true, features = new[] { "Slow-roasted prime steak", "Truffle mushroom pasta + salad", "Tiramisu + 2 signature drinks" }, buttonText = "Book Now", buttonHref = "#contact" },
+                    new { name = "Feast for Four", price = "$89", badge = "Group Value", period = "/ set", highlighted = false, features = new[] { "Dual main platters + seafood", "4 starters & sourdough basket", "4 craft drinks or house wines" }, buttonText = "Reserve Table", buttonHref = "#contact" }
                 }
             }))
         ]),
@@ -853,9 +2039,9 @@ public static class CmsSiteTemplateLibrary
                 subheading = "年付立享 8 折优惠 · 支持对公转账与增值税专用发票",
                 plans = new[]
                 {
-                    new { name = "初创免费版", price = "¥0", period = "/ 永久", badge = "10人以内", highlighted = false, features = new[] { "最多 10 名团队成员", "无限项目看板与任务", "基础权限与 5GB 附件存储" }, buttonText = "立即免费开启", buttonHref = "#contact" },
-                    new { name = "团队专业版", price = "¥99", period = "/ 人 / 月", badge = "最受欢迎", highlighted = true, features = new[] { "不限成员与自定义工作流", "OKR 对齐与高级 BI 报表", "SSO 单点登录与 7×12 顾问支持" }, buttonText = "免费试用 14 天", buttonHref = "#contact" },
-                    new { name = "企业私有化版", price = "按需定制", period = "", badge = "源码 / 内网", highlighted = false, features = new[] { "私有云 / 本地化集群部署", "99.99% SLA 与专属架构师", "定制开发与源码级扩展能力" }, buttonText = "预约架构师沟通", buttonHref = "#contact" }
+                    new { name = "初创免费版", price = "¥0", badge = "10人以内", period = "/ 永久", highlighted = false, features = new[] { "最多 10 名团队成员", "无限项目看板与任务", "基础权限与 5GB 附件存储" }, buttonText = "立即免费开启", buttonHref = "#contact" },
+                    new { name = "团队专业版", price = "¥99", badge = "最受欢迎", period = "/ 人 / 月", highlighted = true, features = new[] { "不限成员与自定义工作流", "OKR 对齐与高级 BI 报表", "SSO 单点登录与 7×12 顾问支持" }, buttonText = "免费试用 14 天", buttonHref = "#contact" },
+                    new { name = "企业私有化版", price = "按需定制", badge = "源码 / 内网", period = "", highlighted = false, features = new[] { "私有云 / 本地化集群部署", "99.99% SLA 与专属架构师", "定制开发与源码级扩展能力" }, buttonText = "预约架构师沟通", buttonHref = "#contact" }
                 }
             }))
         ]),
@@ -1074,9 +2260,9 @@ public static class CmsSiteTemplateLibrary
                 subheading = "Save 20% with annual billing · Enterprise invoicing supported",
                 plans = new[]
                 {
-                    new { name = "Starter", price = "$0", period = "/ forever", badge = "Up to 10 seats", highlighted = false, features = new[] { "Up to 10 team members", "Unlimited boards & tasks", "5GB storage & basic permissions" }, buttonText = "Get Started Free", buttonHref = "#contact" },
-                    new { name = "Team Pro", price = "$15", period = "/ seat / mo", badge = "Most Popular", highlighted = true, features = new[] { "Unlimited members & workflows", "OKRs & advanced BI analytics", "SSO & 7×12 priority support" }, buttonText = "Start 14-Day Trial", buttonHref = "#contact" },
-                    new { name = "Enterprise", price = "Custom", period = "", badge = "On-Premises", highlighted = false, features = new[] { "Private cloud / air-gapped deploy", "99.99% SLA & dedicated architect", "Custom modules & source access" }, buttonText = "Contact Sales", buttonHref = "#contact" }
+                    new { name = "Starter", price = "$0", badge = "Up to 10 seats", period = "/ forever", highlighted = false, features = new[] { "Up to 10 team members", "Unlimited boards & tasks", "5GB storage & basic permissions" }, buttonText = "Get Started Free", buttonHref = "#contact" },
+                    new { name = "Team Pro", price = "$15", badge = "Most Popular", period = "/ seat / mo", highlighted = true, features = new[] { "Unlimited members & workflows", "OKRs & advanced BI analytics", "SSO & 7×12 priority support" }, buttonText = "Start 14-Day Trial", buttonHref = "#contact" },
+                    new { name = "Enterprise", price = "Custom", badge = "On-Premises", period = "", highlighted = false, features = new[] { "Private cloud / air-gapped deploy", "99.99% SLA & dedicated architect", "Custom modules & source access" }, buttonText = "Contact Sales", buttonHref = "#contact" }
                 }
             }))
         ]),
@@ -1355,9 +2541,9 @@ public static class CmsSiteTemplateLibrary
                 subheading = "支持花呗/信用卡分期免息，在读学生凭证享 85 折助学金",
                 plans = new[]
                 {
-                    new { name = "录播自学班", price = "¥1,699", period = "/ 期", badge = "自主节奏", highlighted = false, features = new[] { "全套高清录播与讲义源码", "学员交流群日常答疑", "2 年内课程内容免费更新" }, buttonText = "咨询报名", buttonHref = "#contact" },
-                    new { name = "就业陪跑特训营", price = "¥4,980", period = "/ 期", badge = "口碑主推", highlighted = true, features = new[] { "小班直播 + 1v1 逐行代码批改", "3 个商业级项目实战与简历精修", "模拟面试 + 380+ 企业内推通道" }, buttonText = "抢占本期席位", buttonHref = "#contact" },
-                    new { name = "1v1 导师定制班", price = "¥9,800", period = "/ 期", badge = "VIP 专属", highlighted = false, features = new[] { "定制个人学习与晋升路线图", "每周专属架构师 1v1 辅导", "跳槽谈薪与职业规划全程陪伴" }, buttonText = "预约导师评估", buttonHref = "#contact" }
+                    new { name = "录播自学班", price = "¥1,699", badge = "自主节奏", period = "/ 期", highlighted = false, features = new[] { "全套高清录播与讲义源码", "学员交流群日常答疑", "2 年内课程内容免费更新" }, buttonText = "咨询报名", buttonHref = "#contact" },
+                    new { name = "就业陪跑特训营", price = "¥4,980", badge = "口碑主推", period = "/ 期", highlighted = true, features = new[] { "小班直播 + 1v1 逐行代码批改", "3 个商业级项目实战与简历精修", "模拟面试 + 380+ 企业内推通道" }, buttonText = "抢占本期席位", buttonHref = "#contact" },
+                    new { name = "1v1 导师定制班", price = "¥9,800", badge = "VIP 专属", period = "/ 期", highlighted = false, features = new[] { "定制个人学习与晋升路线图", "每周专属架构师 1v1 辅导", "跳槽谈薪与职业规划全程陪伴" }, buttonText = "预约导师评估", buttonHref = "#contact" }
                 }
             }))
         ]),
@@ -1599,9 +2785,9 @@ public static class CmsSiteTemplateLibrary
                 subheading = "0% APR installments available · 15% student scholarship",
                 plans = new[]
                 {
-                    new { name = "Self-Paced", price = "$249", period = "/ track", badge = "Flexible", highlighted = false, features = new[] { "All HD recordings & source code", "Community Q&A forum", "2 years of curriculum updates" }, buttonText = "Enroll Now", buttonHref = "#contact" },
-                    new { name = "Career Bootcamp", price = "$699", period = "/ track", badge = "Most Popular", highlighted = true, features = new[] { "Live classes + 1-on-1 code reviews", "3 production capstones + resume polish", "Mock interviews & hiring referrals" }, buttonText = "Claim Your Seat", buttonHref = "#contact" },
-                    new { name = "1-on-1 Mentorship", price = "$1,399", period = "/ track", badge = "VIP", highlighted = false, features = new[] { "Custom career & learning roadmap", "Weekly 1-on-1 principal architect calls", "Offer negotiation & career coaching" }, buttonText = "Book Assessment", buttonHref = "#contact" }
+                    new { name = "Self-Paced", price = "$249", badge = "Flexible", period = "/ track", highlighted = false, features = new[] { "All HD recordings & source code", "Community Q&A forum", "2 years of curriculum updates" }, buttonText = "Enroll Now", buttonHref = "#contact" },
+                    new { name = "Career Bootcamp", price = "$699", badge = "Most Popular", period = "/ track", highlighted = true, features = new[] { "Live classes + 1-on-1 code reviews", "3 production capstones + resume polish", "Mock interviews & hiring referrals" }, buttonText = "Claim Your Seat", buttonHref = "#contact" },
+                    new { name = "1-on-1 Mentorship", price = "$1,399", badge = "VIP", period = "/ track", highlighted = false, features = new[] { "Custom career & learning roadmap", "Weekly 1-on-1 principal architect calls", "Offer negotiation & career coaching" }, buttonText = "Book Assessment", buttonHref = "#contact" }
                 }
             }))
         ]),
@@ -1773,9 +2959,9 @@ public static class CmsSiteTemplateLibrary
                 subheading = "均包含源文件交付与上线后 30 天微调支持",
                 plans = new[]
                 {
-                    new { name = "体验诊断与规范", price = "¥6,800", period = "/ 次", badge = "快速启动", highlighted = false, features = new[] { "现有网站/App UX 走查报告", "品牌色彩与字体 Token 梳理", "3 个核心页面重设计" }, buttonText = "预约诊断", buttonHref = "#contact" },
-                    new { name = "官网全案设计与落地", price = "¥18,000", period = "/ 项", badge = "最常选择", highlighted = true, features = new[] { "信息架构与全套高保真 UI", "响应式多语言交互动效落地", "上线走查与设计资产全量交付" }, buttonText = "咨询档期", buttonHref = "#contact" },
-                    new { name = "月度设计顾问", price = "¥12,000", period = "/ 月", badge = "长期陪伴", highlighted = false, features = new[] { "每周固定工时优先响应", "产品迭代 UI 与运营海报支持", "参与团队设计评审与规范建设" }, buttonText = "洽谈长期合作", buttonHref = "#contact" }
+                    new { name = "体验诊断与规范", price = "¥6,800", badge = "快速启动", period = "/ 次", highlighted = false, features = new[] { "现有网站/App UX 走查报告", "品牌色彩与字体 Token 梳理", "3 个核心页面重设计" }, buttonText = "预约诊断", buttonHref = "#contact" },
+                    new { name = "官网全案设计与落地", price = "¥18,000", badge = "最常选择", period = "/ 项", highlighted = true, features = new[] { "信息架构与全套高保真 UI", "响应式多语言交互动效落地", "上线走查与设计资产全量交付" }, buttonText = "咨询档期", buttonHref = "#contact" },
+                    new { name = "月度设计顾问", price = "¥12,000", badge = "长期陪伴", period = "/ 月", highlighted = false, features = new[] { "每周固定工时优先响应", "产品迭代 UI 与运营海报支持", "参与团队设计评审与规范建设" }, buttonText = "洽谈长期合作", buttonHref = "#contact" }
                 }
             }))
         ]),
@@ -1999,9 +3185,9 @@ public static class CmsSiteTemplateLibrary
                 subheading = "Includes full source files and 30 days of post-launch polish",
                 plans = new[]
                 {
-                    new { name = "UX Audit & Tokens", price = "$950", period = "/ sprint", badge = "Quick Start", highlighted = false, features = new[] { "Full UX & conversion audit", "Color & typography token system", "Redesign of 3 key screens" }, buttonText = "Book Audit", buttonHref = "#contact" },
-                    new { name = "Full Website Design", price = "$2,600", period = "/ project", badge = "Most Popular", highlighted = true, features = new[] { "IA + full high-fidelity UI", "Responsive & multi-language polish", "QA walkthrough & asset handoff" }, buttonText = "Check Availability", buttonHref = "#contact" },
-                    new { name = "Monthly Retainer", price = "$1,800", period = "/ month", badge = "Ongoing", highlighted = false, features = new[] { "Dedicated weekly design hours", "Product UI & campaign assets", "Design critiques & system upkeep" }, buttonText = "Discuss Retainer", buttonHref = "#contact" }
+                    new { name = "UX Audit & Tokens", price = "$950", badge = "Quick Start", period = "/ sprint", highlighted = false, features = new[] { "Full UX & conversion audit", "Color & typography token system", "Redesign of 3 key screens" }, buttonText = "Book Audit", buttonHref = "#contact" },
+                    new { name = "Full Website Design", price = "$2,600", badge = "Most Popular", period = "/ project", highlighted = true, features = new[] { "IA + full high-fidelity UI", "Responsive & multi-language polish", "QA walkthrough & asset handoff" }, buttonText = "Check Availability", buttonHref = "#contact" },
+                    new { name = "Monthly Retainer", price = "$1,800", badge = "Ongoing", period = "/ month", highlighted = false, features = new[] { "Dedicated weekly design hours", "Product UI & campaign assets", "Design critiques & system upkeep" }, buttonText = "Discuss Retainer", buttonHref = "#contact" }
                 }
             }))
         ]),

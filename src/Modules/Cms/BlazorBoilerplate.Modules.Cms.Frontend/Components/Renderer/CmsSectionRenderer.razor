@@ -2,50 +2,22 @@
 
 <section id="sec-@Section.AnchorSlug" class="cms-section @(IsDesignMode ? "is-design" : "")" style="@Section.BackgroundStyle">
     <div class="cms-container">
-        @foreach (var row in Section.Rows)
-        {
-            <div class="cms-grid-row @row.CssClass">
-                @foreach (var col in row.Columns)
-                {
-                    var zoneWidgets = Section.Widgets
-                        .Where(w => string.Equals(w.ZoneId, col.ZoneId, StringComparison.OrdinalIgnoreCase))
-                        .OrderBy(w => w.SortOrder)
-                        .ToList();
-
-                    <div class="cms-grid-col span-@col.Span @col.CssClass @(IsDesignMode ? "cms-zone-design" : "")"
-                         ondragenter="event.preventDefault();"
-                         ondragover="event.preventDefault();"
-                         @ondrop="() => HandleDropAsync(col.ZoneId)">
-                        @if (IsDesignMode)
-                        {
-                            <div class="cms-zone-badge">插槽: @col.Label (@col.ZoneId)</div>
-                        }
-                        @if (zoneWidgets.Count == 0 && IsDesignMode)
-                        {
-                            <div class="cms-zone-empty">拖拽组件到此处，或点击左侧组件插入</div>
-                        }
-                        @foreach (var w in zoneWidgets)
-                        {
-                            <CmsWidgetRenderer @key="w.Id"
-                                               Widget="@w"
-                                               SiteKey="@SiteKey"
-                                               SectionId="@Section.Id"
-                                               IsDesignMode="@IsDesignMode"
-                                               IsSelected="@(SelectedWidgetId == w.Id)"
-                                               OnNavigateAnchor="@OnNavigateAnchor"
-                                               OnSelectWidget="@OnSelectWidget"
-                                               OnMoveWidgetOrder="@OnMoveWidgetOrder"
-                                               OnDuplicateWidget="@OnDuplicateWidget"
-                                               OnDeleteWidget="@OnDeleteWidget"
-                                               OnDragStartWidget="@OnDragStartWidget"
-                                               OnDropOnWidget="@OnDropOnWidget"
-                                               OnResizeWidget="@OnResizeWidget"
-                                               OnInlineEditText="@OnInlineEditText"
-                                               OnInlineEditImage="@OnInlineEditImage" />
-                        }
-                    </div>
-                }
-            </div>
-        }
+        <CmsLayoutRowsRenderer Rows="@Section.Rows"
+                               Widgets="@Section.Widgets"
+                               SiteKey="@SiteKey"
+                               SectionId="@Section.Id"
+                               IsDesignMode="@IsDesignMode"
+                               SelectedWidgetId="@SelectedWidgetId"
+                               OnNavigateAnchor="@OnNavigateAnchor"
+                               OnSelectWidget="@OnSelectWidget"
+                               OnMoveWidgetOrder="@OnMoveWidgetOrder"
+                               OnDeleteWidget="@OnDeleteWidget"
+                               OnDuplicateWidget="@OnDuplicateWidget"
+                               OnDragStartWidget="@OnDragStartWidget"
+                               OnDropToZone="@OnDropToZone"
+                               OnDropOnWidget="@OnDropOnWidget"
+                               OnResizeWidget="@OnResizeWidget"
+                               OnInlineEditText="@OnInlineEditText"
+                               OnInlineEditImage="@OnInlineEditImage" />
     </div>
 </section>
