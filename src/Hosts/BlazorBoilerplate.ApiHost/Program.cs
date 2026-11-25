@@ -10,6 +10,12 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// 本地密钥覆盖（*.local.json 已被 gitignore）：LLM key / SMTP 凭据等只落在本机，不进版本库。
+builder.Configuration.AddJsonFile(
+    $"appsettings.{builder.Environment.EnvironmentName}.local.json",
+    optional: true,
+    reloadOnChange: true);
+
 builder.Host.UseSerilog((context, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
     .Enrich.FromLogContext());
