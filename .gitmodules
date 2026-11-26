@@ -1,0 +1,6 @@
+[submodule "vendor/higanbana"]
+	path = vendor/higanbana
+	url = https://github.com/wifi761516331-cpu/higanbana.git
+[submodule "vendor/tokenhub"]
+	path = vendor/tokenhub
+	url = https://github.com/wifi761516331-cpu/tokenhub.git
