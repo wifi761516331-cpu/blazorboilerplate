@@ -169,10 +169,15 @@ public sealed record UpsertCmsSectionRequest(Guid LayoutId, string Title, string
 public sealed record UpsertCmsWidgetRequest(Guid SiteId, Guid SectionId, string ZoneId, string WidgetType, string Title, string PropsJson, string? StyleJson = null, int SortOrder = 0, string? Culture = null);
 public sealed record MoveCmsWidgetRequest(Guid SectionId, string ZoneId, int SortOrder);
 
-public sealed record CmsAiGenerateSiteRequest(string BrandName, string Industry, string StylePrompt, string? PrimaryColor = null, string Language = "zh-CN");
+public sealed record CmsAiGenerateSiteRequest(string BrandName, string Industry, string StylePrompt, string? PrimaryColor = null, string Language = "zh-CN", string? Model = null);
+public sealed record CmsAiChunkedGenerateRequest(Guid SiteId, string BrandName, string Industry, string StylePrompt, string? PrimaryColor = null, string Language = "zh-CN", string? Model = null);
+public sealed record CmsAiModelsDto(string DefaultModel, IReadOnlyList<string> Models);
+public sealed record CmsAiStreamEventDto(string Kind, string Text, string? Model = null, string? DraftJson = null, int? Index = null, int? Total = null);
 public sealed record CmsAiWidgetDraft(string ZoneId, string WidgetType, string Title, string PropsJson, string? StyleJson = null);
 public sealed record CmsAiSectionDraft(string Title, string AnchorSlug, bool NavVisible, string LayoutPreset, List<CmsAiWidgetDraft> Widgets);
 public sealed record CmsAiSiteDraft(string Title, string Description, CmsThemeConfig Theme, List<CmsAiSectionDraft> Sections, string ProviderNote);
+public sealed record CmsAiGenerateSectionRequest(Guid SiteId, string Prompt, string? TargetSlug = null, string Language = "zh-CN");
+public sealed record CmsAiRefineWidgetRequest(Guid WidgetId, string WidgetType, string CurrentPropsJson, string Instruction, string Language = "zh-CN");
 
 public static class CmsJson
 {

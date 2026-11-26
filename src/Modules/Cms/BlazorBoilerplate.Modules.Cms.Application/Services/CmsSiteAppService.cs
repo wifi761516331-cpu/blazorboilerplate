@@ -470,4 +470,77 @@ public sealed class CmsSiteAppService(
         await uow.SaveChangesAsync(ct);
         return await GetDesignAsync(siteId, targetCulture, ct);
     }
+
+    /// <summary>
+    /// 分块生成阶段一：清空目标文化的旧区块并设置主题（但不写入区块）。
+    /// 之后每块通过 AppendAiSectionAsync 增量追加，前端可见页面逐块长出。
+    /// </summary>
+    public async Task BeginAiDraftAsync(Guid siteId, CmsThemeConfig theme, string? culture = null, CancellationToken ct = default)
+    {
+        var site = await sites.GetByIdAsync(siteId, ct) ?? throw new KeyNotFoundException("站点不存在。");
+        var targetCulture = string.IsNullOrWhiteSpace(culture) ? site.DefaultCulture : culture.Trim();
+        if (CmsSiteTemplateLibrary.IsBuiltInTemplateKey(site.SiteKey)
+            && (await sections.ListBySiteAsync(siteId, targetCulture, ct)).Count > 0)
+            EnsureEditableSite(site);
+
+        await widgets.RemoveBySiteAsync(siteId, targetCulture, ct);
+        await sections.RemoveBySiteAsync(siteId, targetCulture, ct);
+        site.UpdateTheme(JsonSerializer.Serialize(theme, CmsDtoMapper.JsonOptions));
+        await uow.SaveChangesAsync(ct);
+    }
+
+    /// <summary>分块生成阶段二：向已有站点追加一个区块（含其微件），不清除其他区块。</summary>
+    public async Task<CmsSiteDesignDto> AppendAiSectionAsync(
+        Guid siteId, CmsAiSectionDraft secDraft, string? culture = null, CancellationToken ct = default)
+    {
+        var site = await sites.GetByIdAsync(siteId, ct) ?? throw new KeyNotFoundException("站点不存在。");
+        var targetCulture = string.IsNullOrWhiteSpace(culture) ? site.DefaultCulture : culture.Trim();
+        var allLayouts = await layouts.ListAsync(ct);
+
+        var namedLayout = allLayouts.FirstOrDefault(l =>
+            string.Equals(l.Name, secDraft.LayoutPreset?.Trim(), StringComparison.OrdinalIgnoreCase));
+        var layout = namedLayout ?? (secDraft.LayoutPreset switch
+        {
+            "two-column" => allLayouts.FirstOrDefault(l => l.Name.Contains("两栏")),
+            "three-column" => allLayouts.FirstOrDefault(l => l.Name.Contains("三栏")),
+            "sidebar" => allLayouts.FirstOrDefault(l => l.Name.Contains("侧栏")),
+            _ => null
+        }) ?? allLayouts.FirstOrDefault();
+        if (layout is null)
+            throw new InvalidOperationException("请先至少创建一个布局页模板。");
+
+        var existing = await sections.ListBySiteAsync(siteId, targetCulture, ct);
+        var sec = new CmsSection
+        {
+            SiteId = siteId,
+            LayoutId = layout.Id,
+            Culture = targetCulture,
+            Title = secDraft.Title,
+            AnchorSlug = secDraft.AnchorSlug,
+            NavVisible = secDraft.NavVisible,
+            SortOrder = existing.Count,
+            IsEnabled = true
+        };
+        await sections.AddAsync(sec, ct);
+
+        var wOrder = 0;
+        foreach (var wDraft in secDraft.Widgets)
+        {
+            await widgets.AddAsync(new CmsWidgetInstance
+            {
+                SiteId = siteId,
+                SectionId = sec.Id,
+                Culture = targetCulture,
+                ZoneId = wDraft.ZoneId,
+                WidgetType = wDraft.WidgetType,
+                Title = wDraft.Title,
+                PropsJson = wDraft.PropsJson,
+                StyleJson = wDraft.StyleJson,
+                SortOrder = wOrder++
+            }, ct);
+        }
+
+        await uow.SaveChangesAsync(ct);
+        return await GetDesignAsync(siteId, targetCulture, ct);
+    }
 }

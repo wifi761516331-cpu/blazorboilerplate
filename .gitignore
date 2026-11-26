@@ -10,6 +10,7 @@ artifacts/
 
 # Runtime module packages are build artifacts; keep only source manifests
 modules/installed/
+modules/.build/
 modules/staging/
 modules/backups/
 modules/quarantine/

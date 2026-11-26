@@ -12,7 +12,9 @@ builder.Services.AddBitBlazorUIServices(true);
 builder.Services.AddScoped<ElevatedAccessContext>();
 builder.Services.AddScoped(_ => new HttpClient
 {
-    BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)
+    BaseAddress = new Uri(builder.HostEnvironment.BaseAddress),
+    // AI 生成官网等环节可能超过默认 100s；服务端 BFF 同样放宽到 35 分钟。
+    Timeout = TimeSpan.FromMinutes(35)
 });
 builder.Services.AddScoped<BlazorBoilerplateApiClient>();
 builder.Services.AddScoped<ToastService>();

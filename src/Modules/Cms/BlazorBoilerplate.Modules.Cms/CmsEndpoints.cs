@@ -1,3 +1,5 @@
+using System.Text;
+using System.Text.Json;
 using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.Modules.Cms.Application.AI;
 using BlazorBoilerplate.Modules.Cms.Application.DTOs;
@@ -10,6 +12,8 @@ namespace BlazorBoilerplate.Modules.Cms;
 
 public sealed class CmsEndpoints(IServiceProvider moduleServices)
 {
+    private static readonly JsonSerializerOptions SseJson = new(JsonSerializerDefaults.Web);
+
     public void Map(IModuleEndpointBuilder builder)
     {
         // ---- 公开单页官网接口（无需登录）----
@@ -194,13 +198,128 @@ public sealed class CmsEndpoints(IServiceProvider moduleServices)
             ctx.Response.StatusCode = StatusCodes.Status204NoContent;
         }));
 
-        // ---- 预留 AI 帮设计官网接口 ----
+        // ---- AI 帮设计官网接口 ----
+        builder.Map("/api/cms/ai/models", "GET", "cms.ai.generate", async ctx => await WithScope(ctx, async s =>
+        {
+            var options = s.ServiceProvider.GetRequiredService<CmsAiOptions>();
+            var models = s.ServiceProvider.GetService<ICmsAiChatClient>() is { } chat
+                ? await chat.ListModelsAsync(ctx.RequestAborted)
+                : (IReadOnlyList<string>)[];
+            await ctx.Response.WriteAsJsonAsync(new CmsAiModelsDto(options.GenerateModel, models), ctx.RequestAborted);
+        }));
+
         builder.Map("/api/cms/ai/generate-site", "POST", "cms.ai.generate", async ctx => await WithScope(ctx, async s =>
         {
             var req = await ReadJsonAsync<CmsAiGenerateSiteRequest>(ctx);
             var draft = await s.ServiceProvider.GetRequiredService<ICmsAiDesignerService>().GenerateSiteAsync(req, ctx.RequestAborted);
             await ctx.Response.WriteAsJsonAsync(draft, ctx.RequestAborted);
         }));
+
+        // SSE 流式生成：逐段下发模型原文与阶段状态，最后一条 done 携带完整草稿。
+        // BFF 已使用 ResponseHeadersRead + CopyToAsync，事件可实时透传到浏览器。
+        builder.Map("/api/cms/ai/generate-site/stream", "POST", "cms.ai.generate", async ctx =>
+        {
+            var req = await ReadJsonAsync<CmsAiGenerateSiteRequest>(ctx);
+            ctx.Response.ContentType = "text/event-stream";
+            ctx.Response.Headers.CacheControl = "no-cache";
+            ctx.Response.Headers["X-Accel-Buffering"] = "no";
+
+            async Task SendAsync(CmsAiStreamEvent evt)
+            {
+                var json = JsonSerializer.Serialize(evt, SseJson);
+                var bytes = Encoding.UTF8.GetBytes($"data: {json}\n\n");
+                await ctx.Response.Body.WriteAsync(bytes, ctx.RequestAborted);
+                await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
+            }
+
+            try
+            {
+                using var scope = moduleServices.CreateScope();
+                var designer = scope.ServiceProvider.GetRequiredService<ICmsAiDesignerService>();
+                CmsAiSiteDraft draft;
+                if (designer is ICmsAiStreamingDesignerService streaming)
+                {
+                    draft = await streaming.GenerateSiteStreamAsync(req, SendAsync, ctx.RequestAborted);
+                }
+                else
+                {
+                    await SendAsync(new CmsAiStreamEvent("status", "当前设计器不支持流式，等待一次性生成…"));
+                    draft = await designer.GenerateSiteAsync(req, ctx.RequestAborted);
+                }
+                await SendAsync(new CmsAiStreamEvent(
+                    "done", "生成完成", DraftJson: JsonSerializer.Serialize(draft, SseJson)));
+            }
+            catch (Exception ex)
+            {
+                await SendAsync(new CmsAiStreamEvent("error", ex.Message));
+            }
+        });
+
+        // 分块生成：骨架就绪后清空画布，每块生成完立即落库并推 refreshed 事件，
+        // 前端收到后刷新设计，实现页面一块块长出来。单块失败由服务层用模板兜底。
+        builder.Map("/api/cms/ai/generate-site/chunked", "POST", "cms.ai.generate", async ctx =>
+        {
+            var req = await ReadJsonAsync<CmsAiChunkedGenerateRequest>(ctx);
+            ctx.Response.ContentType = "text/event-stream";
+            ctx.Response.Headers.CacheControl = "no-cache";
+            ctx.Response.Headers["X-Accel-Buffering"] = "no";
+
+            async Task SendAsync(CmsAiStreamEvent evt)
+            {
+                var json = JsonSerializer.Serialize(evt, SseJson);
+                await ctx.Response.Body.WriteAsync(Encoding.UTF8.GetBytes($"data: {json}\n\n"), ctx.RequestAborted);
+                await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
+            }
+
+            try
+            {
+                using var scope = moduleServices.CreateScope();
+                var designer = scope.ServiceProvider.GetRequiredService<ICmsAiDesignerService>();
+                var siteApp = scope.ServiceProvider.GetRequiredService<CmsSiteAppService>();
+                if (designer is not ICmsAiStreamingDesignerService streaming)
+                {
+                    await SendAsync(new CmsAiStreamEvent("error", "当前设计器不支持分块生成。"));
+                    return;
+                }
+
+                var culture = string.IsNullOrWhiteSpace(req.Language) ? "zh-CN" : req.Language.Trim();
+                CmsAiSitePlan? plan = null;
+                await streaming.GenerateSiteChunkedAsync(req.ToSiteRequest(), async evt =>
+                {
+                    if (evt.Kind == "plan")
+                    {
+                        plan = JsonSerializer.Deserialize<CmsAiSitePlan>(evt.DraftJson ?? string.Empty, SseJson);
+                        if (plan is not null)
+                            await siteApp.BeginAiDraftAsync(req.SiteId, plan.Theme, culture, ctx.RequestAborted);
+                        await SendAsync(evt);
+                        return;
+                    }
+
+                    if (evt.Kind == "section")
+                    {
+                        var section = JsonSerializer.Deserialize<CmsAiSectionDraft>(evt.DraftJson ?? string.Empty, SseJson);
+                        if (section is not null)
+                        {
+                            var design = await siteApp.AppendAiSectionAsync(req.SiteId, section, culture, ctx.RequestAborted);
+                            await SendAsync(evt);
+                            // refreshed 事件带最新设计快照，前端可直接替换，避免再发一次 GET。
+                            await SendAsync(new CmsAiStreamEvent(
+                                "refreshed", "画布已更新", Index: evt.Index, Total: evt.Total,
+                                DraftJson: JsonSerializer.Serialize(design, SseJson)));
+                            return;
+                        }
+                    }
+
+                    await SendAsync(evt);
+                }, ctx.RequestAborted);
+
+                await SendAsync(new CmsAiStreamEvent("done", "分块生成完成"));
+            }
+            catch (Exception ex)
+            {
+                await SendAsync(new CmsAiStreamEvent("error", ex.Message));
+            }
+        });
 
         builder.Map("/api/cms/ai/apply-site/{siteId}", "POST", "cms.ai.generate", async ctx => await WithScope(ctx, async s =>
         {
@@ -222,6 +341,16 @@ public sealed class CmsEndpoints(IServiceProvider moduleServices)
             var req = await ReadJsonAsync<CmsAiRefineWidgetRequest>(ctx);
             var draft = await s.ServiceProvider.GetRequiredService<ICmsAiDesignerService>().RefineWidgetAsync(req, ctx.RequestAborted);
             await ctx.Response.WriteAsJsonAsync(draft, ctx.RequestAborted);
+        }));
+
+        // 生成后的局部调整：把 AI 生成的新区块草稿直接追加进当前站点，返回最新设计供画布刷新。
+        builder.Map("/api/cms/ai/append-section/{siteId}", "POST", "cms.ai.generate", async ctx => await WithScope(ctx, async s =>
+        {
+            var draft = await ReadJsonAsync<CmsAiSectionDraft>(ctx);
+            var culture = ctx.Request.Query["culture"].FirstOrDefault();
+            var design = await s.ServiceProvider.GetRequiredService<CmsSiteAppService>()
+                .AppendAiSectionAsync(GetGuid(ctx, "siteId"), draft, culture, ctx.RequestAborted);
+            await ctx.Response.WriteAsJsonAsync(design, ctx.RequestAborted);
         }));
     }
 

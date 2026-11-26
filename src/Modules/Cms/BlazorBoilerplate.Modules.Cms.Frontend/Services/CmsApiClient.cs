@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using BlazorBoilerplate.ModuleAbstractions;
 using BlazorBoilerplate.Modules.Cms.Frontend.Models;
 
@@ -172,6 +173,13 @@ public sealed class CmsApiClient(HttpClient http) : IClientService
         resp.EnsureSuccessStatusCode();
     }
 
+    public async Task<CmsAiModelsDto> AiModelsAsync(CancellationToken ct = default)
+    {
+        var resp = await http.GetAsync("api/cms/ai/models", ct);
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<CmsAiModelsDto>(CmsJson.Options, ct))!;
+    }
+
     public async Task<CmsAiSiteDraft> AiGenerateSiteAsync(CmsAiGenerateSiteRequest req, CancellationToken ct = default)
     {
         var resp = await http.PostAsJsonAsync("api/cms/ai/generate-site", req, CmsJson.Options, ct);
@@ -179,11 +187,93 @@ public sealed class CmsApiClient(HttpClient http) : IClientService
         return (await resp.Content.ReadFromJsonAsync<CmsAiSiteDraft>(CmsJson.Options, ct))!;
     }
 
+    /// <summary>流式生成：逐条接收 SSE 事件，前端可实时显示模型输出与阶段状态。</summary>
+    public async Task AiGenerateSiteStreamAsync(
+        CmsAiGenerateSiteRequest req,
+        Func<CmsAiStreamEventDto, Task> onEvent,
+        CancellationToken ct = default)
+    {
+        // 关键：必须用 ResponseHeadersRead。PostAsJsonAsync 默认 ResponseContentRead，
+        // 会等整个 SSE 响应体读完才返回，逐段 flush 的事件会被 HttpClient 缓存在内存里，
+        // 前端直到生成结束才能一次性看到内容，等价于没有流式。
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/cms/ai/generate-site/stream")
+        {
+            Content = JsonContent.Create(req, options: CmsJson.Options)
+        };
+        using var resp = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        resp.EnsureSuccessStatusCode();
+        await using var stream = await resp.Content.ReadAsStreamAsync(ct);
+        using var reader = new StreamReader(stream);
+        while (await reader.ReadLineAsync(ct) is { } line)
+        {
+            if (!line.StartsWith("data:", StringComparison.Ordinal)) continue;
+            var json = line[5..].Trim();
+            if (json.Length == 0) continue;
+            var evt = JsonSerializer.Deserialize<CmsAiStreamEventDto>(json, CmsJson.Options);
+            if (evt is null) continue;
+            await onEvent(evt);
+            if (evt.Kind is "done" or "error") break;
+        }
+    }
+
+    /// <summary>分块生成：每块落库后服务端推 section + refreshed，前端逐块刷新画布。</summary>
+    public async Task AiGenerateSiteChunkedAsync(
+        CmsAiChunkedGenerateRequest req,
+        Func<CmsAiStreamEventDto, Task> onEvent,
+        CancellationToken ct = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/cms/ai/generate-site/chunked")
+        {
+            Content = JsonContent.Create(req, options: CmsJson.Options)
+        };
+        using var resp = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        resp.EnsureSuccessStatusCode();
+        await using var stream = await resp.Content.ReadAsStreamAsync(ct);
+        using var reader = new StreamReader(stream);
+        while (await reader.ReadLineAsync(ct) is { } line)
+        {
+            if (!line.StartsWith("data:", StringComparison.Ordinal)) continue;
+            var json = line[5..].Trim();
+            if (json.Length == 0) continue;
+            var evt = JsonSerializer.Deserialize<CmsAiStreamEventDto>(json, CmsJson.Options);
+            if (evt is null) continue;
+            await onEvent(evt);
+            if (evt.Kind is "done" or "error") break;
+        }
+    }
+
     public async Task<CmsSiteDesignDto> AiApplySiteAsync(Guid siteId, CmsAiSiteDraft draft, string? culture = null, CancellationToken ct = default)
     {
         var url = string.IsNullOrWhiteSpace(culture)
             ? $"api/cms/ai/apply-site/{siteId}"
             : $"api/cms/ai/apply-site/{siteId}?culture={Uri.EscapeDataString(culture)}";
+        var resp = await http.PostAsJsonAsync(url, draft, CmsJson.Options, ct);
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<CmsSiteDesignDto>(CmsJson.Options, ct))!;
+    }
+
+    /// <summary>生成后微调：让 AI 重新生成一个区块草稿（不落库）。</summary>
+    public async Task<CmsAiSectionDraft> AiGenerateSectionAsync(CmsAiGenerateSectionRequest req, CancellationToken ct = default)
+    {
+        var resp = await http.PostAsJsonAsync("api/cms/ai/generate-section", req, CmsJson.Options, ct);
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<CmsAiSectionDraft>(CmsJson.Options, ct))!;
+    }
+
+    /// <summary>生成后微调：让 AI 按指令改写选中微件的 props（不落库）。</summary>
+    public async Task<CmsAiWidgetDraft> AiRefineWidgetAsync(CmsAiRefineWidgetRequest req, CancellationToken ct = default)
+    {
+        var resp = await http.PostAsJsonAsync("api/cms/ai/refine-widget", req, CmsJson.Options, ct);
+        resp.EnsureSuccessStatusCode();
+        return (await resp.Content.ReadFromJsonAsync<CmsAiWidgetDraft>(CmsJson.Options, ct))!;
+    }
+
+    /// <summary>把 AI 区块草稿追加进当前站点，返回最新设计。</summary>
+    public async Task<CmsSiteDesignDto> AiAppendSectionAsync(Guid siteId, CmsAiSectionDraft draft, string? culture = null, CancellationToken ct = default)
+    {
+        var url = string.IsNullOrWhiteSpace(culture)
+            ? $"api/cms/ai/append-section/{siteId}"
+            : $"api/cms/ai/append-section/{siteId}?culture={Uri.EscapeDataString(culture)}";
         var resp = await http.PostAsJsonAsync(url, draft, CmsJson.Options, ct);
         resp.EnsureSuccessStatusCode();
         return (await resp.Content.ReadFromJsonAsync<CmsSiteDesignDto>(CmsJson.Options, ct))!;

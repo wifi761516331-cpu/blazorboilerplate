@@ -7,6 +7,9 @@
     <RootNamespace>BlazorBoilerplate.Modules.Cms</RootNamespace>
     <AssemblyName>BlazorBoilerplate.Modules.Cms</AssemblyName>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- 模块包需要自带私有 NuGet 依赖（如 Microsoft.Extensions.AI / OpenAI），
+         否则 AssemblyDependencyResolver 在模块包目录找不到 DLL，加载期 FileNotFound。 -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>

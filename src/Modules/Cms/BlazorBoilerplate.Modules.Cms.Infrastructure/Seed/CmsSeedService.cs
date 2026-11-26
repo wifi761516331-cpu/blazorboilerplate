@@ -10,8 +10,7 @@ namespace BlazorBoilerplate.Modules.Cms.Infrastructure.Seed;
 
 public sealed class CmsSeedService(
     CmsDbContext db,
-    CmsSiteAppService siteAppService,
-    ICmsAiDesignerService aiDesigner)
+    CmsSiteAppService siteAppService)
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -235,20 +234,16 @@ public sealed class CmsSeedService(
             await ResetSiteContentAsync(defaultSiteId, ct);
         }
 
-        var zhDraft = await aiDesigner.GenerateSiteAsync(new(
-            BrandName: "BlazorBoilerplate",
-            Industry: "企业级数字化平台",
-            StylePrompt: "现代、极简、高可信度的模块化数字底座官网",
-            PrimaryColor: "#0f6cbd",
-            Language: "zh-CN"), ct);
+        // 种子阶段必须离线、确定：默认官网也走内置手写模板，不能依赖网关/大模型。
+        // AI 生成仅在设计器里按需触发（即时生成草稿 → 人工微调 → 发布）。
+        var zhDraft = CmsSiteTemplateLibrary.BuildSiteDraft(
+            "default", "BlazorBoilerplate", "企业级数字化平台",
+            "现代、极简、高可信度的模块化数字底座官网", "#0f6cbd", isEn: false);
         await siteAppService.ApplyAiDraftAsync(defaultSiteId, zhDraft, "zh-CN", ct);
 
-        var enDraft = await aiDesigner.GenerateSiteAsync(new(
-            BrandName: "BlazorBoilerplate",
-            Industry: "Enterprise Digital Platform",
-            StylePrompt: "Modern, minimal, and trustworthy modular monolith platform",
-            PrimaryColor: "#0f6cbd",
-            Language: "en-US"), ct);
+        var enDraft = CmsSiteTemplateLibrary.BuildSiteDraft(
+            "default", "BlazorBoilerplate", "Enterprise Digital Platform",
+            "Modern, minimal, and trustworthy modular monolith platform", "#0f6cbd", isEn: true);
         await siteAppService.ApplyAiDraftAsync(defaultSiteId, enDraft, "en-US", ct);
         await siteAppService.PublishAsync(defaultSiteId, ct);
 

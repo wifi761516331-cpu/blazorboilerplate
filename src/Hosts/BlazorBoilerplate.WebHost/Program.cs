@@ -36,7 +36,9 @@ builder.Services.Configure<HttpClientFactoryOptions>(options =>
     options.HttpClientActions.Add(client =>
     {
         client.BaseAddress = new Uri(apiBaseUrl);
-        client.Timeout = TimeSpan.FromSeconds(30);
+        // 模块 API 可能是 AI 生成这类长请求（后端单次最多 600s × 最多 3 轮修复）。
+        // 认证专用客户端在 AddWebHostAuth 中仍单独保持 30s。
+        client.Timeout = TimeSpan.FromMinutes(35);
     });
 });
 

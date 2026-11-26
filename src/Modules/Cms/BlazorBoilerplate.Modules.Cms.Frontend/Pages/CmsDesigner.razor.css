@@ -603,6 +603,45 @@
     gap: 0.5rem;
 }
 
+/* AI 生成进度：状态始终可见，原始输出折叠避免刷屏 */
+.cms-ai-progress {
+    border: 1px solid rgba(100,116,139,0.25);
+    border-radius: 8px;
+    background: rgba(148,163,184,0.06);
+    padding: 0.6rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.cms-ai-progress-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+}
+
+.cms-ai-progress-status .muted { margin-left: auto; font-size: 0.75rem; }
+
+.cms-ai-spinner {
+    width: 0.85rem;
+    height: 0.85rem;
+    border: 2px solid rgba(15,108,189,0.25);
+    border-top-color: #0f6cbd;
+    border-radius: 50%;
+    animation: cms-ai-spin 0.9s linear infinite;
+    flex: 0 0 auto;
+}
+
+@keyframes cms-ai-spin { to { transform: rotate(360deg); } }
+
+.cms-ai-raw summary {
+    cursor: pointer;
+    font-size: 0.75rem;
+    opacity: 0.75;
+    padding: 0.15rem 0;
+}
+
 /* ============ 分阶段：布局设计编辑器 ============ */
 .cms-layout-editor { padding: 0.6rem; overflow-y: auto; height: 100%; }
 .cms-layout-presets { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }

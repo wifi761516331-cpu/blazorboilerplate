@@ -63,6 +63,7 @@
                     <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick="UndoAsync" IsEnabled="@(_undoStack.Count > 0 && !_busy)">↩ 撤销 (@_undoStack.Count)</BitButton>
                     <PermissionGate Code="cms.ai.generate">
                         <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick="OpenAiModal">@L["cms.designer.aiBtn"]</BitButton>
+                        <BitButton Size="BitSize.Small" Variant="BitVariant.Outline" OnClick="OpenAiTweakModal" IsEnabled="@(!_busy)">@L["cms.designer.aiTweak.btn"]</BitButton>
                     </PermissionGate>
                 }
                 <BitButton Size="BitSize.Small"
@@ -557,11 +558,67 @@
             <BitTextField @bind-Value="_aiIndustry" Label="@L["cms.designer.aiModal.industry"]" />
             <BitTextField @bind-Value="_aiPrompt" Label="@L["cms.designer.aiModal.prompt"]" Multiline="true" Rows="3" />
             <BitTextField @bind-Value="_aiColor" Label="@L["cms.designer.aiModal.color"]" Placeholder="#0f6cbd" />
+            <BitDropdown Label="@L["cms.designer.aiModal.model"]" Items="@_aiModelDropdownItems" @bind-Value="_aiModel" />
         </div>
+        @if (_aiBusy || !string.IsNullOrWhiteSpace(_aiStreamText))
+        {
+            <div class="cms-ai-progress">
+                <div class="cms-ai-progress-status">
+                    <span class="cms-ai-spinner"></span>
+                    <span>@_aiStatusText</span>
+                    @if (_aiBusy)
+                    {
+                        <span class="muted">@string.Format(L["cms.designer.aiModal.elapsed"], _aiElapsedSeconds)</span>
+                    }
+                </div>
+                @if (!string.IsNullOrWhiteSpace(_aiStreamText))
+                {
+                    <details class="cms-ai-raw">
+                        <summary>@L["cms.designer.aiModal.rawOutput"]</summary>
+                        <pre style="max-height:180px;overflow:auto;white-space:pre-wrap;word-break:break-all;background:#f5f7fa;padding:8px;border-radius:6px;font-size:12px;">@_aiStreamText</pre>
+                    </details>
+                }
+            </div>
+        }
         <div class="cms-modal-foot">
             <BitButton Variant="BitVariant.Text" OnClick="() => _aiOpen = false">@L["cms.action.cancel"]</BitButton>
             <BitButton Variant="BitVariant.Fill" OnClick="RunAiGenerateAsync" IsEnabled="@(!_aiBusy)">
                 @(_aiBusy ? L["cms.designer.aiModal.generating"] : L["cms.designer.aiModal.submit"])
+            </BitButton>
+        </div>
+    </div>
+</BitModal>
+
+<!-- 生成后 AI 微调：改写选中组件 / 追加新区块 -->
+<BitModal IsOpen="@_aiTweakOpen" IsOpenChanged="v => _aiTweakOpen = v">
+    <div class="cms-modal-box">
+        <h3>@L["cms.designer.aiTweak.title"]</h3>
+        <p class="muted">@L["cms.designer.aiTweak.desc"]</p>
+        <div class="cms-form-stack">
+            <div style="display:flex;gap:8px;">
+                <BitButton Size="BitSize.Small"
+                           Variant="@(_aiTweakMode == "widget" ? BitVariant.Fill : BitVariant.Outline)"
+                           OnClick="SelectWidgetTweakMode">@L["cms.designer.aiTweak.modeWidget"]</BitButton>
+                <BitButton Size="BitSize.Small"
+                           Variant="@(_aiTweakMode == "section" ? BitVariant.Fill : BitVariant.Outline)"
+                           OnClick="SelectSectionTweakMode">@L["cms.designer.aiTweak.modeSection"]</BitButton>
+            </div>
+            @if (_aiTweakMode == "widget" && _selectedWidget is null)
+            {
+                <p class="muted" style="color:#b26a00;">请先在画布中选中一个组件。</p>
+            }
+            <BitTextField @bind-Value="_aiTweakInstruction"
+                          Label="@L["cms.designer.aiTweak.instruction"]"
+                          Multiline="true"
+                          Rows="4"
+                          Placeholder="@(_aiTweakMode == "widget" ? L["cms.designer.aiTweak.instructionWidgetPlaceholder"] : L["cms.designer.aiTweak.instructionSectionPlaceholder"])" />
+        </div>
+        <div class="cms-modal-foot">
+            <BitButton Variant="BitVariant.Text" OnClick="() => _aiTweakOpen = false">@L["cms.action.cancel"]</BitButton>
+            <BitButton Variant="BitVariant.Fill"
+                       OnClick="RunAiTweakAsync"
+                       IsEnabled="@(!_aiTweakBusy && !string.IsNullOrWhiteSpace(_aiTweakInstruction))">
+                @(_aiTweakBusy ? L["cms.designer.aiTweak.busy"] : L["cms.designer.aiTweak.submit"])
             </BitButton>
         </div>
     </div>

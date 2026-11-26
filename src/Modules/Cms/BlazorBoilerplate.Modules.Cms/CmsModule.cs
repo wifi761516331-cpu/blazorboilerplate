@@ -7,6 +7,7 @@ using BlazorBoilerplate.Modules.Cms.Infrastructure.Persistence;
 using BlazorBoilerplate.Modules.Cms.Infrastructure.Repositories;
 using BlazorBoilerplate.Modules.Cms.Infrastructure.Seed;
 using BlazorBoilerplate.Persistence;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -40,8 +41,22 @@ public sealed class CmsModule : IModule
         services.AddScoped<CmsCacheInvalidationEventHandler>();
         services.AddScoped<CmsLeadSubmittedEventHandler>();
 
-        // 预留 AI 官网设计器服务：允许宿主或外部插件优先注册自定义 LLM Provider 实现
-        services.TryAddScoped<ICmsAiDesignerService, DefaultCmsAiDesignerService>();
+        // AI 官网设计器：配置来自 CMS 模块自有的 data/cms/ai.json（data/ 已 gitignore，不入库）。
+        // 未配置则回退 Schema 占位器。TryAdd 保留宿主/插件覆盖的扩展点。
+        var env = context.HostServices.GetService(typeof(IWebHostEnvironment)) as IWebHostEnvironment;
+        var aiOptions = CmsAiOptions.LoadFromFile(
+            CmsAiOptions.DefaultPath(env?.ContentRootPath ?? AppContext.BaseDirectory));
+        services.AddSingleton(aiOptions);
+
+        if (aiOptions.Enabled)
+        {
+            services.AddSingleton<ICmsAiChatClient, MeaiCmsAiChatClient>();
+            services.TryAddScoped<ICmsAiDesignerService, LlmCmsAiDesignerService>();
+        }
+        else
+        {
+            services.TryAddScoped<ICmsAiDesignerService, DefaultCmsAiDesignerService>();
+        }
     }
 
     public void MapEndpoints(IModuleEndpointBuilder builder, IServiceProvider moduleServices)

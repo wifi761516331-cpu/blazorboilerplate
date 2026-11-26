@@ -7,7 +7,16 @@
     <RootNamespace>BlazorBoilerplate.Modules.Cms.Application</RootNamespace>
     <AssemblyName>BlazorBoilerplate.Modules.Cms.Application</AssemblyName>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 模块私有依赖：随模块包分发，不进入宿主默认 ALC。 -->
+    <PackageReference Include="Microsoft.Extensions.AI" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
+    <PackageReference Include="OpenAI" />
+    <PackageReference Include="System.ClientModel" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\BlazorBoilerplate.Modules.Cms.Domain\BlazorBoilerplate.Modules.Cms.Domain.csproj" />

@@ -90,6 +90,8 @@ public static class CmsSiteTemplateLibrary
     /// </summary>
     private static readonly Dictionary<string, string[]> Animations = new(StringComparer.OrdinalIgnoreCase)
     {
+        // 默认官网复用 SaaS 企业模板骨架与动画节奏，但保留调用方传入的主色。
+        ["default"] = ["zoom-in", "slide-left", "scale-up", "flip", "fade-up", "slide-right", "blur-in", "bounce", "slide-down", "slide-up-big", "fade-in"],
         ["restaurant"] = ["fade-up", "zoom-in", "slide-right", "bounce", "blur-in", "slide-left", "flip", "scale-up", "slide-down", "slide-up-big", "fade-in"],
         ["saas"]       = ["zoom-in", "slide-left", "scale-up", "flip", "fade-up", "slide-right", "blur-in", "bounce", "slide-down", "slide-up-big", "fade-in"],
         ["education"]  = ["fade-up", "zoom-in", "flip", "slide-down", "bounce", "slide-right", "scale-up", "blur-in", "slide-up-big", "slide-left", "fade-in"],
@@ -272,6 +274,7 @@ public static class CmsSiteTemplateLibrary
     private static List<CmsAiSectionDraft>? Build(string template, string brand, string industry, string? stylePrompt, bool isEn) =>
         (template ?? string.Empty).Trim().ToLowerInvariant() switch
         {
+            "default"    => isEn ? SaasEn(brand, industry, stylePrompt)       : SaasZh(brand, industry, stylePrompt),
             "restaurant" => isEn ? RestaurantEn(brand, industry, stylePrompt) : RestaurantZh(brand, industry, stylePrompt),
             "saas"       => isEn ? SaasEn(brand, industry, stylePrompt)       : SaasZh(brand, industry, stylePrompt),
             "education"  => isEn ? EducationEn(brand, industry, stylePrompt)  : EducationZh(brand, industry, stylePrompt),

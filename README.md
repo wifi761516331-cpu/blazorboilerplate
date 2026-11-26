@@ -39,12 +39,37 @@ ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/Hosts/BlazorBoilerpl
   "ConnectionStrings": {
     "smtp": "Endpoint=smtp://<host>:587;UserName=<user>;Password=<secret>;EnableSsl=true"
   },
-  "Email": { "DefaultFromEmail": "<user>@example.com" },
-  "CmsAi": { "ApiKey": "<llm-api-key>" }
+  "Email": { "DefaultFromEmail": "<user>@example.com" }
 }
 ```
 
 `*.local.json`、`.env`、`data/` 均已在 `.gitignore` 中，不会被提交。生产环境请用环境变量或密钥管理服务注入同名配置项。
+
+### CMS AI 官网生成（即时生成）
+
+CMS 模块自读 `src/Hosts/BlazorBoilerplate.ApiHost/data/cms/ai.json`（`data/` 已 gitignore，配置归模块、密钥不入库）：
+
+```json
+{
+  "BaseUrl": "http://127.0.0.1:31415/v1",
+  "ApiKey": "<llm-api-key>",
+  "GenerateModel": "auto",
+  "FallbackModels": [],
+  "TimeoutSeconds": 600,
+  "MaxRepairRounds": 3,
+  "MaxOutputTokens": 131072,
+  "UseJsonMode": false
+}
+```
+
+- 在 `/cms/designer/{SiteId}` 打开 AI 弹窗 → 下拉选择网关全部模型（默认 `auto`）→ **默认分块生成**：先出站点骨架（plan），再逐区块生成并即时落库（section + refreshed），画布一块块长出来；单块失败重试 2 次后用内置模板兜底，不阻塞其他区块。无任务队列、无 job 表。
+- 另有一次性整站流式端点 `/api/cms/ai/generate-site/stream`（一次大调用，适合追求跨区块一致性、不在意逐块可见的场景）。
+- 模型列表来自后端 `GET /api/cms/ai/models`（`cms.ai.generate` 权限），前端不接触 API Key；用户在下拉中选择的模型只作用于本次生成。
+- 基于 `Microsoft.Extensions.AI`（`IChatClient` + `ChatClientBuilder`）调用 OpenAI 兼容网关；免费网关常见不支持 `response_format`，`UseJsonMode` 默认 `false`，靠 prompt + JSON 提取兼容。
+- `BaseUrl` / `ApiKey` / `GenerateModel` 任一为空时回退占位设计器，不影响模块加载。默认模型为 `auto`，`FallbackModels` 留空。
+- 模块加载/数据库种子阶段**不调用大模型**：默认官网与全部行业示例站都由内置手写模板生成，AI 只在设计器里按需触发，避免启动依赖外部网关。
+- 不稳定网关场景：后端单次请求超时 600 秒、最多 3 轮自修复、`MaxOutputTokens=131072`（128K，避免整站 JSON 被 8192 硬上限截断）；WebHost BFF 与 WASM `HttpClient` 放宽到 35 分钟，`/auth/*` 认证客户端仍保持 30 秒。
+- 流式输出：设计器调用 `POST /api/cms/ai/generate-site/stream`（SSE），事件为 `delta`（模型原文片段）、`status`（轮次/校验状态）、`done`（携带完整草稿 JSON）、`error`；前端用 `ResponseHeadersRead` 逐帧读取，BFF 手动 `WriteAsync + FlushAsync` 逐块透传（均不能用默认缓冲读取，否则前端只会看到一次性结果）。弹窗显示阶段状态 + 已等待秒数，模型原文折叠在「查看模型原始输出」中；不少网关并非逐 token 流式，而是生成完一次性吐出，此时状态行与计时器仍能让进度可见。网关不支持流式时自动退化为一次性输出，不影响功能。
 
 ## 首次运行链路（已实测）
 
@@ -90,8 +115,9 @@ ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/Hosts/BlazorBoilerpl
 - 新增模块只需打包到 `modules/installed/<id>/<version>/`，无需改动其它模块。
 - 运行时 API：`GET /api/modules/load-order`、`GET /api/modules/load-graph`、`POST /api/modules/load-all`、`POST /api/modules/{id}/load|unload`。
 - **动态卸载 = 停用并回收 ALC**，状态回到 `Installed`，可再次 `load`；`Uninstalled` 仅表示包已从目录移除。
-- 前端有两套独立 ALC：WebHost 侧按 `/api/modules` 的 Running 状态加载前端程序集（SSR 用 catch-all 页面动态解析组件，interactive 由 Router 绑定动态程序集集合）；WASM 侧按版本化 URL 下载程序集并在导航时裁决渲染模式。
+- 前端有两套独立 ALC：WebHost 侧按 `/api/modules` 的 Running 状态加载前端程序集（SSR 用 catch-all 页面动态解析组件，interactive 由 Router 绑定动态程序集集合）；WASM 侧按版本化 URL 下载程序集并在导航时裁决渲染模式。WebHost 侧 `ModuleAssemblyCatalog.ModuleLoadContext` 对包内分发的 `Web.Shared` / `Application` / `Domain` / `ModuleAbstractions` 强制回落默认 ALC，否则 `[Inject] BlazorBoilerplateApiClient` 会因类型身份分裂而报"There is no registered service of type ..."。
 - 模块私有 DI 以 `ValidateOnBuild=true / ValidateScopes=true` 构建，注册缺依赖会在加载期直接失败并标记 `Failed`，不影响其它模块。
+- ALC 解析顺序见 `LoadContext/ModuleLoadContext.cs`：① 显式共享白名单（平台契约、EF Provider、Bit UI 等必须类型同一的程序集）回落宿主默认 ALC；② 宿主/共享框架已有、且版本不低于模块显式引用版本的程序集（如 `IServiceCollection`、`DbContext` 所在程序集）也回落默认 ALC，避免类型身份分裂导致 `TypeLoadException`；③ 其余模块私有 DLL 在模块 ALC 内加载（先查 deps.json，再按 backend/ 同目录简单名兜底；任意命名空间，含 `Microsoft.Extensions.AI` / `OpenAI`；模块版本更高时保持私有，如 `System.ClientModel` 1.15 vs 宿主 1.8）；④ 包里没有的框架程序集回落默认 ALC。新增模块只需把 NuGet 依赖随包分发，宿主 csproj 无需逐模块添加引用。
 
 ### 无外键约定（参考 Nova）
 

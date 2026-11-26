@@ -123,10 +123,21 @@ public partial class CmsDesigner : IAsyncDisposable
 
     private bool _aiOpen;
     private bool _aiBusy;
+    private string _aiStatusText = string.Empty;
+    private string _aiStreamText = string.Empty;
+    private long _aiElapsedSeconds;
     private string _aiBrand = string.Empty;
     private string _aiIndustry = string.Empty;
     private string _aiPrompt = string.Empty;
     private string _aiColor = "#0f6cbd";
+    private string _aiModel = "auto";
+    private List<BitDropdownItem<string>> _aiModelDropdownItems = [];
+
+    // 生成后的 AI 微调（局部改写组件 / 追加区块）
+    private bool _aiTweakOpen;
+    private bool _aiTweakBusy;
+    private string _aiTweakMode = "widget";
+    private string _aiTweakInstruction = string.Empty;
 
     private bool _mediaOpen;
     private bool _hasUnsavedWidgetChanges;
@@ -955,10 +966,31 @@ public partial class CmsDesigner : IAsyncDisposable
         }
     }
 
-    private void OpenAiModal()
+    private async Task OpenAiModal()
     {
         _aiBrand = _design?.Site.Name ?? string.Empty;
+        _aiModel = "auto";
         _aiOpen = true;
+        try
+        {
+            var models = await CmsApi.AiModelsAsync();
+            var defaultModel = models.DefaultModel ?? "auto";
+            _aiModelDropdownItems = models.Models
+                .Select(m => new BitDropdownItem<string>
+                {
+                    Text = m.Equals(defaultModel, StringComparison.OrdinalIgnoreCase) ? $"{m}（默认）" : m,
+                    Value = m
+                })
+                .ToList();
+            if (_aiModelDropdownItems.All(i => !string.Equals(i.Value, defaultModel, StringComparison.OrdinalIgnoreCase)))
+                _aiModelDropdownItems.Insert(0, new BitDropdownItem<string> { Text = $"{defaultModel}（默认）", Value = defaultModel });
+            _aiModel = defaultModel;
+        }
+        catch (Exception ex)
+        {
+            _aiModelDropdownItems = [new BitDropdownItem<string> { Text = "auto（默认）", Value = "auto" }];
+            Toast.Warning($"模型列表加载失败，已使用默认 auto：{ex.Message}");
+        }
     }
 
     private async Task RunAiGenerateAsync()
@@ -968,15 +1000,66 @@ public partial class CmsDesigner : IAsyncDisposable
             Toast.Warning("请填写品牌名称。");
             return;
         }
+        var siteId = _design.Site.Id;
         _aiBusy = true;
+        _aiStreamText = string.Empty;
+        _aiStatusText = L["cms.designer.aiModal.statusConnecting"];
+        _aiElapsedSeconds = 0;
+
+        // 部分网关不是逐 token 流式，而是生成完才一次性吐出所有 chunk。
+        // 用心跳计时让用户看到「已等待 N 秒」，避免误以为卡死。
+        using var tickCts = new CancellationTokenSource();
+        var ticker = Task.Run(async () =>
+        {
+            try
+            {
+                using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+                while (await timer.WaitForNextTickAsync(tickCts.Token))
+                {
+                    _aiElapsedSeconds++;
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            catch (OperationCanceledException) { }
+        });
+
         try
         {
-            var draft = await CmsApi.AiGenerateSiteAsync(new(_aiBrand, _aiIndustry, _aiPrompt, _aiColor, _activeCulture ?? "zh-CN"));
-            _design = await CmsApi.AiApplySiteAsync(_design.Site.Id, draft, _activeCulture);
+            await CmsApi.AiGenerateSiteChunkedAsync(
+                new(siteId, _aiBrand, _aiIndustry, _aiPrompt, _aiColor, _activeCulture ?? "zh-CN", _aiModel),
+                async evt =>
+                {
+                    switch (evt.Kind)
+                    {
+                        case "delta":
+                            // 逐段原文只累积不渲染，避免几十段把 UI 刷爆。
+                            _aiStreamText += evt.Text;
+                            return;
+                        case "status":
+                            _aiStatusText = evt.Text;
+                            break;
+                        case "plan":
+                            _aiStatusText = evt.Text;
+                            break;
+                        case "section":
+                            _aiStatusText = evt.Text;
+                            break;
+                        case "refreshed":
+                            // 每块落库后服务端带回最新设计，直接替换画布，实现逐块出现。
+                            _design = JsonSerializer.Deserialize<CmsSiteDesignDto>(evt.DraftJson ?? string.Empty, CmsJson.Options);
+                            _aiStatusText = evt.Text;
+                            break;
+                        case "error":
+                            throw new InvalidOperationException(evt.Text);
+                        case "done":
+                            _aiStatusText = evt.Text;
+                            break;
+                    }
+                    await InvokeAsync(StateHasChanged);
+                });
             _aiOpen = false;
             _selectedWidget = null;
-            await LoadDesignAsync();
-            Toast.Success("AI 已生成官网草稿，可在画布中继续拖拽微调！");
+            Toast.Success("AI 已分块生成官网，可在画布中继续拖拽微调！");
         }
         catch (Exception ex)
         {
@@ -984,7 +1067,71 @@ public partial class CmsDesigner : IAsyncDisposable
         }
         finally
         {
+            tickCts.Cancel();
+            try { await ticker; } catch (OperationCanceledException) { }
             _aiBusy = false;
+        }
+    }
+
+    private void OpenAiTweakModal()
+    {
+        _aiTweakMode = _selectedWidget is null ? "section" : "widget";
+        _aiTweakInstruction = string.Empty;
+        _aiTweakOpen = true;
+    }
+
+    private void SelectWidgetTweakMode() => _aiTweakMode = "widget";
+
+    private void SelectSectionTweakMode() => _aiTweakMode = "section";
+
+    /// <summary>生成完成后继续用 AI 调整：改写选中微件 props，或生成一个新区块并落库。</summary>
+    private async Task RunAiTweakAsync()
+    {
+        if (_design is null || string.IsNullOrWhiteSpace(_aiTweakInstruction)) return;
+        if (_aiTweakMode == "widget" && _selectedWidget is null)
+        {
+            Toast.Warning("请先在画布中选中一个组件。");
+            return;
+        }
+
+        _aiTweakBusy = true;
+        try
+        {
+            if (_aiTweakMode == "widget")
+            {
+                var w = _selectedWidget!;
+                var draft = await CmsApi.AiRefineWidgetAsync(
+                    new(w.Id, w.WidgetType, w.PropsJson, _aiTweakInstruction, _activeCulture ?? "zh-CN"));
+                var updated = await CmsApi.UpdateWidgetAsync(w.Id, new UpsertCmsWidgetRequest(
+                    w.SiteId, w.SectionId, w.ZoneId, w.WidgetType, w.Title, draft.PropsJson,
+                    string.IsNullOrWhiteSpace(draft.StyleJson) ? (w.StyleJson ?? string.Empty) : draft.StyleJson,
+                    w.SortOrder, w.Culture));
+
+                var index = _design.Widgets.FindIndex(x => x.Id == updated.Id);
+                if (index >= 0) _design.Widgets[index] = updated;
+                _selectedWidget = updated;
+                _editWidgetPropsJson = FormatReadableJson(updated.PropsJson);
+                Toast.Success("AI 已改写组件。");
+            }
+            else
+            {
+                var draft = await CmsApi.AiGenerateSectionAsync(
+                    new(SiteId, _aiTweakInstruction, null, _activeCulture ?? "zh-CN"));
+                var design = await CmsApi.AiAppendSectionAsync(SiteId, draft, _activeCulture);
+                _design = design;
+                _activeSectionId = design.Sections.LastOrDefault()?.Id;
+                _selectedWidget = null;
+                Toast.Success("AI 已追加新区块。");
+            }
+            _aiTweakOpen = false;
+        }
+        catch (Exception ex)
+        {
+            Toast.Error($"AI 调整失败：{ex.Message}");
+        }
+        finally
+        {
+            _aiTweakBusy = false;
         }
     }
 

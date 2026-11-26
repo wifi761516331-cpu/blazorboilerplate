@@ -16,7 +16,7 @@
         {
             <div class="cms-feature-card">
                 <div class="cms-feature-icon">
-                    <AppIcon Name="@(string.IsNullOrWhiteSpace(item.Icon) ? "Sparkle" : item.Icon)" />
+                    <AppIcon Name="@ResolveIcon(item.Icon)" />
                 </div>
                 <h3>@item.Title</h3>
                 <p>@item.Description</p>

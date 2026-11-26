@@ -567,12 +567,22 @@ public sealed class ModuleAssemblyCatalog
 
     /// <summary>
     /// 模块插件 ALC（官方 creating-app-with-plugin-support 模式）：
-    /// isCollectible 支持卸载；AssemblyDependencyResolver 按包内 deps.json 把模块<b>私有</b>依赖
-    /// 解析到包目录，共享依赖返回 null 落回默认 ALC（与宿主共用同一类型实例，避免类型身份分裂）。
+    /// isCollectible 支持卸载；宿主共享程序集回落默认 ALC，模块私有依赖从包目录解析。
     /// </summary>
     private sealed class ModuleLoadContext : AssemblyLoadContext
     {
         private readonly AssemblyDependencyResolver _resolver;
+
+        // 前端包会随包分发这些项目的 DLL，但它们的类型身份必须与 WebHost DI 注册一致。
+        // 否则 [Inject] BlazorBoilerplateApiClient 在模块组件里解析成模块 ALC 的类型，
+        // 而注册的是默认 ALC 的类型，SSR 注入时报 "There is no registered service of type ..."。
+        private static readonly HashSet<string> SharedAssemblies = new(StringComparer.Ordinal)
+        {
+            "BlazorBoilerplate.Web.Shared",
+            "BlazorBoilerplate.Application",
+            "BlazorBoilerplate.Domain",
+            "BlazorBoilerplate.ModuleAbstractions"
+        };
 
         public ModuleLoadContext(string dllPath)
             : base($"Module:{Path.GetFileNameWithoutExtension(dllPath)}-{Guid.NewGuid():N}", isCollectible: true)
@@ -582,6 +592,10 @@ public sealed class ModuleAssemblyCatalog
 
         protected override Assembly? Load(AssemblyName assemblyName)
         {
+            var name = assemblyName.Name;
+            if (!string.IsNullOrEmpty(name) && SharedAssemblies.Contains(name))
+                return Assembly.Load(new AssemblyName(name));
+
             var path = _resolver.ResolveAssemblyToPath(assemblyName);
             if (path is not null) return LoadFromAssemblyPath(path);
 

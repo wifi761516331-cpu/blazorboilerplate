@@ -28,7 +28,9 @@ public static class BffProxyEndpoints
         IHttpClientFactory httpFactory,
         IAuthSession authSession)
     {
-        var client = httpFactory.CreateClient(WebAuth.RefreshClient);
+        // 用默认（同源 API 代理）客户端：BaseAddress 与长超时由 Program.cs 的全局 HttpClientActions 配置。
+        // 不能复用 RefreshClient：那是 30s 短的认证客户端，AI 生成等长请求会被它掐断。
+        var client = httpFactory.CreateClient();
         if (context.WebSockets.IsWebSocketRequest)
         {
             await ProxyWebSocketAsync(context, client.BaseAddress!, authSession);
@@ -92,7 +94,16 @@ public static class BffProxyEndpoints
                 context.Response.Headers[header.Key] = header.Value.ToArray();
         }
 
-        await response.Content.CopyToAsync(context.Response.Body, context.RequestAborted);
+        // 不能用 CopyToAsync：它不保证每个上游 chunk 都立刻 flush 到浏览器，
+        // SSE 会被 Kestrel/管道攒批，前端仍表现为“生成完才一次性出现”。
+        await using var upstream = await response.Content.ReadAsStreamAsync(context.RequestAborted);
+        var buffer = new byte[16 * 1024];
+        int read;
+        while ((read = await upstream.ReadAsync(buffer, context.RequestAborted)) > 0)
+        {
+            await context.Response.Body.WriteAsync(buffer.AsMemory(0, read), context.RequestAborted);
+            await context.Response.Body.FlushAsync(context.RequestAborted);
+        }
     }
 
     private static async Task ProxyWebSocketAsync(
